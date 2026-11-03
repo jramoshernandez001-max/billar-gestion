@@ -88,3 +88,45 @@ describe('anularVenta', () => {
     await expect(crearRepositorioVentas(clienteFalso({ error: 'La venta ya está anulada' }).cliente).anularVenta(ID, 'x')).rejects.toThrow('ya está anulada')
   })
 })
+
+describe('listarVentas', () => {
+  const productoFila = { id: ID2, unidades_por_caja: 24, maneja_sixpack: true, precio_unidad: 3000, precio_caja: 60000 }
+  const ventaFila = { id: ID, fecha: '2026-11-03', estado: 'vigente' }
+  const itemFila = { venta_id: ID, producto_id: ID2, presentacion: 'caja', cantidad: 1, precio_cobrado: 55000 }
+
+  it('arma cada venta con sus renglones, el producto y el precio cobrado', async () => {
+    const { cliente } = clienteFalso({}, {
+      ventas: [ventaFila, { id: 'v2', fecha: '2026-11-03', estado: 'anulada' }],
+      venta_items: [itemFila],
+      productos: [productoFila],
+    })
+    const ventas = await crearRepositorioVentas(cliente).listarVentas()
+    expect(ventas).toEqual([
+      {
+        id: ID,
+        fecha: '2026-11-03',
+        estado: 'vigente',
+        renglones: [{
+          productoId: ID2,
+          producto: { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
+          presentacion: 'caja',
+          cantidad: 1,
+          precioCobrado: 55000,
+        }],
+      },
+      { id: 'v2', fecha: '2026-11-03', estado: 'anulada', renglones: [] },
+    ])
+  })
+
+  it('falla con filas mal formadas o un producto inexistente', async () => {
+    const base = { ventas: [ventaFila], venta_items: [itemFila], productos: [productoFila] }
+    for (const tablas of [
+      { ...base, ventas: [{ ...ventaFila, estado: 'x' }] },
+      { ...base, venta_items: [{ ...itemFila, cantidad: 'dos' }] },
+      { ...base, venta_items: [{ ...itemFila, producto_id: 'otro' }] },
+      { ...base, productos: [{ id: ID2 }] },
+    ]) {
+      await expect(crearRepositorioVentas(clienteFalso({}, tablas).cliente).listarVentas()).rejects.toThrow()
+    }
+  })
+})

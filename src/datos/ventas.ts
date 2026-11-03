@@ -11,9 +11,11 @@
  * y lo guarda en la venta para que cambios futuros no alteren el historial.
  */
 import type { Presentacion } from '../domain/inventario/conversiones'
+import type { Venta } from '../domain/ventas/venta'
 import { validarFecha, validarMonto } from '../domain/compartido/validaciones'
-import { llamarFuncion, type ClienteDatos } from './clienteDatos'
-import { exigirId, exigirIdRespuesta, exigirTexto, exigirUnoDe } from './entradas'
+import { leerFilas, llamarFuncion, type ClienteDatos } from './clienteDatos'
+import { esEntero, esObjeto, exigirId, exigirIdRespuesta, exigirTexto, exigirUnoDe } from './entradas'
+import { COLUMNAS_PRODUCTO, filaAProductoVendible } from './filasProducto'
 
 const PRESENTACIONES: readonly Presentacion[] = ['unidad', 'sixpack', 'caja']
 
@@ -38,6 +40,8 @@ export interface DatosVenta {
 export interface RepositorioVentas {
   registrarVenta(datos: DatosVenta): Promise<string>
   anularVenta(ventaId: string, motivo: string): Promise<void>
+  /** Ventas con sus renglones (vigentes y anuladas), como las usa el dominio. */
+  listarVentas(): Promise<Venta[]>
 }
 
 /**
@@ -62,6 +66,56 @@ function renglonAJson(renglon: RenglonVenta): Record<string, unknown> {
     json.precio_cobrado = renglon.precioCobrado
   }
   return json
+}
+
+/**
+ * Arma las ventas a partir de las filas de ventas, renglones y productos.
+ *
+ * Qué hace: devuelve cada venta con sus renglones y el producto vendido.
+ * Cómo lo hace: indexa los productos por id, agrupa los renglones por venta
+ * y copia el precio cobrado guardado en cada renglón.
+ * Por qué: el cierre usa el precio que se cobró entonces, no el de hoy.
+ */
+function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown[]): Venta[] {
+  const porProducto = new Map(productos.map((fila) => {
+    const p = filaAProductoVendible(fila)
+    return [p.id, p.producto] as const
+  }))
+  const porVenta = new Map<string, Venta['renglones'][number][]>()
+  for (const fila of renglones) {
+    if (
+      !esObjeto(fila) ||
+      typeof fila.venta_id !== 'string' ||
+      typeof fila.producto_id !== 'string' ||
+      !esEntero(fila.cantidad) ||
+      !esEntero(fila.precio_cobrado) ||
+      !PRESENTACIONES.includes(fila.presentacion as Presentacion)
+    ) {
+      throw new Error('Una fila de renglones de venta no tiene la forma esperada')
+    }
+    const producto = porProducto.get(fila.producto_id)
+    if (producto === undefined) throw new Error(`El producto ${fila.producto_id} de un renglón no existe`)
+    const lista = porVenta.get(fila.venta_id) ?? []
+    lista.push({
+      productoId: fila.producto_id,
+      producto,
+      presentacion: fila.presentacion as Presentacion,
+      cantidad: fila.cantidad,
+      precioCobrado: fila.precio_cobrado,
+    })
+    porVenta.set(fila.venta_id, lista)
+  }
+  return ventas.map((fila) => {
+    if (
+      !esObjeto(fila) ||
+      typeof fila.id !== 'string' ||
+      typeof fila.fecha !== 'string' ||
+      (fila.estado !== 'vigente' && fila.estado !== 'anulada')
+    ) {
+      throw new Error('Una fila de ventas no tiene la forma esperada')
+    }
+    return { id: fila.id, fecha: fila.fecha, estado: fila.estado, renglones: porVenta.get(fila.id) ?? [] }
+  })
 }
 
 /**
@@ -91,6 +145,15 @@ export function crearRepositorioVentas(cliente: ClienteDatos): RepositorioVentas
         p_venta_id: exigirId('La venta', ventaId),
         p_motivo: exigirTexto('El motivo', motivo),
       })
+    },
+
+    async listarVentas() {
+      const [ventas, renglones, productos] = await Promise.all([
+        leerFilas(cliente, 'ventas', 'id, fecha, estado'),
+        leerFilas(cliente, 'venta_items', 'venta_id, producto_id, presentacion, cantidad, precio_cobrado'),
+        leerFilas(cliente, 'productos', COLUMNAS_PRODUCTO),
+      ])
+      return armarVentas(ventas, renglones, productos)
     },
   }
 }
