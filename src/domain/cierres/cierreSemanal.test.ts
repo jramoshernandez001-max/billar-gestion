@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Compra } from '../inventario/compras'
 import type { RenglonVenta } from '../ventas/movimientosVenta'
+import type { Venta } from '../ventas/venta'
 import type { Deuda } from '../deudas/deudas'
 import { cerrarSemana, lineasReposicion, type DatosCierreSemanal } from './cierreSemanal'
 
@@ -47,11 +48,19 @@ const renglones: RenglonVenta[] = [
   { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'unidad', cantidad: 4 },
 ]
 
+/** Envuelve renglones en una venta de ejemplo; por defecto vigente. */
+const vigente = (renglonesVenta: RenglonVenta[], estado: Venta['estado'] = 'vigente'): Venta => ({
+  id: `venta-${estado}`,
+  fecha: '2026-03-12',
+  estado,
+  renglones: renglonesVenta,
+})
+
 /** Semana de ejemplo; por defecto el dinero alcanza justo. */
 const datos = (cambios: Partial<DatosCierreSemanal> = {}): DatosCierreSemanal => ({
   desde: '2026-03-09',
   hasta: '2026-03-15',
-  renglones,
+  ventas: [vigente(renglones)],
   efectivo: 43000,
   transferencias: 20000,
   deudas: [],
@@ -171,7 +180,7 @@ describe('cerrarSemana', () => {
       ...renglones,
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
-    const resultado = cerrarSemana(datos({ renglones: conC, efectivo: 49000 }))
+    const resultado = cerrarSemana(datos({ ventas: [vigente(conC)], efectivo: 49000 }))
     expect(resultado.completo).toBe(false)
     expect(resultado.productosSinCosto).toEqual(['cerveza-c'])
     // El costo es solo el de A y B; nunca se toma el de C como cero en silencio.
@@ -183,7 +192,7 @@ describe('cerrarSemana', () => {
       ...renglones,
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
-    const resultado = cerrarSemana(datos({ renglones: conC, efectivo: 49000 }))
+    const resultado = cerrarSemana(datos({ ventas: [vigente(conC)], efectivo: 49000 }))
     expect(resultado.ventasSinCosto).toBe(6000)
     // Esperada: ventas con costo (63.000) - costo (46.000).
     // Real: dinero (69.000) - ventas sin costo (6.000) - costo (46.000).
@@ -200,7 +209,7 @@ describe('cerrarSemana', () => {
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
     // Dinero 66.000 contra venta total 69.000: faltan 3.000.
-    const resultado = cerrarSemana(datos({ renglones: conC, efectivo: 46000 }))
+    const resultado = cerrarSemana(datos({ ventas: [vigente(conC)], efectivo: 46000 }))
     expect(resultado.cuadre).toEqual({
       dineroTotal: 66000,
       diferencia: -3000,
@@ -219,7 +228,7 @@ describe('cerrarSemana', () => {
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
     // Dinero 3.000; menos 6.000 de ventas sin costo queda -3.000 atribuible.
-    const resultado = cerrarSemana(datos({ renglones: conC, efectivo: 0, transferencias: 3000 }))
+    const resultado = cerrarSemana(datos({ ventas: [vigente(conC)], efectivo: 0, transferencias: 3000 }))
     expect(resultado.utilidad).toEqual({
       utilidadEsperada: 17000,
       utilidadReal: -49000,
@@ -234,7 +243,7 @@ describe('cerrarSemana', () => {
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
     const resultado = cerrarSemana(
-      datos({ renglones: conC, efectivo: 49000, costosManuales: { 'cerveza-c': 1800 } }),
+      datos({ ventas: [vigente(conC)], efectivo: 49000, costosManuales: { 'cerveza-c': 1800 } }),
     )
     expect(resultado.completo).toBe(true)
     expect(resultado.costoReposicion).toBe(46000 + 3600)
@@ -254,6 +263,14 @@ describe('cerrarSemana', () => {
     // A: 24 x 1.500 = 36.000; B: 5 x 2.000 = 10.000.
     expect(resultado.costoReposicion).toBe(46000)
     expect(resultado.comprasUsadas).toEqual(['inicial-a', 'inicial-b'])
+  })
+
+  it('suma solo las ventas vigentes, no las anuladas', () => {
+    const anulada = vigente([{ productoId: 'cerveza-b', producto: cervezaB, presentacion: 'caja', cantidad: 3 }], 'anulada')
+    const resultado = cerrarSemana(datos({ ventas: [vigente(renglones), anulada] }))
+    // La venta anulada no suma a lo vendido ni al costo de reposición.
+    expect(resultado.cuadre.diferencia).toBe(0)
+    expect(resultado.costoReposicion).toBe(46000)
   })
 
   it('rechaza una semana que no va de lunes a domingo', () => {

@@ -3,22 +3,24 @@
  *
  * Qué hace: junta lo vendido en el día, el efectivo, las transferencias y
  * las deudas del día, y devuelve si el cierre cuadra.
- * Cómo lo hace: función pura que compone piezas que ya existen: valorVenta
- * para lo vendido, totalDeudasPendientes con un periodo de un solo día para
- * las deudas, y cuadrarCierre para la comparación.
+ * Cómo lo hace: función pura que compone piezas que ya existen:
+ * renglonesVigentes y valorVenta para lo vendido (solo ventas vigentes),
+ * totalDeudasPendientes con un periodo de un solo día para las deudas, y
+ * cuadrarCierre para la comparación.
  * Por qué: la regla del cuadre y la de las deudas ya están probadas en sus
  * módulos; aquí solo se arma el día, sin repetirlas.
  */
 import { totalDeudasPendientes, type Abono, type Deuda } from '../deudas/deudas'
-import { valorVenta, type ItemVenta } from '../ventas/valorVenta'
+import { valorVenta } from '../ventas/valorVenta'
+import { renglonesVigentes, type Venta } from '../ventas/venta'
 import { cuadrarCierre, type ResultadoCuadre } from './cuadreCierre'
 
 /** Lo que se cuenta al cerrar un día. Dinero en pesos enteros. */
 export interface DatosCierreDiario {
   /** Día que se cierra, en formato AAAA-MM-DD. */
   fecha: string
-  /** Renglones de lo vendido en el día. */
-  items: readonly ItemVenta[]
+  /** Ventas del día; solo suman las vigentes. */
+  ventas: readonly Venta[]
   efectivo: number
   transferencias: number
   /** Deudas registradas; solo entran las nacidas ese día. */
@@ -31,7 +33,8 @@ export interface DatosCierreDiario {
  * Cierra un día.
  *
  * Qué hace: devuelve el resultado del cuadre del día.
- * Cómo lo hace: calcula el valor de lo vendido, suma lo que siguen debiendo
+ * Cómo lo hace: calcula el valor de lo vendido en las ventas vigentes (una
+ * venta anulada no suma), suma lo que siguen debiendo
  * las deudas nacidas ese día (periodo desde = hasta = fecha) y le pasa todo
  * a cuadrarCierre.
  * Por qué: el cierre diario es el mismo cálculo que el semanal con un
@@ -41,7 +44,7 @@ export interface DatosCierreDiario {
  */
 export function cerrarDia(datos: DatosCierreDiario): ResultadoCuadre {
   return cuadrarCierre({
-    valorVentas: valorVenta(datos.items),
+    valorVentas: valorVenta(renglonesVigentes(datos.ventas)),
     efectivo: datos.efectivo,
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.fecha, datos.fecha),
