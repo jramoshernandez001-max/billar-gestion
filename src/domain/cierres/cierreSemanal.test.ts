@@ -21,6 +21,7 @@ const cervezaB = { unidadesPorCaja: 10, manejaSixpack: false, precioUnidad: 3000
 
 /** Crea una compra de ejemplo de una caja. */
 const compra = (productoId: string, fecha: string, costoTotal: number): Compra => ({
+  id: `${productoId}-${fecha}`,
   productoId,
   producto: productoId === 'cerveza-a' ? cervezaA : cervezaB,
   presentacion: 'caja',

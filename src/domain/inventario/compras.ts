@@ -17,6 +17,8 @@ import type { Movimiento } from './stock'
 
 /** Una compra registrada: qué se compró, cuánto, cuándo y cuánto se pagó. */
 export interface Compra {
+  /** Identificador de la compra; sirve para corregirla o anularla después. */
+  id: string
   productoId: string
   /** Datos del producto necesarios para pasar la cantidad a unidades. */
   producto: ProductoConversion

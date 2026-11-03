@@ -22,6 +22,7 @@
  */
 export const ACCIONES_BITACORA = [
   'registrar-compra',
+  'corregir-costo-compra',
   'registrar-traslado',
   'registrar-venta',
   'registrar-cierre-diario',
