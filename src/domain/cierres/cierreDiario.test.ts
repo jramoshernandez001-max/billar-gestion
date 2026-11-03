@@ -10,7 +10,8 @@
  * siga debiendo) para no inflar ni esconder un faltante.
  */
 import { describe, it, expect } from 'vitest'
-import type { ItemVenta } from '../ventas/valorVenta'
+import type { RenglonVenta } from '../ventas/movimientosVenta'
+import type { Venta } from '../ventas/venta'
 import type { Abono, Deuda } from '../deudas/deudas'
 import { cerrarDia, type DatosCierreDiario } from './cierreDiario'
 
@@ -18,15 +19,23 @@ import { cerrarDia, type DatosCierreDiario } from './cierreDiario'
 const cervezaA = { unidadesPorCaja: 20, manejaSixpack: true, precioUnidad: 2000, precioCaja: 38000 }
 
 // Venta del día: 1 caja (38.000) + 6 unidades (12.000) = 50.000.
-const items: ItemVenta[] = [
-  { producto: cervezaA, presentacion: 'caja', cantidad: 1 },
-  { producto: cervezaA, presentacion: 'unidad', cantidad: 6 },
+const renglones: RenglonVenta[] = [
+  { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'caja', cantidad: 1 },
+  { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'unidad', cantidad: 6 },
 ]
+
+/** Crea una venta del día de ejemplo; por defecto vigente. */
+const venta = (renglonesVenta: RenglonVenta[], estado: Venta['estado'] = 'vigente'): Venta => ({
+  id: 'v1',
+  fecha: '2026-03-07',
+  estado,
+  renglones: renglonesVenta,
+})
 
 /** Datos del día de ejemplo; por defecto el dinero alcanza justo. */
 const datos = (cambios: Partial<DatosCierreDiario> = {}): DatosCierreDiario => ({
   fecha: '2026-03-07',
-  items,
+  ventas: [venta(renglones)],
   efectivo: 30000,
   transferencias: 20000,
   deudas: [],
@@ -69,12 +78,19 @@ describe('cerrarDia', () => {
     expect(cerrarDia(datos({ deudas, abonos })).dineroTotal).toBe(50000)
   })
 
+  it('suma solo las ventas vigentes, no las anuladas', () => {
+    const anulada = { ...venta([{ productoId: 'cerveza-a', producto: cervezaA, presentacion: 'caja', cantidad: 2 }], 'anulada'), id: 'v2' }
+    // La venta anulada (76.000) no suma: lo vendido sigue siendo 50.000.
+    expect(cerrarDia(datos({ ventas: [venta(renglones), anulada] })).cuadra).toBe(true)
+    expect(cerrarDia(datos({ ventas: [venta(renglones), anulada] })).diferencia).toBe(0)
+  })
+
   it('respeta el precio cobrado en la venta', () => {
     // Caja cobrada a 35.000 en vez de 38.000: lo vendido es 35.000.
-    const conDescuento: ItemVenta[] = [
-      { producto: cervezaA, presentacion: 'caja', cantidad: 1, precioCobrado: 35000 },
+    const conDescuento: RenglonVenta[] = [
+      { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'caja', cantidad: 1, precioCobrado: 35000 },
     ]
-    const resultado = cerrarDia(datos({ items: conDescuento, efectivo: 35000, transferencias: 0 }))
+    const resultado = cerrarDia(datos({ ventas: [venta(conDescuento)], efectivo: 35000, transferencias: 0 }))
     expect(resultado.cuadra).toBe(true)
     expect(resultado.diferencia).toBe(0)
   })

@@ -18,6 +18,7 @@ import { compraAUltimaCompra, ultimaCompraDe, type Compra } from '../inventario/
 import { aUnidades } from '../inventario/conversiones'
 import type { RenglonVenta } from '../ventas/movimientosVenta'
 import { valorItem, valorVenta } from '../ventas/valorVenta'
+import { renglonesVigentes, type Venta } from '../ventas/venta'
 import { cuadrarCierre, type ResultadoCuadre } from './cuadreCierre'
 import {
   calcularUtilidadSemanal,
@@ -32,8 +33,8 @@ export interface DatosCierreSemanal {
   desde: string
   /** Domingo con que termina la semana (desde + 6 días), AAAA-MM-DD. */
   hasta: string
-  /** Renglones de todo lo vendido en el periodo. */
-  renglones: readonly RenglonVenta[]
+  /** Ventas del periodo; solo suman las vigentes. */
+  ventas: readonly Venta[]
   efectivo: number
   transferencias: number
   /** Deudas registradas; solo entran las nacidas dentro del periodo. */
@@ -202,8 +203,8 @@ function utilidadConCosto(
  *
  * Qué hace: devuelve el costo de reposición, el cuadre, la utilidad y si
  * el resultado está completo (todos los productos vendidos con costo).
- * Cómo lo hace: valida que el periodo vaya de lunes a domingo, cuadra lo
- * vendido contra efectivo, transferencias y las
+ * Cómo lo hace: valida que el periodo vaya de lunes a domingo, toma solo
+ * las ventas vigentes, cuadra lo vendido contra efectivo, transferencias y las
  * deudas nacidas en el periodo (por lo que sigan debiendo al último día), y
  * calcula la utilidad solo con los productos que tienen costo; lo vendido
  * de los demás se devuelve aparte.
@@ -218,7 +219,9 @@ function utilidadConCosto(
  */
 export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal {
   validarSemana(datos.desde, datos.hasta)
-  const valorVentas = valorVenta(datos.renglones)
+  // Una venta anulada no suma ni en lo vendido ni en el costo de reposición.
+  const renglones = renglonesVigentes(datos.ventas)
+  const valorVentas = valorVenta(renglones)
   const cuadre = cuadrarCierre({
     valorVentas,
     efectivo: datos.efectivo,
@@ -226,13 +229,13 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.desde, datos.hasta),
   })
   const { lineas, productosSinCosto, comprasUsadas } = lineasReposicion(
-    datos.renglones,
+    renglones,
     datos.compras,
     datos.hasta,
     datos.costosManuales,
   )
   const costoReposicion = costoReposicionTotal(lineas)
-  const ventasSinCosto = valorDeProductos(datos.renglones, productosSinCosto)
+  const ventasSinCosto = valorDeProductos(renglones, productosSinCosto)
 
   return {
     costoReposicion,
