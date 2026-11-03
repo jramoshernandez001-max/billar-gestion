@@ -88,6 +88,11 @@ create table public.productos (
 comment on table public.productos is
   'Productos con unidades por caja, sixpack y precios de lista (en pesos enteros).';
 
+-- Un nombre de producto no se repite, sin importar mayúsculas ni espacios a
+-- los lados: dos "Poker" confundirían las ventas y el cálculo del costo.
+create unique index productos_nombre_unico
+  on public.productos (lower(btrim(nombre)));
+
 
 -- -----------------------------------------------------------------------------
 -- Función: unidades_de_presentacion
