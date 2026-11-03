@@ -1,0 +1,136 @@
+/**
+ * Manejo de deudas y abonos.
+ *
+ * Qué hace: calcula cuánto sigue debiendo un cliente en una fecha y cuánto
+ * suman las deudas que entran en el cierre de un periodo (un día o una semana).
+ * Cómo lo hace: funciones puras que filtran las deudas y los abonos por fecha
+ * y restan los abonos del monto. Las fechas van como texto AAAA-MM-DD, sin
+ * hora, y el dinero en pesos enteros.
+ * Por qué: las deudas se suman al dinero para cuadrar el cierre. Solo entran
+ * las nacidas dentro del periodo y solo por lo que sigan debiendo a la fecha
+ * de cierre: si ya se pagaron, no cuentan. Usar texto en vez de objetos Date
+ * evita errores por zona horaria.
+ */
+
+/** Una deuda: alguien se llevó producto sin pagar. */
+export interface Deuda {
+  id: string
+  cliente: string
+  /** Día en que nació la deuda, en formato AAAA-MM-DD. */
+  fecha: string
+  /** Monto total que quedó debiendo, en pesos. */
+  monto: number
+}
+
+/** Un pago parcial o total de una deuda. */
+export interface Abono {
+  deudaId: string
+  /** Día del pago, en formato AAAA-MM-DD. */
+  fecha: string
+  /** Monto pagado, en pesos. */
+  monto: number
+}
+
+/**
+ * Comprueba que un texto sea una fecha real con formato AAAA-MM-DD.
+ *
+ * Qué hace: lanza un error si la fecha no es válida.
+ * Cómo lo hace: revisa el formato con una expresión regular y confirma que el
+ * día exista (por ejemplo, rechaza 2026-02-30).
+ * Por qué: comparar fechas como texto solo funciona si todas tienen el mismo
+ * formato; una fecha mal escrita daría resultados falsos sin avisar.
+ */
+function validarFecha(nombre: string, fecha: string): void {
+  const tieneFormato = /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+  const esReal =
+    tieneFormato &&
+    new Date(`${fecha}T00:00:00Z`).toISOString().slice(0, 10) === fecha
+  if (!esReal) {
+    throw new Error(`${nombre} debe ser una fecha válida con formato AAAA-MM-DD`)
+  }
+}
+
+/**
+ * Comprueba que un monto sea un entero mayor o igual a cero.
+ *
+ * Qué hace: lanza un error si el monto no es válido.
+ * Cómo lo hace: revisa que sea entero y no negativo.
+ * Por qué: en pesos colombianos no se manejan decimales, y un monto negativo
+ * falsearía el saldo en silencio.
+ */
+function validarMonto(nombre: string, valor: number): void {
+  if (!Number.isInteger(valor) || valor < 0) {
+    throw new Error(`${nombre} debe ser un entero mayor o igual a cero`)
+  }
+}
+
+/**
+ * Calcula cuánto sigue debiendo una deuda en una fecha de corte.
+ *
+ * Qué hace: devuelve el monto de la deuda menos los abonos hechos hasta esa
+ * fecha, inclusive.
+ * Cómo lo hace: toma solo los abonos de esta deuda con fecha menor o igual al
+ * corte y los resta del monto.
+ * Por qué: un abono posterior al cierre todavía no había ocurrido, así que ese
+ * día la deuda seguía pendiente.
+ *
+ * @throws Error si alguna fecha o monto es inválido, o si los abonos superan
+ * el monto de la deuda.
+ */
+export function saldoPendiente(
+  deuda: Deuda,
+  abonos: readonly Abono[],
+  fechaCorte: string,
+): number {
+  validarFecha('La fecha de corte', fechaCorte)
+  validarFecha('La fecha de la deuda', deuda.fecha)
+  validarMonto('El monto de la deuda', deuda.monto)
+
+  // Comparar texto AAAA-MM-DD equivale a comparar fechas.
+  const abonosHastaElCorte = abonos.filter(
+    (abono) => abono.deudaId === deuda.id && abono.fecha <= fechaCorte,
+  )
+
+  const totalAbonado = abonosHastaElCorte.reduce((suma, abono) => {
+    validarFecha('La fecha del abono', abono.fecha)
+    validarMonto('El monto del abono', abono.monto)
+    return suma + abono.monto
+  }, 0)
+
+  // Pagar más de lo debido es un error de captura, no un saldo negativo.
+  if (totalAbonado > deuda.monto) {
+    throw new Error('Los abonos superan el monto de la deuda')
+  }
+
+  return deuda.monto - totalAbonado
+}
+
+/**
+ * Suma las deudas que entran en el cierre de un periodo.
+ *
+ * Qué hace: devuelve el total que siguen debiendo, a la fecha de cierre, las
+ * deudas nacidas entre `desde` y `hasta`, ambos días incluidos.
+ * Cómo lo hace: filtra las deudas por fecha de nacimiento y suma el saldo
+ * pendiente de cada una calculado al día `hasta`.
+ * Por qué: es la regla del cierre. Una deuda pagada dentro del periodo ya no
+ * entra; una de periodos anteriores tampoco. El cierre diario es este mismo
+ * cálculo con un periodo de un solo día (`desde` igual a `hasta`).
+ *
+ * @throws Error si las fechas son inválidas o si `desde` es posterior a `hasta`.
+ */
+export function totalDeudasPendientes(
+  deudas: readonly Deuda[],
+  abonos: readonly Abono[],
+  desde: string,
+  hasta: string,
+): number {
+  validarFecha('La fecha de inicio', desde)
+  validarFecha('La fecha de fin', hasta)
+  if (desde > hasta) {
+    throw new Error('La fecha de inicio no puede ser posterior a la de fin')
+  }
+
+  return deudas
+    .filter((deuda) => deuda.fecha >= desde && deuda.fecha <= hasta)
+    .reduce((total, deuda) => total + saldoPendiente(deuda, abonos, hasta), 0)
+}
