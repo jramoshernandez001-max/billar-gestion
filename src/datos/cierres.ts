@@ -34,7 +34,11 @@ export interface DatosGuardarCierreBd {
 }
 
 /** Un cierre leído de la base, con su id. */
-export type CierreLeido = CierreGuardado<unknown> & { id: string }
+export type CierreLeido = CierreGuardado<unknown> & {
+  id: string
+  /** Costo manual por unidad, por id de producto, con el que se calculó. */
+  costosManuales: Record<string, number>
+}
 
 /** Operaciones de cierres. */
 export interface RepositorioCierres {
@@ -96,6 +100,7 @@ function filaACierre(fila: unknown): CierreLeido {
     !esEntero(fila.efectivo) ||
     !esEntero(fila.transferencias) ||
     !Array.isArray(fila.costos_usados) ||
+    !esObjeto(fila.costos_manuales) ||
     !esObjeto(fila.resultado)
   ) {
     throw mala()
@@ -112,6 +117,7 @@ function filaACierre(fila: unknown): CierreLeido {
     transferencias: fila.transferencias,
     calculadoEn,
     dineroCorregidoEn,
+    costosManuales: fila.costos_manuales as Record<string, number>,
     costosUsados: fila.costos_usados as CostoUsado[],
     resultado: fila.resultado,
   }
@@ -166,7 +172,7 @@ export function crearRepositorioCierres(cliente: ClienteDatos): RepositorioCierr
       const filas = await leerFilas(
         cliente,
         'cierres',
-        'id, tipo, desde, hasta, efectivo, transferencias, calculado_en, dinero_corregido_en, costos_usados, resultado',
+        'id, tipo, desde, hasta, efectivo, transferencias, calculado_en, dinero_corregido_en, costos_manuales, costos_usados, resultado',
       )
       return filas.map(filaACierre)
     },

@@ -119,6 +119,7 @@ describe('listarCierres', () => {
     transferencias: 50000,
     calculado_en: '2026-11-09T14:00:00.123456+00:00',
     dinero_corregido_en: null,
+    costos_manuales: { [ID]: 1500 },
     costos_usados: [{ productoId: ID, compra: { id: 'c1', fecha: '2026-11-03' } }],
     resultado: { cuadra: true },
   }
@@ -135,6 +136,7 @@ describe('listarCierres', () => {
       transferencias: 50000,
       calculadoEn: '2026-11-09T14:00:00.123Z',
       dineroCorregidoEn: null,
+      costosManuales: { [ID]: 1500 },
       costosUsados: [{ productoId: ID, compra: { id: 'c1', fecha: '2026-11-03' } }],
       resultado: { cuadra: true },
     })
@@ -142,7 +144,7 @@ describe('listarCierres', () => {
   })
 
   it('una fila mal formada da error', async () => {
-    for (const mala of [{ ...fila, tipo: 'otro' }, { ...fila, calculado_en: 'ayer' }, { ...fila, costos_usados: {} }, { ...fila, resultado: null }]) {
+    for (const mala of [{ ...fila, tipo: 'otro' }, { ...fila, calculado_en: 'ayer' }, { ...fila, costos_usados: {} }, { ...fila, costos_manuales: [] }, { ...fila, resultado: null }]) {
       const { cliente } = clienteFalso({}, { cierres: [mala] })
       await expect(crearRepositorioCierres(cliente).listarCierres()).rejects.toThrow(/fila/i)
     }
