@@ -2,7 +2,8 @@
  * Validaciones compartidas por los módulos del dominio.
  *
  * Qué hace: reúne las reglas de validación que se repiten en varios módulos,
- * por ahora la de los montos de dinero y la de las fechas.
+ * por ahora la de los montos de dinero, la de las fechas y la de los
+ * momentos (fecha y hora ISO en UTC).
  * Cómo lo hace: funciones puras que lanzan un error con un mensaje claro
  * cuando el valor no cumple la regla y no devuelven nada si es válido.
  * Por qué: la misma regla estaba copiada en varios archivos. Si una regla
@@ -54,5 +55,35 @@ export function validarFecha(nombre: string, fecha: string): void {
     instante.toISOString().slice(0, 10) === fecha
   if (!esReal) {
     throw new Error(`${nombre} debe ser una fecha válida con formato AAAA-MM-DD`)
+  }
+}
+
+/** Formato exacto de Date.toISOString: así el texto se compara como tiempo. */
+const FORMATO_ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+
+/**
+ * Comprueba que un texto sea una fecha y hora ISO 8601 en UTC real.
+ *
+ * Qué hace: lanza un error si el texto no tiene el formato de toISOString o
+ * no es un momento que exista.
+ * Cómo lo hace: revisa el formato con una expresión regular y confirma que
+ * al convertirlo y volverlo a texto quede igual (así se rechaza un 30 de
+ * febrero o una hora 25).
+ * Por qué: los momentos (registro de una compra, cálculo de un cierre,
+ * cambios en la bitácora) se ordenan comparando texto; eso solo funciona si
+ * todos tienen el mismo formato y la misma zona horaria.
+ *
+ * @param nombre Nombre del campo, para que el mensaje diga cuál falló.
+ * @param valor Texto que se va a validar.
+ * @throws Error si no es una fecha y hora ISO en UTC real.
+ */
+export function validarFechaHoraIso(nombre: string, valor: string): void {
+  const instante = new Date(valor)
+  const esValido =
+    FORMATO_ISO_UTC.test(valor) &&
+    !Number.isNaN(instante.getTime()) &&
+    instante.toISOString() === valor
+  if (!esValido) {
+    throw new Error(`${nombre} debe ser una fecha y hora ISO en UTC`)
   }
 }
