@@ -19,6 +19,27 @@ import { estaVigente, type EstadoRegistro } from '../compartido/estado'
 import { validarFecha, validarMonto } from '../compartido/validaciones'
 import { validarDescripcion } from './descripcion'
 
+/**
+ * Comprueba que el monto de una deuda o de un abono sea mayor a cero.
+ *
+ * Qué hace: lanza un error si el monto no es un entero positivo.
+ * Cómo lo hace: reutiliza validarMonto (entero, no negativo) y además
+ * rechaza el cero.
+ * Por qué: una deuda o un abono de cero pesos no representa ningún
+ * movimiento real y solo llenaría la bitácora de ruido; la base de datos
+ * aplica la misma regla.
+ *
+ * @param nombre Nombre del campo, para que el mensaje diga cuál falló.
+ * @param valor Monto en pesos.
+ * @throws Error si el valor no es un entero mayor a cero.
+ */
+function validarMontoPositivo(nombre: string, valor: number): void {
+  validarMonto(nombre, valor)
+  if (valor === 0) {
+    throw new Error(`${nombre} debe ser mayor a cero`)
+  }
+}
+
 /** Una deuda: alguien se llevó producto sin pagar. */
 export interface Deuda {
   id: string
@@ -68,7 +89,7 @@ export function saldoPendiente(
 ): number {
   validarFecha('La fecha de corte', fechaCorte)
   validarFecha('La fecha de la deuda', deuda.fecha)
-  validarMonto('El monto de la deuda', deuda.monto)
+  validarMontoPositivo('El monto de la deuda', deuda.monto)
   validarDescripcion('La descripción de la deuda', deuda.descripcion)
   if (!estaVigente(deuda, `La deuda ${deuda.id}`)) return 0
 
@@ -82,7 +103,7 @@ export function saldoPendiente(
 
   const totalAbonado = abonosHastaElCorte.reduce((suma, abono) => {
     validarFecha('La fecha del abono', abono.fecha)
-    validarMonto('El monto del abono', abono.monto)
+    validarMontoPositivo('El monto del abono', abono.monto)
     validarDescripcion('La descripción del abono', abono.descripcion)
     return suma + abono.monto
   }, 0)
