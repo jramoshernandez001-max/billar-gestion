@@ -40,11 +40,14 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - La semana de cierre va de lunes a domingo, exactamente 7 días, con fechas calculadas en UTC.
 - La bitácora registra todo lo que cambia datos, con una lista fija de acciones; cualquier otra acción se rechaza.
 - Nada se borra: un registro se anula con un registro de corrección (motivo, antes y después) en la bitácora, y lo puede hacer cualquiera de los dos usuarios. Recalcular un cierre también queda en la bitácora.
-- Cierre semanal incompleto: la utilidad (esperada y real) se calcula solo con los productos que tienen costo. Lo vendido de los productos sin costo va aparte (monto y lista). El cuadre sigue usando la venta total.
+- Cierre semanal incompleto: no se calcula utilidad real. Se devuelven por separado la utilidad esperada solo con los productos que tienen costo, lo vendido sin costo (monto y lista) y el faltante o sobrante del cuadre. El cuadre sigue usando la venta total.
+- Cada venta tiene estado vigente o anulada. Anular cambia el estado y queda en la bitácora con antes y después; los cierres suman solo las ventas vigentes. El recálculo de un cierre lo pide un usuario, nunca es automático.
 - El costo de una compra se puede corregir después: se produce la compra con el costo nuevo y un registro de bitácora con antes y después. Si era la última compra del producto, la utilidad usa el costo nuevo.
 - Un cierre guarda cuándo se calculó. Queda desactualizado si después se anuló o corrigió algo que usó (venta, compra, deuda o abono de su periodo, o el costo de una compra que usó). Recalcularlo lo deja al día y queda en la bitácora.
+- Un registro nuevo (venta, deuda, abono o compra) con fecha dentro del periodo de un cierre ya calculado se permite y lo deja desactualizado hasta que se recalcule; se compara su momento de registro con el del cálculo. Una compra nueva solo lo desactualiza si podría cambiar el costo que usó.
 - Ajuste de inventario (conteo físico): producto, ubicación, unidades con signo distintas de cero y motivo obligatorio, registrado en la bitácora. El inventario inicial no es un ajuste: se carga como compras con la fecha que elija el usuario.
 - Cada deuda y cada abono llevan una descripción obligatoria que justifica el movimiento: sin espacios sobrantes, no vacía, máximo 200 caracteres.
+- En esas descripciones se quitan los espacios de los lados y los espacios repetidos en medio se reducen a uno.
 - El catálogo con precios y costos es privado: está en `CLAUDE.local.md` y no se sube al repositorio.
 
 ## Seguridad (el repositorio es público)
