@@ -29,6 +29,8 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - Presentaciones de venta: unidad, sixpack (siempre 6 unidades, solo si el producto lo maneja) y caja (las unidades por caja dependen del producto).
 - El precio de la caja se guarda aparte y es editable. El precio cobrado en una venta se guarda en la venta, para que cambios futuros no alteren el historial.
 - Las fechas son texto `AAAA-MM-DD`, sin hora.
+- `src/autenticacion/`: login solo con Google. `servicioAcceso.ts` decide el estado de acceso (sin sesión, no autorizado, autorizado, error) sobre una interfaz de cliente; `adaptadorSupabase.ts` es el único archivo que conoce a Supabase; `ControlDeAcceso.tsx` no renderiza la app para quien no esté autorizado. Ante cualquier fallo se niega el acceso. La autorización real la hace la base de datos (`es_usuario_autorizado()` y RLS).
+- `src/configuracion/`: la configuración de Supabase sale de `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (copiar `.env.example` a `.env.local`, que no se sube). Se rechaza cualquier clave secreta.
 
 ## Reglas del negocio (resumen)
 - Cierre diario y semanal: cuadra si efectivo + transferencias + deudas es igual o mayor al valor de lo vendido. Si es menor, se registra el faltante.
