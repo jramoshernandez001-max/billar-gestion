@@ -25,6 +25,7 @@ const compra = (cambios: Partial<Compra> = {}): Compra => ({
   cantidad: 2,
   costoTotal: 50000,
   fecha: '2026-01-10',
+  registradoEn: '2026-01-10T15:00:00.000Z',
   ...cambios,
 })
 
@@ -98,12 +99,27 @@ describe('ultimaCompraDe', () => {
     expect(() => ultimaCompraDe([compra({ fecha: '2026-02-30' })], 'cerveza-a')).toThrow()
   })
 
-  it('no decide entre dos compras del mismo producto en la misma fecha más reciente', () => {
-    // Regla pendiente (docs/PENDIENTES.md): no se sabe cuál de las dos manda.
+  it('con varias compras el mismo día, manda la registrada de último', () => {
     const compras = [
-      compra({ fecha: '2026-01-20', costoTotal: 50000 }),
-      compra({ fecha: '2026-01-20', costoTotal: 52000 }),
+      compra({ fecha: '2026-01-20', registradoEn: '2026-01-20T18:30:00.000Z', costoTotal: 52000 }),
+      compra({ fecha: '2026-01-20', registradoEn: '2026-01-20T09:00:00.000Z', costoTotal: 50000 }),
+      compra({ fecha: '2026-01-15', registradoEn: '2026-01-21T08:00:00.000Z', costoTotal: 49000 }),
     ]
-    expect(() => ultimaCompraDe(compras, 'cerveza-a')).toThrow(/misma fecha/i)
+    // La del 15 se registró después, pero manda la fecha de la compra.
+    expect(ultimaCompraDe(compras, 'cerveza-a')?.costoTotal).toBe(52000)
+  })
+
+  it('lanza un error si dos compras empatan en fecha y en momento de registro', () => {
+    const compras = [
+      compra({ fecha: '2026-01-20', registradoEn: '2026-01-20T09:00:00.000Z', costoTotal: 50000 }),
+      compra({ fecha: '2026-01-20', registradoEn: '2026-01-20T09:00:00.000Z', costoTotal: 52000 }),
+    ]
+    expect(() => ultimaCompraDe(compras, 'cerveza-a')).toThrow(/mismo momento/i)
+  })
+
+  it('rechaza un momento de registro que no esté en formato ISO UTC', () => {
+    expect(() =>
+      ultimaCompraDe([compra({ registradoEn: '2026-01-10 15:00' })], 'cerveza-a'),
+    ).toThrow(/registro/i)
   })
 })
