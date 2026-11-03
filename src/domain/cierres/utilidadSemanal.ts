@@ -13,6 +13,8 @@
  * se acumulen errores de centavos entre muchas unidades.
  */
 
+import { validarMonto } from '../compartido/validaciones'
+
 /**
  * Referencia de costo: la última compra de un producto.
  * Una caja x38 por 100.000 se guarda como 38 unidades y 100.000 de costo;
@@ -51,20 +53,6 @@ export interface ResultadoUtilidad {
   utilidadReal: number
   /** Real menos esperada; negativa cuando falta plata, como en el cuadre. */
   diferencia: number
-}
-
-/**
- * Comprueba que un monto sea un entero mayor o igual a cero.
- *
- * Qué hace: lanza un error si el monto no es válido.
- * Cómo lo hace: revisa que sea entero y no negativo.
- * Por qué: en pesos colombianos no se manejan decimales, y un monto negativo
- * falsearía la utilidad en silencio.
- */
-function validarMonto(nombre: string, valor: number): void {
-  if (!Number.isInteger(valor) || valor < 0) {
-    throw new Error(`${nombre} debe ser un entero mayor o igual a cero`)
-  }
 }
 
 /**

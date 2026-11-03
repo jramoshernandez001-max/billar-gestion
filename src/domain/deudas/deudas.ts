@@ -12,6 +12,8 @@
  * evita errores por zona horaria.
  */
 
+import { validarMonto } from '../compartido/validaciones'
+
 /** Una deuda: alguien se llevó producto sin pagar. */
 export interface Deuda {
   id: string
@@ -47,20 +49,6 @@ function validarFecha(nombre: string, fecha: string): void {
     new Date(`${fecha}T00:00:00Z`).toISOString().slice(0, 10) === fecha
   if (!esReal) {
     throw new Error(`${nombre} debe ser una fecha válida con formato AAAA-MM-DD`)
-  }
-}
-
-/**
- * Comprueba que un monto sea un entero mayor o igual a cero.
- *
- * Qué hace: lanza un error si el monto no es válido.
- * Cómo lo hace: revisa que sea entero y no negativo.
- * Por qué: en pesos colombianos no se manejan decimales, y un monto negativo
- * falsearía el saldo en silencio.
- */
-function validarMonto(nombre: string, valor: number): void {
-  if (!Number.isInteger(valor) || valor < 0) {
-    throw new Error(`${nombre} debe ser un entero mayor o igual a cero`)
   }
 }
 
