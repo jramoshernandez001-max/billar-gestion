@@ -14,7 +14,13 @@ import type { Compra } from '../inventario/compras'
 import type { RenglonVenta } from '../ventas/movimientosVenta'
 import type { Venta } from '../ventas/venta'
 import type { Deuda } from '../deudas/deudas'
-import { cerrarSemana, lineasReposicion, type DatosCierreSemanal } from './cierreSemanal'
+import {
+  cerrarSemana,
+  lineasReposicion,
+  type CierreSemanalCompleto,
+  type DatosCierreSemanal,
+  type ResultadoCierreSemanal,
+} from './cierreSemanal'
 
 // Productos de ejemplo inventados.
 const cervezaA = { unidadesPorCaja: 20, manejaSixpack: true, precioUnidad: 2000, precioCaja: 40000 }
@@ -47,6 +53,12 @@ const renglones: RenglonVenta[] = [
   { productoId: 'cerveza-b', producto: cervezaB, presentacion: 'unidad', cantidad: 5 },
   { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'unidad', cantidad: 4 },
 ]
+
+/** Devuelve el resultado como cierre completo, o hace fallar la prueba. */
+const comoCompleto = (resultado: ResultadoCierreSemanal): CierreSemanalCompleto => {
+  if (!resultado.completo) throw new Error('Se esperaba un cierre completo')
+  return resultado
+}
 
 /** Envuelve renglones en una venta de ejemplo; por defecto vigente. */
 const vigente = (renglonesVenta: RenglonVenta[], estado: Venta['estado'] = 'vigente'): Venta => ({
@@ -154,7 +166,7 @@ describe('cerrarSemana', () => {
   })
 
   it('con faltante, la utilidad real baja en lo que falta', () => {
-    const resultado = cerrarSemana(datos({ efectivo: 40000 }))
+    const resultado = comoCompleto(cerrarSemana(datos({ efectivo: 40000 })))
     expect(resultado.cuadre.faltante).toBe(3000)
     expect(resultado.utilidad).toEqual({
       utilidadEsperada: 17000,
@@ -168,7 +180,7 @@ describe('cerrarSemana', () => {
       { id: 'd1', cliente: 'Cliente X', fecha: '2026-03-12', monto: 3000, descripcion: 'Ronda fiada' },
       { id: 'd2', cliente: 'Cliente Y', fecha: '2026-03-02', monto: 9000, descripcion: 'Ronda fiada' },
     ]
-    const resultado = cerrarSemana(datos({ efectivo: 40000, deudas }))
+    const resultado = comoCompleto(cerrarSemana(datos({ efectivo: 40000, deudas })))
     expect(resultado.cuadre.dineroTotal).toBe(63000)
     expect(resultado.cuadre.cuadra).toBe(true)
     expect(resultado.utilidad.utilidadReal).toBe(17000)
@@ -187,20 +199,24 @@ describe('cerrarSemana', () => {
     expect(resultado.costoReposicion).toBe(46000)
   })
 
-  it('las ventas sin costo van aparte y no entran en la utilidad', () => {
+  it('incompleto: no calcula utilidad real; devuelve esperada, ventas sin costo y cuadre por separado', () => {
     const conC: RenglonVenta[] = [
       ...renglones,
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
     const resultado = cerrarSemana(datos({ ventas: [vigente(conC)], efectivo: 49000 }))
-    expect(resultado.ventasSinCosto).toBe(6000)
-    // Esperada: ventas con costo (63.000) - costo (46.000).
-    // Real: dinero (69.000) - ventas sin costo (6.000) - costo (46.000).
-    expect(resultado.utilidad).toEqual({
+    expect(resultado).toEqual({
+      completo: false,
+      costoReposicion: 46000,
+      productosSinCosto: ['cerveza-c'],
+      ventasSinCosto: 6000,
+      comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
+      // Venta total 69.000 contra dinero 69.000.
+      cuadre: { dineroTotal: 69000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0 },
+      // Solo productos con costo: ventas con costo (63.000) - costo (46.000).
       utilidadEsperada: 17000,
-      utilidadReal: 17000,
-      diferencia: 0,
     })
+    expect('utilidad' in resultado).toBe(false)
   })
 
   it('el cuadre de un cierre incompleto sigue usando la venta total', () => {
@@ -217,24 +233,17 @@ describe('cerrarSemana', () => {
       faltante: 3000,
       sobrante: 0,
     })
-    // La diferencia de utilidad sigue coincidiendo con la del cuadre.
-    expect(resultado.utilidad.diferencia).toBe(-3000)
-    expect(resultado.utilidad.utilidadReal).toBe(14000)
   })
 
-  it('no falla si el faltante es mayor que las ventas sin costo', () => {
+  it('en un cierre incompleto, el faltante no se mezcla con la utilidad esperada', () => {
     const conC: RenglonVenta[] = [
       ...renglones,
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
-    // Dinero 3.000; menos 6.000 de ventas sin costo queda -3.000 atribuible.
     const resultado = cerrarSemana(datos({ ventas: [vigente(conC)], efectivo: 0, transferencias: 3000 }))
-    expect(resultado.utilidad).toEqual({
-      utilidadEsperada: 17000,
-      utilidadReal: -49000,
-      diferencia: -66000,
-    })
-    expect(resultado.cuadre.diferencia).toBe(-66000)
+    if (resultado.completo) throw new Error('Se esperaba un cierre incompleto')
+    expect(resultado.cuadre.faltante).toBe(66000)
+    expect(resultado.utilidadEsperada).toBe(17000)
   })
 
   it('con costo manual para el producto sin compras, el cierre queda completo', () => {
