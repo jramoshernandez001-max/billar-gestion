@@ -270,6 +270,17 @@ describe('migraciones de la base de datos', () => {
       expect(abono).toMatch(/raise exception/i)
     })
 
+    it('corregir_costo_compra rechaza una compra anulada y no registra una corrección sin cambio', () => {
+      const texto = definer.find((f) => f.nombre === 'corregir_costo_compra')?.texto ?? ''
+      expect(texto).toMatch(/estado = 'anulada'[\s\S]*raise exception/i)
+      expect(texto).toMatch(/costo_total = p_costo_nuevo then\s+return;/i)
+    })
+
+    it('corregir_dinero_cierre no registra una corrección que deja el mismo dinero', () => {
+      const texto = definer.find((f) => f.nombre === 'corregir_dinero_cierre')?.texto ?? ''
+      expect(texto).toMatch(/efectivo = p_efectivo and v_antes\.transferencias = p_transferencias then\s+return;/i)
+    })
+
     it('registrar_venta ignora los renglones de cantidad cero', () => {
       const venta = definer.find((f) => f.nombre === 'registrar_venta')?.texto ?? ''
       expect(venta).toMatch(/= 0 then\s+continue/i)
