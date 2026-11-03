@@ -34,6 +34,12 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - Cierre diario y semanal: cuadra si efectivo + transferencias + deudas es igual o mayor al valor de lo vendido. Si es menor, se registra el faltante.
 - Deudas en un cierre: entran solo las nacidas dentro del periodo, y solo por lo que sigan debiendo a la fecha de cierre. Una deuda pagada dentro del periodo ya no entra.
 - Utilidad semanal (solo en el cierre semanal): ventas menos el costo de reponer lo vendido, con el costo de la última compra de cada producto. Se muestran utilidad esperada, utilidad real (con el dinero disponible) y la diferencia.
+- Última compra: si hay varias el mismo día, manda la registrada de último (`registradoEn`, fecha y hora ISO en UTC). Si empatan también en eso, es un error.
+- El cierre semanal usa la última compra con fecha igual o anterior al último día de la semana, para que recalcularlo después dé el mismo resultado.
+- Producto vendido sin compras: el cierre semanal acepta un costo manual por unidad. Si no se da, calcula con los demás y marca el resultado como incompleto, con la lista de productos sin costo. Nunca se toma como cero.
+- La semana de cierre va de lunes a domingo, exactamente 7 días, con fechas calculadas en UTC.
+- La bitácora registra todo lo que cambia datos, con una lista fija de acciones; cualquier otra acción se rechaza.
+- Nada se borra: un registro se anula con un registro de corrección (motivo, antes y después) en la bitácora, y lo puede hacer cualquiera de los dos usuarios. Recalcular un cierre también queda en la bitácora.
 - El catálogo con precios y costos es privado: está en `CLAUDE.local.md` y no se sube al repositorio.
 
 ## Seguridad (el repositorio es público)
