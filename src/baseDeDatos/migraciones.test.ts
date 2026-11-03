@@ -38,6 +38,15 @@ const sentencias = sql
   .map((sentencia) => sentencia.trim().toLowerCase())
   .filter((sentencia) => sentencia.length > 0)
 
+/** Funciones creadas: nombre y texto completo de su definición. */
+const funciones = sql
+  .split(/create function /i)
+  .slice(1)
+  .map((parte) => ({
+    nombre: parte.match(/^public\.(\w+)/i)?.[1] ?? '',
+    texto: parte.split(/\n\$\$;/)[0],
+  }))
+
 /** Nombres de las tablas creadas en el esquema public. */
 const tablas = [...sql.matchAll(/create table public\.(\w+)/gi)].map((m) => m[1])
 
@@ -101,14 +110,34 @@ describe('migraciones de la base de datos', () => {
     }
   })
 
-  it('ninguna política ni privilegio permite borrar', () => {
+  it('ninguna tabla da INSERT, UPDATE ni DELETE a authenticated ni anon: solo SELECT', () => {
+    const sobreTablas = sentencias.filter((s) => s.startsWith('grant') && !s.includes(' on function '))
+    expect(sobreTablas.length).toBeGreaterThan(0)
+    for (const grant of sobreTablas) {
+      expect(grant).toMatch(/^grant select on public\.\w+ to authenticated$/)
+    }
+  })
+
+  it('las políticas de authenticated son solo de lectura', () => {
+    const deAuthenticated = sentencias.filter((s) => s.startsWith('create policy') && /\bto authenticated\b/.test(s))
+    expect(deAuthenticated.length).toBe(tablas.length)
+    for (const politica of deAuthenticated) {
+      expect(politica).toMatch(/\bfor select to authenticated\b/)
+    }
+  })
+
+  it('ninguna política permite borrar', () => {
     const politicas = sentencias.filter((s) => s.startsWith('create policy'))
     expect(politicas.length).toBeGreaterThan(0)
     for (const politica of politicas) {
       expect(politica).not.toMatch(/\bfor\s+(delete|all)\b/)
     }
-    for (const grant of sentencias.filter((s) => s.startsWith('grant'))) {
-      expect(grant).not.toMatch(/\b(delete|truncate|all)\b/)
+  })
+
+  it('el rol dueño de las funciones (postgres) tiene políticas explícitas para leer y agregar en cada tabla', () => {
+    for (const tabla of tablas) {
+      expect(sql).toMatch(new RegExp(`on public\\.${tabla} for select to postgres`, 'i'))
+      expect(sql).toMatch(new RegExp(`on public\\.${tabla} for insert to postgres`, 'i'))
     }
   })
 
@@ -121,22 +150,44 @@ describe('migraciones de la base de datos', () => {
     }
   })
 
-  it('la bitácora no tiene privilegios de UPDATE y un disparador impide modificarla', () => {
-    for (const grant of sentencias.filter((s) => s.startsWith('grant'))) {
-      if (grant.includes('public.bitacora')) {
-        expect(grant).not.toMatch(/\bupdate\b/)
+  it('la bitácora no tiene políticas de UPDATE y un disparador impide modificarla', () => {
+    for (const politica of sentencias.filter((s) => s.startsWith('create policy'))) {
+      if (politica.includes('on public.bitacora')) {
+        expect(politica).not.toMatch(/\bfor update\b/)
       }
     }
     expect(sql).toMatch(/create trigger bitacora_sin_modificar before update on public\.bitacora/i)
   })
 
-  it('todas las funciones fijan search_path y ninguna es SECURITY DEFINER', () => {
-    const funciones = sql.split(/create function /i).slice(1)
+  it('todas las funciones fijan search_path vacío', () => {
     expect(funciones.length).toBeGreaterThan(0)
     for (const funcion of funciones) {
-      expect(funcion).toMatch(/set search_path = ''/i)
-      expect(funcion).not.toMatch(/security definer/i)
+      expect(funcion.texto, funcion.nombre).toMatch(/set search_path = ''/i)
     }
+  })
+
+  it('todas las funciones tienen REVOKE a public y anon', () => {
+    for (const funcion of funciones) {
+      const revocada = sentencias.some(
+        (s) =>
+          s.startsWith(`revoke all on function public.${funcion.nombre}(`) &&
+          /from public, anon\b/.test(s),
+      )
+      expect(revocada, funcion.nombre).toBe(true)
+    }
+  })
+
+  it('es_usuario_autorizado es SECURITY DEFINER, devuelve solo un booleano y tiene dueño explícito', () => {
+    const funcion = funciones.find((f) => f.nombre === 'es_usuario_autorizado')
+    expect(funcion?.texto).toMatch(/returns boolean/i)
+    expect(funcion?.texto).toMatch(/security definer/i)
+    expect(sql).toMatch(/alter function public\.es_usuario_autorizado\(\) owner to postgres/i)
+  })
+
+  it('los usuarios autorizados pueden leer la lista completa de usuarios_autorizados', () => {
+    expect(sql).toMatch(
+      /on public\.usuarios_autorizados for select to authenticated\s+using \(\(select public\.es_usuario_autorizado\(\)\)\)/i,
+    )
   })
 
   it('la vista stock_actual respeta RLS con security_invoker', () => {
