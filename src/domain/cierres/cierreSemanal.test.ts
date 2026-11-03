@@ -61,24 +61,59 @@ const datos = (cambios: Partial<DatosCierreSemanal> = {}): DatosCierreSemanal =>
 
 describe('lineasReposicion', () => {
   it('suma las unidades vendidas por producto y toma su última compra', () => {
-    expect(lineasReposicion(renglones, compras, '2026-03-15')).toEqual([
-      { unidadesVendidas: 24, ultimaCompra: { unidades: 20, costoTotal: 30000 } },
-      { unidadesVendidas: 5, ultimaCompra: { unidades: 10, costoTotal: 20000 } },
-    ])
+    expect(lineasReposicion(renglones, compras, '2026-03-15')).toEqual({
+      lineas: [
+        { unidadesVendidas: 24, ultimaCompra: { unidades: 20, costoTotal: 30000 } },
+        { unidadesVendidas: 5, ultimaCompra: { unidades: 10, costoTotal: 20000 } },
+      ],
+      productosSinCosto: [],
+    })
   })
 
   it('no pide costo para un producto con cero unidades vendidas', () => {
     const sinVenta: RenglonVenta[] = [
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 0 },
     ]
-    expect(lineasReposicion(sinVenta, compras, '2026-03-15')).toEqual([])
+    expect(lineasReposicion(sinVenta, compras, '2026-03-15')).toEqual({
+      lineas: [],
+      productosSinCosto: [],
+    })
   })
 
-  it('rechaza un producto vendido sin compras registradas', () => {
+  it('un producto vendido sin compras y sin costo manual queda en la lista sin costo', () => {
     const sinCompras: RenglonVenta[] = [
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 1 },
     ]
-    expect(() => lineasReposicion(sinCompras, compras, '2026-03-15')).toThrow(/compra/i)
+    expect(lineasReposicion(sinCompras, compras, '2026-03-15')).toEqual({
+      lineas: [],
+      productosSinCosto: ['cerveza-c'],
+    })
+  })
+
+  it('un producto sin compras usa el costo manual por unidad si se da', () => {
+    const sinCompras: RenglonVenta[] = [
+      { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 3 },
+    ]
+    expect(lineasReposicion(sinCompras, compras, '2026-03-15', { 'cerveza-c': 1800 })).toEqual({
+      lineas: [{ unidadesVendidas: 3, ultimaCompra: { unidades: 1, costoTotal: 1800 } }],
+      productosSinCosto: [],
+    })
+  })
+
+  it('un producto con compras solo posteriores a la semana cuenta como sin compras', () => {
+    const vendido: RenglonVenta[] = [
+      { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 1 },
+    ]
+    const posterior = [compra('cerveza-c', '2026-03-16', 20000)]
+    expect(lineasReposicion(vendido, posterior, '2026-03-15').productosSinCosto).toEqual(['cerveza-c'])
+  })
+
+  it('rechaza un costo manual negativo o con decimales', () => {
+    const sinCompras: RenglonVenta[] = [
+      { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 1 },
+    ]
+    expect(() => lineasReposicion(sinCompras, compras, '2026-03-15', { 'cerveza-c': -1 })).toThrow()
+    expect(() => lineasReposicion(sinCompras, compras, '2026-03-15', { 'cerveza-c': 1.5 })).toThrow()
   })
 })
 
@@ -94,6 +129,8 @@ describe('cerrarSemana', () => {
     // Costo: A 24 x 1.500 = 36.000; B 5 x 2.000 = 10.000. Total 46.000.
     expect(cerrarSemana(datos())).toEqual({
       costoReposicion: 46000,
+      completo: true,
+      productosSinCosto: [],
       cuadre: { dineroTotal: 63000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0 },
       utilidad: { utilidadEsperada: 17000, utilidadReal: 17000, diferencia: 0 },
     })
@@ -118,6 +155,32 @@ describe('cerrarSemana', () => {
     expect(resultado.cuadre.dineroTotal).toBe(63000)
     expect(resultado.cuadre.cuadra).toBe(true)
     expect(resultado.utilidad.utilidadReal).toBe(17000)
+  })
+
+  it('sin costo para un producto no falla: calcula con los demás y marca incompleto', () => {
+    // C: 2 unidades a 3.000 = 6.000 más de venta, sin compras ni costo manual.
+    const conC: RenglonVenta[] = [
+      ...renglones,
+      { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
+    ]
+    const resultado = cerrarSemana(datos({ renglones: conC, efectivo: 49000 }))
+    expect(resultado.completo).toBe(false)
+    expect(resultado.productosSinCosto).toEqual(['cerveza-c'])
+    // El costo es solo el de A y B; nunca se toma el de C como cero en silencio.
+    expect(resultado.costoReposicion).toBe(46000)
+    expect(resultado.utilidad.utilidadEsperada).toBe(69000 - 46000)
+  })
+
+  it('con costo manual para el producto sin compras, el cierre queda completo', () => {
+    const conC: RenglonVenta[] = [
+      ...renglones,
+      { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
+    ]
+    const resultado = cerrarSemana(
+      datos({ renglones: conC, efectivo: 49000, costosManuales: { 'cerveza-c': 1800 } }),
+    )
+    expect(resultado.completo).toBe(true)
+    expect(resultado.costoReposicion).toBe(46000 + 3600)
   })
 
   it('rechaza un periodo con inicio posterior al fin', () => {
