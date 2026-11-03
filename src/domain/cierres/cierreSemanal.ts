@@ -17,7 +17,7 @@ import { totalDeudasPendientes, type Abono, type Deuda } from '../deudas/deudas'
 import { compraAUltimaCompra, ultimaCompraDe, type Compra } from '../inventario/compras'
 import { aUnidades } from '../inventario/conversiones'
 import type { RenglonVenta } from '../ventas/movimientosVenta'
-import { valorVenta } from '../ventas/valorVenta'
+import { valorItem, valorVenta } from '../ventas/valorVenta'
 import { cuadrarCierre, type ResultadoCuadre } from './cuadreCierre'
 import {
   calcularUtilidadSemanal,
@@ -59,6 +59,11 @@ export interface ResultadoCierreSemanal {
   completo: boolean
   /** Productos vendidos sin compras ni costo manual; vacío si completo. */
   productosSinCosto: string[]
+  /**
+   * Valor vendido de los productos sin costo, en pesos; cero si completo.
+   * Va aparte: no entra en la utilidad, pero sí en el cuadre.
+   */
+  ventasSinCosto: number
   cuadre: ResultadoCuadre
   utilidad: ResultadoUtilidad
 }
@@ -130,6 +135,60 @@ export function lineasReposicion(
 }
 
 /**
+ * Suma el valor vendido de ciertos productos.
+ *
+ * Qué hace: devuelve el valor de los renglones cuyos productos están en la
+ * lista.
+ * Cómo lo hace: filtra los renglones por producto y suma valorItem.
+ * Por qué: en un cierre incompleto, lo vendido de los productos sin costo
+ * se separa de la utilidad.
+ */
+function valorDeProductos(
+  renglones: readonly RenglonVenta[],
+  productos: readonly string[],
+): number {
+  return renglones
+    .filter((renglon) => productos.includes(renglon.productoId))
+    .reduce((total, renglon) => total + valorItem(renglon), 0)
+}
+
+/**
+ * Calcula la utilidad solo con los productos que tienen costo.
+ *
+ * Qué hace: devuelve la utilidad esperada, la real y la diferencia dejando
+ * por fuera lo vendido de los productos sin costo.
+ * Cómo lo hace: la esperada es lo vendido con costo menos el costo. La real
+ * parte del dinero total y le quita lo vendido sin costo (el dinero es uno
+ * solo y no se puede separar por producto, así que se descuenta ese valor)
+ * y el costo. Se usa calcularUtilidadSemanal con el dinero completo y luego
+ * se resta lo vendido sin costo, porque el dinero que queda puede salir
+ * negativo si el faltante es grande, y esa función no acepta dinero
+ * negativo.
+ * Por qué: así la utilidad no se infla con ventas cuyo costo no se conoce,
+ * y la diferencia (real menos esperada) sigue siendo igual a la del cuadre.
+ * Con todo el costo conocido, lo vendido sin costo es cero y el resultado es
+ * el mismo de siempre.
+ */
+function utilidadConCosto(
+  valorVentas: number,
+  ventasSinCosto: number,
+  costoReposicion: number,
+  dineroTotal: number,
+): ResultadoUtilidad {
+  const base = calcularUtilidadSemanal({
+    valorVentas: valorVentas - ventasSinCosto,
+    costoReposicion,
+    dineroTotal,
+  })
+  const utilidadReal = base.utilidadReal - ventasSinCosto
+  return {
+    utilidadEsperada: base.utilidadEsperada,
+    utilidadReal,
+    diferencia: utilidadReal - base.utilidadEsperada,
+  }
+}
+
+/**
  * Cierra una semana.
  *
  * Qué hace: devuelve el costo de reposición, el cuadre, la utilidad y si
@@ -137,12 +196,13 @@ export function lineasReposicion(
  * Cómo lo hace: valida que el periodo vaya de lunes a domingo, cuadra lo
  * vendido contra efectivo, transferencias y las
  * deudas nacidas en el periodo (por lo que sigan debiendo al último día), y
- * con el dinero total del cuadre y el costo de los productos que sí tienen
- * costo calcula la utilidad.
- * Por qué: la utilidad real usa el mismo dinero total del cuadre, así la
- * diferencia de utilidad coincide con el faltante o sobrante de la semana.
- * Un producto sin costo no impide cerrar: el resultado sale marcado como
- * incompleto, con la lista de esos productos, para no ocultar el hueco.
+ * calcula la utilidad solo con los productos que tienen costo; lo vendido
+ * de los demás se devuelve aparte.
+ * Por qué: el cuadre usa la venta total, porque toda la venta debe estar en
+ * el dinero. La utilidad solo puede calcularse donde hay costo, y su
+ * diferencia coincide con el faltante o sobrante de la semana. Un producto
+ * sin costo no impide cerrar: el resultado sale marcado como incompleto,
+ * con la lista de esos productos y su venta, para no ocultar el hueco.
  *
  * @throws Error si alguna fecha, monto, costo manual o renglón es inválido,
  * o si el periodo no va de un lunes al domingo siguiente.
@@ -163,16 +223,14 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     datos.costosManuales,
   )
   const costoReposicion = costoReposicionTotal(lineas)
+  const ventasSinCosto = valorDeProductos(datos.renglones, productosSinCosto)
 
   return {
     costoReposicion,
     completo: productosSinCosto.length === 0,
     productosSinCosto,
+    ventasSinCosto,
     cuadre,
-    utilidad: calcularUtilidadSemanal({
-      valorVentas,
-      costoReposicion,
-      dineroTotal: cuadre.dineroTotal,
-    }),
+    utilidad: utilidadConCosto(valorVentas, ventasSinCosto, costoReposicion, cuadre.dineroTotal),
   }
 }
