@@ -48,6 +48,11 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - Ajuste de inventario (conteo físico): producto, ubicación, unidades con signo distintas de cero y motivo obligatorio, registrado en la bitácora. El inventario inicial no es un ajuste: se carga como compras con la fecha que elija el usuario.
 - Cada deuda y cada abono llevan una descripción obligatoria que justifica el movimiento: sin espacios sobrantes, no vacía, máximo 200 caracteres.
 - En esas descripciones se quitan los espacios de los lados y los espacios repetidos en medio se reducen a uno.
+- Compras, deudas y abonos también tienen estado (vigente o anulada) y se anulan como las ventas: cambia el estado y queda en la bitácora con antes, después y motivo. Los cálculos ignoran lo anulado; anular una compra crea su movimiento inverso, y una deuda con abonos vigentes no se puede anular.
+- Toda escritura pasa por funciones de la base de datos (SECURITY DEFINER, que verifican primero al usuario autorizado y escriben su bitácora en la misma transacción); para la app, las tablas son solo de lectura.
+- La base rechaza un abono que supere lo que se debe: bloquea la deuda y suma los abonos vigentes.
+- El efectivo y las transferencias de un cierre se pueden corregir; queda en la bitácora y deja el cierre desactualizado hasta que un usuario lo recalcule.
+- Un renglón de venta con cantidad cero se ignora sin error (no se guarda ni genera movimiento); si todos son cero, la venta se rechaza.
 - El catálogo con precios y costos es privado: está en `CLAUDE.local.md` y no se sube al repositorio.
 
 ## Seguridad (el repositorio es público)
