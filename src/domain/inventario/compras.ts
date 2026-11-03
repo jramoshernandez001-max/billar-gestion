@@ -125,31 +125,42 @@ export function compraAUltimaCompra(compra: Compra): UltimaCompra {
  *
  * Qué hace: devuelve la compra del producto con la fecha más reciente y, si
  * hay varias ese día, la que se registró de último; o undefined si el
- * producto no tiene compras.
- * Cómo lo hace: filtra por producto, valida fechas y momentos de registro, y
- * ordena por fecha y luego por momento de registro. Comparar texto
+ * producto no tiene compras. Con `fechaLimite`, solo cuentan las compras con
+ * fecha igual o anterior a ese día.
+ * Cómo lo hace: filtra por producto, valida fechas y momentos de registro,
+ * descarta las posteriores a la fecha límite y ordena por fecha y luego por
+ * momento de registro. Comparar texto
  * AAAA-MM-DD o ISO UTC equivale a comparar el tiempo.
  * Por qué: la utilidad semanal usa el costo de la última compra, que es lo
  * que cuesta reponer hoy. Las fechas de compra no tienen hora, así que el
- * momento de registro desempata compras del mismo día.
+ * momento de registro desempata compras del mismo día. La fecha límite deja
+ * que un cierre use el costo vigente a su último día, de modo que
+ * recalcularlo más tarde, con compras nuevas, dé el mismo resultado.
  *
- * @throws Error si alguna fecha o momento de registro es inválido, o si las
+ * @throws Error si alguna fecha (incluida la límite) o momento de registro
+ * es inválido, o si las
  * dos compras más recientes empatan en fecha y en momento de registro: no
  * hay forma de saber cuál fue la última.
  */
 export function ultimaCompraDe(
   compras: readonly Compra[],
   productoId: string,
+  fechaLimite?: string,
 ): Compra | undefined {
+  if (fechaLimite !== undefined) validarFecha('La fecha límite', fechaLimite)
   const delProducto = compras.filter((compra) => compra.productoId === productoId)
   delProducto.forEach((compra) => {
     validarFecha('La fecha de la compra', compra.fecha)
     validarRegistradoEn(compra.registradoEn)
   })
-  if (delProducto.length === 0) return undefined
+  const vigentes =
+    fechaLimite === undefined
+      ? delProducto
+      : delProducto.filter((compra) => compra.fecha <= fechaLimite)
+  if (vigentes.length === 0) return undefined
 
   // De más reciente a más antigua: primero por fecha, luego por registro.
-  const ordenadas = [...delProducto].sort(
+  const ordenadas = [...vigentes].sort(
     (a, b) =>
       b.fecha.localeCompare(a.fecha) || b.registradoEn.localeCompare(a.registradoEn),
   )

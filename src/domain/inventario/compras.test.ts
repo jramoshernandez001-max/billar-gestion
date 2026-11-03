@@ -91,6 +91,23 @@ describe('ultimaCompraDe', () => {
     expect(ultimaCompraDe(compras, 'cerveza-a')?.costoTotal).toBe(50000)
   })
 
+  it('con fecha límite, ignora las compras posteriores a esa fecha', () => {
+    const compras = [
+      compra({ fecha: '2026-01-10', costoTotal: 50000 }),
+      compra({ fecha: '2026-01-15', costoTotal: 51000 }),
+      compra({ fecha: '2026-01-16', costoTotal: 60000 }),
+    ]
+    expect(ultimaCompraDe(compras, 'cerveza-a', '2026-01-15')?.costoTotal).toBe(51000)
+  })
+
+  it('con fecha límite anterior a todas las compras, devuelve undefined', () => {
+    expect(ultimaCompraDe([compra({ fecha: '2026-01-10' })], 'cerveza-a', '2026-01-09')).toBeUndefined()
+  })
+
+  it('rechaza una fecha límite inválida', () => {
+    expect(() => ultimaCompraDe([compra()], 'cerveza-a', '2026-02-30')).toThrow()
+  })
+
   it('devuelve undefined si el producto no tiene compras', () => {
     expect(ultimaCompraDe([compra()], 'cerveza-b')).toBeUndefined()
   })
