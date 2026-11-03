@@ -108,6 +108,16 @@ describe('migraciones de la base de datos', () => {
     expect(definicion).toMatch(/unidades integer not null check \(unidades > 0\)/)
   })
 
+  it('la descripción de deudas y abonos no acepta tabulaciones ni saltos de línea', () => {
+    const dominio = sql.match(/create domain public\.descripcion_movimiento as text\s+check \(([\s\S]*?)\);/i)?.[1] ?? ''
+    expect(dominio).toMatch(/value !~ '\[\\t\\n\\r\\f\\v\]'/)
+  })
+
+  it('normalizar_descripcion convierte cualquier grupo de blancos en un solo espacio', () => {
+    const funcion = sql.match(/create function public\.normalizar_descripcion[\s\S]*?\$\$;/i)?.[0] ?? ''
+    expect(funcion).toMatch(/regexp_replace\([^;]*'\\s\+', ' ', 'g'\)/)
+  })
+
   it('las deudas y los abonos exigen un monto mayor a cero', () => {
     for (const tabla of ['deudas', 'abonos_deuda']) {
       const definicion = sql.match(new RegExp(`create table public\\.${tabla} \\(([\\s\\S]*?)\\n\\);`, 'i'))

@@ -22,6 +22,11 @@ describe('normalizarDescripcion', () => {
     expect(normalizarDescripcion('  Abono    parcial  ')).toBe('Abono parcial')
   })
 
+  it('convierte tabulaciones y saltos de línea en un solo espacio', () => {
+    expect(normalizarDescripcion('Dos\tcervezas\nfiadas')).toBe('Dos cervezas fiadas')
+    expect(normalizarDescripcion('Abono \r\n  parcial')).toBe('Abono parcial')
+  })
+
   it('los espacios repetidos que se quitan no cuentan para el máximo', () => {
     const conEspacios = `${'a'.repeat(100)}     ${'b'.repeat(99)}`
     expect(normalizarDescripcion(conEspacios)).toHaveLength(200)
@@ -59,6 +64,11 @@ describe('validarDescripcion', () => {
 
   it('rechaza una descripción con espacios repetidos en medio', () => {
     expect(() => validarDescripcion('La descripción', 'Abono  parcial')).toThrow(/espacios/i)
+  })
+
+  it('rechaza una descripción con tabulaciones o saltos de línea en medio', () => {
+    expect(() => validarDescripcion('La descripción', 'Abono\tparcial')).toThrow(/tabulaciones|saltos/i)
+    expect(() => validarDescripcion('La descripción', 'Abono\nparcial')).toThrow(/tabulaciones|saltos/i)
   })
 
   it('rechaza una descripción vacía o de más de 200 caracteres', () => {

@@ -23,7 +23,8 @@
 --
 -- Qué hace: define el texto que justifica una deuda o un abono.
 -- Cómo lo hace: un dominio de texto con CHECK: entre 1 y 200 caracteres, sin
--- espacios (ni otros blancos) a los lados y sin espacios repetidos en medio.
+-- espacios (ni otros blancos) a los lados, sin espacios repetidos en medio y
+-- sin tabulaciones ni saltos de línea (es una descripción de una sola línea).
 -- char_length cuenta caracteres, no bytes, así que una tilde o un emoji
 -- cuentan uno, igual que en src/domain/deudas/descripcion.ts.
 -- Por qué: la descripción llega ya limpia desde la app (normalizarDescripcion);
@@ -35,6 +36,7 @@ create domain public.descripcion_movimiento as text
     and value !~ '^\s'
     and value !~ '\s$'
     and position('  ' in value) = 0
+    and value !~ '[\t\n\r\f\v]'
   );
 
 comment on domain public.descripcion_movimiento is
