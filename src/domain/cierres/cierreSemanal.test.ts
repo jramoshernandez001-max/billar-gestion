@@ -27,6 +27,7 @@ const compra = (productoId: string, fecha: string, costoTotal: number): Compra =
   cantidad: 1,
   costoTotal,
   fecha,
+  registradoEn: `${fecha}T12:00:00.000Z`,
 })
 
 // Compras: para A manda la del 2026-03-05 (caja x20 por 30.000 = 1.500 c/u);

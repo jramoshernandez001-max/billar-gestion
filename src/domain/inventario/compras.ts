@@ -27,6 +27,40 @@ export interface Compra {
   costoTotal: number
   /** Día de la compra, en formato AAAA-MM-DD. */
   fecha: string
+  /**
+   * Momento en que se registró la compra en el sistema, en ISO 8601 UTC
+   * (ej.: 2026-01-10T15:00:00.000Z, el formato de Date.toISOString).
+   * Sirve para saber cuál compra se registró de último cuando hay varias el
+   * mismo día. Se eligió una marca de tiempo y no un número consecutivo
+   * porque los dos usuarios pueden registrar sin conexión desde equipos
+   * distintos, y un consecutivo exigiría coordinarse entre ellos. Con un
+   * solo formato fijo, comparar el texto equivale a comparar el momento.
+   */
+  registradoEn: string
+}
+
+/** Formato exacto de Date.toISOString: así el texto se compara como fecha. */
+const FORMATO_ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+
+/**
+ * Comprueba que el momento de registro sea una fecha y hora ISO UTC real.
+ *
+ * Qué hace: lanza un error si el texto no tiene el formato de toISOString o
+ * no es un momento que exista.
+ * Cómo lo hace: revisa el formato con una expresión regular y confirma que
+ * al convertirlo y volverlo a texto quede igual.
+ * Por qué: el orden de registro se decide comparando texto; con otro formato
+ * la comparación daría un orden falso sin avisar.
+ */
+function validarRegistradoEn(registradoEn: string): void {
+  const instante = new Date(registradoEn)
+  const esValido =
+    FORMATO_ISO_UTC.test(registradoEn) &&
+    !Number.isNaN(instante.getTime()) &&
+    instante.toISOString() === registradoEn
+  if (!esValido) {
+    throw new Error('El momento de registro de la compra debe ser una fecha y hora ISO en UTC')
+  }
 }
 
 /**
@@ -89,34 +123,45 @@ export function compraAUltimaCompra(compra: Compra): UltimaCompra {
 /**
  * Elige la última compra de un producto.
  *
- * Qué hace: devuelve la compra del producto con la fecha más reciente, o
- * undefined si el producto no tiene compras.
- * Cómo lo hace: filtra por producto, valida las fechas y se queda con la
- * mayor; comparar texto AAAA-MM-DD equivale a comparar fechas.
+ * Qué hace: devuelve la compra del producto con la fecha más reciente y, si
+ * hay varias ese día, la que se registró de último; o undefined si el
+ * producto no tiene compras.
+ * Cómo lo hace: filtra por producto, valida fechas y momentos de registro, y
+ * ordena por fecha y luego por momento de registro. Comparar texto
+ * AAAA-MM-DD o ISO UTC equivale a comparar el tiempo.
  * Por qué: la utilidad semanal usa el costo de la última compra, que es lo
- * que cuesta reponer hoy.
+ * que cuesta reponer hoy. Las fechas de compra no tienen hora, así que el
+ * momento de registro desempata compras del mismo día.
  *
- * @throws Error si alguna fecha es inválida, o si hay dos o más compras del
- * producto en la fecha más reciente: las fechas no tienen hora y todavía no
- * está definido cuál manda en ese caso (ver docs/PENDIENTES.md).
+ * @throws Error si alguna fecha o momento de registro es inválido, o si las
+ * dos compras más recientes empatan en fecha y en momento de registro: no
+ * hay forma de saber cuál fue la última.
  */
 export function ultimaCompraDe(
   compras: readonly Compra[],
   productoId: string,
 ): Compra | undefined {
   const delProducto = compras.filter((compra) => compra.productoId === productoId)
-  delProducto.forEach((compra) => validarFecha('La fecha de la compra', compra.fecha))
+  delProducto.forEach((compra) => {
+    validarFecha('La fecha de la compra', compra.fecha)
+    validarRegistradoEn(compra.registradoEn)
+  })
   if (delProducto.length === 0) return undefined
 
-  const fechaMasReciente = delProducto.reduce(
-    (mayor, compra) => (compra.fecha > mayor ? compra.fecha : mayor),
-    delProducto[0].fecha,
+  // De más reciente a más antigua: primero por fecha, luego por registro.
+  const ordenadas = [...delProducto].sort(
+    (a, b) =>
+      b.fecha.localeCompare(a.fecha) || b.registradoEn.localeCompare(a.registradoEn),
   )
-  const enEsaFecha = delProducto.filter((compra) => compra.fecha === fechaMasReciente)
-  if (enEsaFecha.length > 1) {
+  const [ultima, anterior] = ordenadas
+  if (
+    anterior !== undefined &&
+    anterior.fecha === ultima.fecha &&
+    anterior.registradoEn === ultima.registradoEn
+  ) {
     throw new Error(
-      'Hay varias compras del producto en la misma fecha más reciente; no está definido cuál usar',
+      'Hay dos compras del producto con la misma fecha y registradas en el mismo momento; no se sabe cuál es la última',
     )
   }
-  return enEsaFecha[0]
+  return ultima
 }
