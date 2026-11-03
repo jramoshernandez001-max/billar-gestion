@@ -9,10 +9,12 @@
  * Por qué: las deudas se suman al dinero para cuadrar el cierre. Solo entran
  * las nacidas dentro del periodo y solo por lo que sigan debiendo a la fecha
  * de cierre: si ya se pagaron, no cuentan. Usar texto en vez de objetos Date
- * evita errores por zona horaria.
+ * evita errores por zona horaria. Cada deuda y cada abono llevan una
+ * descripción obligatoria que justifica el movimiento.
  */
 
 import { validarFecha, validarMonto } from '../compartido/validaciones'
+import { validarDescripcion } from './descripcion'
 
 /** Una deuda: alguien se llevó producto sin pagar. */
 export interface Deuda {
@@ -22,6 +24,8 @@ export interface Deuda {
   fecha: string
   /** Monto total que quedó debiendo, en pesos. */
   monto: number
+  /** Por qué nació la deuda; obligatoria, sin espacios sobrantes, máx. 200. */
+  descripcion: string
 }
 
 /** Un pago parcial o total de una deuda. */
@@ -31,6 +35,8 @@ export interface Abono {
   fecha: string
   /** Monto pagado, en pesos. */
   monto: number
+  /** Qué justifica el abono; obligatoria, sin espacios sobrantes, máx. 200. */
+  descripcion: string
 }
 
 /**
@@ -43,8 +49,8 @@ export interface Abono {
  * Por qué: un abono posterior al cierre todavía no había ocurrido, así que ese
  * día la deuda seguía pendiente.
  *
- * @throws Error si alguna fecha o monto es inválido, o si los abonos superan
- * el monto de la deuda.
+ * @throws Error si alguna fecha, monto o descripción es inválido, o si los
+ * abonos superan el monto de la deuda.
  */
 export function saldoPendiente(
   deuda: Deuda,
@@ -54,6 +60,7 @@ export function saldoPendiente(
   validarFecha('La fecha de corte', fechaCorte)
   validarFecha('La fecha de la deuda', deuda.fecha)
   validarMonto('El monto de la deuda', deuda.monto)
+  validarDescripcion('La descripción de la deuda', deuda.descripcion)
 
   // Comparar texto AAAA-MM-DD equivale a comparar fechas.
   const abonosHastaElCorte = abonos.filter(
@@ -63,6 +70,7 @@ export function saldoPendiente(
   const totalAbonado = abonosHastaElCorte.reduce((suma, abono) => {
     validarFecha('La fecha del abono', abono.fecha)
     validarMonto('El monto del abono', abono.monto)
+    validarDescripcion('La descripción del abono', abono.descripcion)
     return suma + abono.monto
   }, 0)
 

@@ -23,6 +23,7 @@ const deuda = (id: string, fecha: string, monto: number): Deuda => ({
   cliente: 'Cliente de ejemplo',
   fecha,
   monto,
+  descripcion: 'Consumo fiado de ejemplo',
 })
 
 /** Crea un abono de ejemplo. */
@@ -30,10 +31,22 @@ const abono = (deudaId: string, fecha: string, monto: number): Abono => ({
   deudaId,
   fecha,
   monto,
+  descripcion: 'Abono de ejemplo',
 })
 
 describe('saldoPendiente', () => {
   const d = deuda('d1', '2026-11-02', 50000)
+
+  it('rechaza una deuda sin descripción válida', () => {
+    expect(() => saldoPendiente({ ...d, descripcion: '' }, [], '2026-11-08')).toThrow(/descripción/i)
+    expect(() => saldoPendiente({ ...d, descripcion: ' fiado' }, [], '2026-11-08')).toThrow(/espacios/i)
+    expect(() => saldoPendiente({ ...d, descripcion: 'a'.repeat(201) }, [], '2026-11-08')).toThrow(/200/)
+  })
+
+  it('rechaza un abono sin descripción válida', () => {
+    const malo = { ...abono('d1', '2026-11-03', 1000), descripcion: '   ' }
+    expect(() => saldoPendiente(d, [malo], '2026-11-08')).toThrow(/descripción/i)
+  })
 
   it('sin abonos el saldo es todo el monto', () => {
     expect(saldoPendiente(d, [], '2026-11-08')).toBe(50000)
