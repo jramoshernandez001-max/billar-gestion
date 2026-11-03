@@ -11,6 +11,7 @@
  * Por qué: la utilidad solo se calcula en el cierre semanal. Cada regla ya
  * vive en su módulo; aquí solo se juntan para la semana.
  */
+import { validarSemana } from '../compartido/semana'
 import { validarMonto } from '../compartido/validaciones'
 import { totalDeudasPendientes, type Abono, type Deuda } from '../deudas/deudas'
 import { compraAUltimaCompra, ultimaCompraDe, type Compra } from '../inventario/compras'
@@ -27,9 +28,9 @@ import {
 
 /** Lo que se necesita para cerrar una semana. Dinero en pesos enteros. */
 export interface DatosCierreSemanal {
-  /** Primer día del periodo, en formato AAAA-MM-DD. */
+  /** Lunes con que empieza la semana, en formato AAAA-MM-DD. */
   desde: string
-  /** Último día del periodo, en formato AAAA-MM-DD. */
+  /** Domingo con que termina la semana (desde + 6 días), AAAA-MM-DD. */
   hasta: string
   /** Renglones de todo lo vendido en el periodo. */
   renglones: readonly RenglonVenta[]
@@ -133,7 +134,8 @@ export function lineasReposicion(
  *
  * Qué hace: devuelve el costo de reposición, el cuadre, la utilidad y si
  * el resultado está completo (todos los productos vendidos con costo).
- * Cómo lo hace: cuadra lo vendido contra efectivo, transferencias y las
+ * Cómo lo hace: valida que el periodo vaya de lunes a domingo, cuadra lo
+ * vendido contra efectivo, transferencias y las
  * deudas nacidas en el periodo (por lo que sigan debiendo al último día), y
  * con el dinero total del cuadre y el costo de los productos que sí tienen
  * costo calcula la utilidad.
@@ -143,9 +145,10 @@ export function lineasReposicion(
  * incompleto, con la lista de esos productos, para no ocultar el hueco.
  *
  * @throws Error si alguna fecha, monto, costo manual o renglón es inválido,
- * o si el inicio es posterior al fin.
+ * o si el periodo no va de un lunes al domingo siguiente.
  */
 export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal {
+  validarSemana(datos.desde, datos.hasta)
   const valorVentas = valorVenta(datos.renglones)
   const cuadre = cuadrarCierre({
     valorVentas,
