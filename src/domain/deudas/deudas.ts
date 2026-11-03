@@ -10,9 +10,12 @@
  * las nacidas dentro del periodo y solo por lo que sigan debiendo a la fecha
  * de cierre: si ya se pagaron, no cuentan. Usar texto en vez de objetos Date
  * evita errores por zona horaria. Cada deuda y cada abono llevan una
- * descripción obligatoria que justifica el movimiento.
+ * descripción obligatoria que justifica el movimiento, y un estado: lo
+ * anulado no se borra, pero no cuenta (una deuda anulada no debe nada y un
+ * abono anulado no resta).
  */
 
+import { estaVigente, type EstadoRegistro } from '../compartido/estado'
 import { validarFecha, validarMonto } from '../compartido/validaciones'
 import { validarDescripcion } from './descripcion'
 
@@ -26,10 +29,14 @@ export interface Deuda {
   monto: number
   /** Por qué nació la deuda; obligatoria, sin espacios sobrantes, máx. 200. */
   descripcion: string
+  /** Vigente o anulada; una deuda anulada no debe nada. */
+  estado: EstadoRegistro
 }
 
 /** Un pago parcial o total de una deuda. */
 export interface Abono {
+  /** Identificador del abono; sirve para anularlo. */
+  id: string
   deudaId: string
   /** Día del pago, en formato AAAA-MM-DD. */
   fecha: string
@@ -37,20 +44,22 @@ export interface Abono {
   monto: number
   /** Qué justifica el abono; obligatoria, sin espacios sobrantes, máx. 200. */
   descripcion: string
+  /** Vigente o anulada; un abono anulado no resta de la deuda. */
+  estado: EstadoRegistro
 }
 
 /**
  * Calcula cuánto sigue debiendo una deuda en una fecha de corte.
  *
- * Qué hace: devuelve el monto de la deuda menos los abonos hechos hasta esa
- * fecha, inclusive.
- * Cómo lo hace: toma solo los abonos de esta deuda con fecha menor o igual al
- * corte y los resta del monto.
+ * Qué hace: devuelve el monto de la deuda menos los abonos vigentes hechos
+ * hasta esa fecha, inclusive; una deuda anulada devuelve cero.
+ * Cómo lo hace: toma solo los abonos vigentes de esta deuda con fecha menor
+ * o igual al corte y los resta del monto.
  * Por qué: un abono posterior al cierre todavía no había ocurrido, así que ese
- * día la deuda seguía pendiente.
+ * día la deuda seguía pendiente. Lo anulado no se borra, pero no cuenta.
  *
- * @throws Error si alguna fecha, monto o descripción es inválido, o si los
- * abonos superan el monto de la deuda.
+ * @throws Error si alguna fecha, monto, descripción o estado es inválido, o
+ * si los abonos superan el monto de la deuda.
  */
 export function saldoPendiente(
   deuda: Deuda,
@@ -61,10 +70,14 @@ export function saldoPendiente(
   validarFecha('La fecha de la deuda', deuda.fecha)
   validarMonto('El monto de la deuda', deuda.monto)
   validarDescripcion('La descripción de la deuda', deuda.descripcion)
+  if (!estaVigente(deuda, `La deuda ${deuda.id}`)) return 0
 
   // Comparar texto AAAA-MM-DD equivale a comparar fechas.
   const abonosHastaElCorte = abonos.filter(
-    (abono) => abono.deudaId === deuda.id && abono.fecha <= fechaCorte,
+    (abono) =>
+      abono.deudaId === deuda.id &&
+      abono.fecha <= fechaCorte &&
+      estaVigente(abono, `El abono ${abono.id}`),
   )
 
   const totalAbonado = abonosHastaElCorte.reduce((suma, abono) => {
