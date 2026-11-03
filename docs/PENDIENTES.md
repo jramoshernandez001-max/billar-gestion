@@ -5,3 +5,9 @@ Reglas que no están definidas en `CLAUDE.md` ni en los datos privados del negoc
 ## Compras (`src/domain/inventario/compras.ts`)
 
 1. **Dos compras del mismo producto el mismo día.** Las fechas no tienen hora. Si el último día con compras tiene dos o más compras del mismo producto (por ejemplo, con costos distintos), ¿cuál es "la última compra"? ¿La registrada de último, un promedio ponderado de ese día u otra cosa? Hoy `ultimaCompraDe` lanza un error en ese caso.
+
+## Cierre semanal (`src/domain/cierres/cierreSemanal.ts`)
+
+2. **Compras posteriores al cierre.** Si el cierre de una semana se calcula (o se vuelve a calcular) después de que hubo nuevas compras, ¿se usa el costo de la última compra hasta el último día de la semana, o el de la última compra que exista al momento de calcular? Hoy `cerrarSemana` usa la más reciente de las compras que le pasen; quien llama decide cuáles pasa.
+3. **Producto vendido sin ninguna compra registrada.** Por ejemplo, el inventario inicial cargado con un ajuste y sin compra. No hay costo para calcular la utilidad. ¿Se pide un costo a mano, se toma como cero o se bloquea el cierre? Hoy `lineasReposicion` lanza un error.
+4. **Qué días forman la semana.** ¿La semana va de lunes a domingo, o de otro día a otro? ¿Se debe impedir un cierre semanal que no tenga 7 días? Hoy `cerrarSemana` acepta cualquier periodo `desde`–`hasta` válido.
