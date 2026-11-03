@@ -14,9 +14,11 @@
  * tal cual a quien llama.
  */
 import type { Presentacion } from '../domain/inventario/conversiones'
+import type { Compra } from '../domain/inventario/compras'
 import type { Stock, Ubicacion } from '../domain/inventario/stock'
 import { validarFecha, validarMonto } from '../domain/compartido/validaciones'
 import { leerFilas, llamarFuncion, type ClienteDatos } from './clienteDatos'
+import { COLUMNAS_PRODUCTO, filaAProductoVendible } from './filasProducto'
 import {
   esEntero,
   esObjeto,
@@ -88,6 +90,8 @@ export interface RepositorioInventario {
   registrarAjuste(datos: DatosAjusteInventario): Promise<string>
   /** Stock por producto: bodega, nevera y total. */
   obtenerStock(): Promise<Map<string, Stock>>
+  /** Compras (vigentes y anuladas) como las usa el dominio. */
+  listarCompras(): Promise<Compra[]>
 }
 
 /**
@@ -244,6 +248,46 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
         stock.set(fila.producto_id, actual)
       }
       return stock
+    },
+
+    async listarCompras() {
+      const [compras, productos] = await Promise.all([
+        leerFilas(cliente, 'compras', 'id, producto_id, presentacion, cantidad, costo_total, fecha, estado, creado_en'),
+        leerFilas(cliente, 'productos', COLUMNAS_PRODUCTO),
+      ])
+      const porProducto = new Map(productos.map((fila) => {
+        const p = filaAProductoVendible(fila)
+        return [p.id, p.producto] as const
+      }))
+      return compras.map((fila): Compra => {
+        if (
+          !esObjeto(fila) ||
+          typeof fila.id !== 'string' ||
+          typeof fila.producto_id !== 'string' ||
+          !PRESENTACIONES.includes(fila.presentacion as Presentacion) ||
+          !esEntero(fila.cantidad) ||
+          !esEntero(fila.costo_total) ||
+          typeof fila.fecha !== 'string' ||
+          (fila.estado !== 'vigente' && fila.estado !== 'anulada') ||
+          typeof fila.creado_en !== 'string' ||
+          Number.isNaN(new Date(fila.creado_en).getTime())
+        ) {
+          throw new Error('Una fila de compras no tiene la forma esperada')
+        }
+        const producto = porProducto.get(fila.producto_id)
+        if (producto === undefined) throw new Error(`El producto ${fila.producto_id} de una compra no existe`)
+        return {
+          id: fila.id,
+          productoId: fila.producto_id,
+          producto: { unidadesPorCaja: producto.unidadesPorCaja, manejaSixpack: producto.manejaSixpack },
+          presentacion: fila.presentacion as Presentacion,
+          cantidad: fila.cantidad,
+          costoTotal: fila.costo_total,
+          fecha: fila.fecha,
+          registradoEn: new Date(fila.creado_en).toISOString(),
+          estado: fila.estado,
+        }
+      })
     },
   }
 }

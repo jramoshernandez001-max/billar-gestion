@@ -226,3 +226,43 @@ describe('lecturas', () => {
     await expect(crearRepositorioInventario(cliente).listarProductos()).rejects.toThrow(/sin permisos/)
   })
 })
+
+describe('listarCompras', () => {
+  const productoFila = { id: ID2, unidades_por_caja: 24, maneja_sixpack: true, precio_unidad: 3000, precio_caja: 60000 }
+  const compraFila = {
+    id: ID,
+    producto_id: ID2,
+    presentacion: 'caja',
+    cantidad: 2,
+    costo_total: 90000,
+    fecha: '2026-11-01',
+    estado: 'vigente',
+    creado_en: '2026-11-01T15:00:00.123456+00:00',
+  }
+
+  it('convierte las filas al formato del dominio con hora ISO UTC', async () => {
+    const { cliente } = clienteFalso({}, { compras: [compraFila], productos: [productoFila] })
+    expect(await crearRepositorioInventario(cliente).listarCompras()).toEqual([{
+      id: ID,
+      productoId: ID2,
+      producto: { unidadesPorCaja: 24, manejaSixpack: true },
+      presentacion: 'caja',
+      cantidad: 2,
+      costoTotal: 90000,
+      fecha: '2026-11-01',
+      registradoEn: '2026-11-01T15:00:00.123Z',
+      estado: 'vigente',
+    }])
+  })
+
+  it('falla con filas mal formadas o producto inexistente', async () => {
+    for (const compras of [
+      [{ ...compraFila, estado: 'x' }],
+      [{ ...compraFila, creado_en: 'ayer' }],
+      [{ ...compraFila, producto_id: 'otro' }],
+      [{ ...compraFila, costo_total: 1.5 }],
+    ]) {
+      await expect(crearRepositorioInventario(clienteFalso({}, { compras, productos: [productoFila] }).cliente).listarCompras()).rejects.toThrow()
+    }
+  })
+})
