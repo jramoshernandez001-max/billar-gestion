@@ -139,6 +139,14 @@ begin
     raise exception 'No autorizado: el correo de esta sesión no está en la lista de usuarios autorizados';
   end if;
 
+  -- Mensaje claro antes de que el índice único lo rechace con uno técnico.
+  if exists (
+    select 1 from public.productos
+     where lower(btrim(nombre)) = lower(public.texto_sin_blancos_lados(p_nombre))
+  ) then
+    raise exception 'Ya existe un producto llamado %', public.texto_sin_blancos_lados(p_nombre);
+  end if;
+
   insert into public.productos
     (nombre, unidades_por_caja, maneja_sixpack, precio_unidad, precio_caja, creado_por)
   values
@@ -185,6 +193,13 @@ begin
   select * into v_antes from public.productos where id = p_producto_id for update;
   if not found then
     raise exception 'El producto % no existe', p_producto_id;
+  end if;
+  if exists (
+    select 1 from public.productos
+     where lower(btrim(nombre)) = lower(public.texto_sin_blancos_lados(p_nombre))
+       and id <> p_producto_id
+  ) then
+    raise exception 'Ya existe un producto llamado %', public.texto_sin_blancos_lados(p_nombre);
   end if;
 
   update public.productos

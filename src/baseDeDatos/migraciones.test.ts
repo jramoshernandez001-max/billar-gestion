@@ -270,6 +270,14 @@ describe('migraciones de la base de datos', () => {
       expect(abono).toMatch(/raise exception/i)
     })
 
+    it('no puede haber dos productos con el mismo nombre (sin importar mayúsculas ni espacios)', () => {
+      expect(sql).toMatch(/create unique index productos_nombre_unico\s+on public\.productos \(lower\(btrim\(nombre\)\)\)/i)
+      for (const nombre of ['crear_producto', 'editar_producto']) {
+        const texto = definer.find((f) => f.nombre === nombre)?.texto ?? ''
+        expect(texto, nombre).toMatch(/Ya existe un producto llamado/i)
+      }
+    })
+
     it('corregir_costo_compra rechaza una compra anulada y no registra una corrección sin cambio', () => {
       const texto = definer.find((f) => f.nombre === 'corregir_costo_compra')?.texto ?? ''
       expect(texto).toMatch(/estado = 'anulada'[\s\S]*raise exception/i)
