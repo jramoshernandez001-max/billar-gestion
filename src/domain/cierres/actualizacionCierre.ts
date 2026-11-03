@@ -4,21 +4,28 @@
  *
  * Qué hace: guarda un cierre (diario o semanal) con el momento en que se
  * calculó; dice si quedó desactualizado porque después se anuló o corrigió
- * algo que él usó; y lo recalcula dejándolo al día, con su registro en la
- * bitácora.
+ * algo que él usó, o porque se registró algo nuevo con fecha de su periodo;
+ * y lo recalcula a mano dejándolo al día, con su registro en la bitácora.
  * Cómo lo hace: funciones puras. Los momentos van en ISO UTC y se comparan
- * como texto. Un cambio afecta al cierre si se hizo después del cálculo y
- * es de algo que el cierre usó: una venta, deuda o abono con fecha dentro
- * del periodo, o una compra cuyo id está entre las compras que usó.
+ * como texto. Un cambio afecta al cierre si se hizo (o se registró) después
+ * del cálculo y podría cambiar su resultado: una venta, deuda o abono con
+ * fecha dentro del periodo; una compra anulada o corregida que el cierre
+ * usó como costo; o una compra nueva que pasaría a ser la última de un
+ * producto vendido.
  * Por qué: nada se borra; las anulaciones y correcciones se agregan después.
  * Un cierre calculado antes de ellas muestra números viejos, y hay que
- * saberlo para recalcularlo. Las compras se miran por id y no por fecha,
+ * saberlo para recalcularlo. Lo mismo pasa con un registro nuevo cuya fecha
+ * cae en un periodo ya cerrado: se permite, pero deja el cierre
+ * desactualizado. El recálculo siempre lo pide un usuario; nunca es
+ * automático. Las compras se miran por la compra usada y no por el periodo,
  * porque el cierre semanal usa la última compra hasta el domingo, que puede
- * ser anterior a la semana, y una compra que no usó no cambia su resultado.
+ * ser anterior a la semana, y una compra que no cambia ese costo no cambia
+ * su resultado.
  */
 import { crearRegistroBitacora, type RegistroBitacora } from '../compartido/bitacora'
 import { validarSemana } from '../compartido/semana'
 import { validarFecha, validarFechaHoraIso } from '../compartido/validaciones'
+import type { CostoUsado } from './cierreSemanal'
 
 /** Clase de cierre. */
 export type TipoCierre = 'diario' | 'semanal'
@@ -32,8 +39,11 @@ export interface CierreGuardado<R> {
   hasta: string
   /** Momento en que se calculó, en ISO UTC. */
   calculadoEn: string
-  /** Ids de las compras de donde salió el costo; vacío en el diario. */
-  comprasUsadas: readonly string[]
+  /**
+   * Por producto vendido, la compra usada como costo o null si no hubo;
+   * vacío en el diario, que no usa costos.
+   */
+  costosUsados: readonly CostoUsado[]
   /** Lo que devolvió el cálculo (cerrarDia o cerrarSemana). */
   resultado: R
 }
@@ -45,23 +55,28 @@ export interface DatosGuardarCierre<R> {
   hasta: string
   /** Cuándo se calculó. */
   momento: Date
-  comprasUsadas: readonly string[]
+  costosUsados: readonly CostoUsado[]
   resultado: R
 }
 
 /** Qué clase de registro se anuló o corrigió. */
 export type RegistroAfectado = 'venta' | 'compra' | 'deuda' | 'abono'
 
-/** Una anulación o corrección hecha sobre un registro. */
+/** Una anulación, una corrección o un registro nuevo. */
 export interface CambioRegistro {
-  tipoCambio: 'anulacion' | 'correccion-costo'
+  tipoCambio: 'anulacion' | 'correccion-costo' | 'registro-nuevo'
   registro: RegistroAfectado
   /** Id del registro anulado o corregido. */
   id: string
   /** Fecha AAAA-MM-DD del registro afectado (no la del cambio). */
   fecha: string
-  /** Momento en que se hizo el cambio, en ISO UTC. */
+  /**
+   * Momento en que se hizo el cambio, en ISO UTC. En un registro nuevo es
+   * su momento de registro (en una compra, su registradoEn).
+   */
   momento: string
+  /** Producto de la compra; obligatorio en una compra nueva. */
+  productoId?: string
 }
 
 /** Datos para recalcular un cierre. */
@@ -69,7 +84,7 @@ export interface DatosRecalculo<R> {
   anterior: CierreGuardado<R>
   /** Resultado nuevo, calculado otra vez con los datos vigentes. */
   resultado: R
-  comprasUsadas: readonly string[]
+  costosUsados: readonly CostoUsado[]
   usuario: string
   momento: Date
 }
@@ -134,23 +149,49 @@ export function guardarCierre<R>(datos: DatosGuardarCierre<R>): CierreGuardado<R
     desde: datos.desde,
     hasta: datos.hasta,
     calculadoEn: momentoIso('El momento del cálculo', datos.momento),
-    comprasUsadas: [...datos.comprasUsadas],
+    costosUsados: datos.costosUsados.map((costo) => ({ ...costo })),
     resultado: datos.resultado,
   }
 }
 
 /**
+ * Dice si una compra nueva podría cambiar el costo que usó un cierre.
+ *
+ * Qué hace: devuelve true si la compra pasaría a ser la última de un
+ * producto vendido en el cierre.
+ * Cómo lo hace: busca el costo usado del producto; si el cierre no lo
+ * vendió, o la compra es posterior al último día, no afecta. Si el producto
+ * se vendió sin compra, cualquier compra hasta el último día afecta. Si no,
+ * afecta cuando su fecha es igual o posterior a la de la compra usada.
+ * Por qué: con la misma fecha, manda la registrada de último, y la nueva
+ * siempre se registró después de calcular el cierre.
+ *
+ * @throws Error si falta el producto de la compra.
+ */
+function compraNuevaAfecta<R>(cierre: CierreGuardado<R>, cambio: CambioRegistro): boolean {
+  if (cambio.productoId === undefined || cambio.productoId.trim().length === 0) {
+    throw new Error('Una compra nueva debe indicar su producto')
+  }
+  const costo = cierre.costosUsados.find((usado) => usado.productoId === cambio.productoId)
+  if (costo === undefined || cambio.fecha > cierre.hasta) return false
+  if (costo.compra === null) return true
+  return cambio.fecha >= costo.compra.fecha
+}
+
+/**
  * Dice si un cambio afecta a un cierre.
  *
- * Qué hace: devuelve true si el cambio se hizo después del cálculo y es de
- * algo que el cierre usó.
- * Cómo lo hace: compara momentos ISO como texto; una compra se busca por id
- * entre las usadas, y lo demás por fecha dentro del periodo.
+ * Qué hace: devuelve true si el cambio se hizo después del cálculo y
+ * podría cambiar su resultado.
+ * Cómo lo hace: compara momentos ISO como texto. Una compra anulada o
+ * corregida se busca por id entre las usadas; una compra nueva se revisa
+ * con compraNuevaAfecta; lo demás, por fecha dentro del periodo.
  * Por qué: un cambio anterior al cálculo ya estaba incluido en él. Una
  * corrección de costo solo puede ser de una compra.
  *
- * @throws Error si la fecha o el momento del cambio son inválidos, o si una
- * corrección de costo no es de una compra.
+ * @throws Error si la fecha o el momento del cambio son inválidos, si una
+ * corrección de costo no es de una compra o si una compra nueva no indica
+ * su producto.
  */
 function afectaAlCierre<R>(cierre: CierreGuardado<R>, cambio: CambioRegistro): boolean {
   validarFecha('La fecha del registro cambiado', cambio.fecha)
@@ -159,7 +200,10 @@ function afectaAlCierre<R>(cierre: CierreGuardado<R>, cambio: CambioRegistro): b
     throw new Error('Una corrección de costo solo puede ser de una compra')
   }
   if (cambio.momento <= cierre.calculadoEn) return false
-  if (cambio.registro === 'compra') return cierre.comprasUsadas.includes(cambio.id)
+  if (cambio.registro === 'compra') {
+    if (cambio.tipoCambio === 'registro-nuevo') return compraNuevaAfecta(cierre, cambio)
+    return cierre.costosUsados.some((usado) => usado.compra?.id === cambio.id)
+  }
   return cambio.fecha >= cierre.desde && cambio.fecha <= cierre.hasta
 }
 
@@ -203,7 +247,7 @@ export function recalcularCierre<R>(datos: DatosRecalculo<R>): Recalculo<R> {
     desde: anterior.desde,
     hasta: anterior.hasta,
     momento: datos.momento,
-    comprasUsadas: datos.comprasUsadas,
+    costosUsados: datos.costosUsados,
     resultado: datos.resultado,
   })
   return {

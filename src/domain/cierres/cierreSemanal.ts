@@ -53,6 +53,17 @@ export interface DatosCierreSemanal {
   costosManuales?: Readonly<Record<string, number>>
 }
 
+/**
+ * De dónde salió el costo de un producto vendido en el cierre: la compra
+ * usada (id y fecha) o null si no hubo compra (costo manual o sin costo).
+ * Sirve para saber si una compra registrada después podría cambiar el
+ * costo que usó el cierre.
+ */
+export interface CostoUsado {
+  productoId: string
+  compra: { id: string; fecha: string } | null
+}
+
 /** Lo que devuelven por igual un cierre semanal completo y uno incompleto. */
 interface BaseCierreSemanal {
   /** Costo de volver a comprar lo vendido que sí tiene costo, en pesos. */
@@ -69,6 +80,8 @@ interface BaseCierreSemanal {
    * el cierre queda desactualizado cuando una de ellas se anula o corrige.
    */
   comprasUsadas: string[]
+  /** Por producto vendido, la compra usada como costo o null si no hubo. */
+  costosUsados: CostoUsado[]
   /** Cuadre contra el dinero, con la venta total; trae faltante o sobrante. */
   cuadre: ResultadoCuadre
 }
@@ -104,6 +117,8 @@ export interface LineasReposicion {
   productosSinCosto: string[]
   /** Ids de las compras usadas como costo (no incluye costos manuales). */
   comprasUsadas: string[]
+  /** Por producto vendido, la compra usada como costo o null si no hubo. */
+  costosUsados: CostoUsado[]
 }
 
 /**
@@ -144,15 +159,24 @@ export function lineasReposicion(
     )
   }
 
-  const resultado: LineasReposicion = { lineas: [], productosSinCosto: [], comprasUsadas: [] }
+  const resultado: LineasReposicion = {
+    lineas: [],
+    productosSinCosto: [],
+    comprasUsadas: [],
+    costosUsados: [],
+  }
   for (const [productoId, unidadesVendidas] of unidadesPorProducto) {
     if (unidadesVendidas === 0) continue
     const ultima = ultimaCompraDe(compras, productoId, hasta)
     if (ultima !== undefined) {
       resultado.lineas.push({ unidadesVendidas, ultimaCompra: compraAUltimaCompra(ultima) })
       resultado.comprasUsadas.push(ultima.id)
+      resultado.costosUsados.push({ productoId, compra: { id: ultima.id, fecha: ultima.fecha } })
       continue
     }
+    // Sin compra hasta el domingo: con costo manual o sin costo, igual queda
+    // anotado, porque una compra registrada después pasaría a mandar.
+    resultado.costosUsados.push({ productoId, compra: null })
     // Object.hasOwn evita tomar por costo algo heredado del prototipo.
     if (Object.hasOwn(costosManuales, productoId)) {
       const costoUnidad = costosManuales[productoId]
@@ -218,7 +242,7 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.desde, datos.hasta),
   })
-  const { lineas, productosSinCosto, comprasUsadas } = lineasReposicion(
+  const { lineas, productosSinCosto, comprasUsadas, costosUsados } = lineasReposicion(
     renglones,
     datos.compras,
     datos.hasta,
@@ -232,6 +256,7 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     productosSinCosto,
     ventasSinCosto,
     comprasUsadas,
+    costosUsados,
     cuadre,
   }
 
