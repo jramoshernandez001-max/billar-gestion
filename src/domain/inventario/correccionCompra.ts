@@ -43,10 +43,16 @@ export interface CorreccionCosto {
  * Por qué: solo cambia el costo; cantidad, fecha y producto siguen iguales,
  * así que el inventario no se mueve.
  *
- * @throws Error si el costo nuevo no es un entero mayor o igual a cero o si
- * falla alguna validación de la bitácora.
+ * Una compra anulada no se corrige: ya no cuenta como costo, así que
+ * cambiarle el valor no tendría efecto real y confundiría la bitácora.
+ *
+ * @throws Error si la compra está anulada, si el costo nuevo no es un entero
+ * mayor o igual a cero o si falla alguna validación de la bitácora.
  */
 export function corregirCostoCompra(datos: DatosCorreccionCosto): CorreccionCosto {
+  if (datos.compra.estado === 'anulada') {
+    throw new Error(`La compra ${datos.compra.id} está anulada: no se puede corregir su costo`)
+  }
   validarMonto('El costo nuevo de la compra', datos.costoNuevo)
   const corregida: Compra = { ...datos.compra, costoTotal: datos.costoNuevo }
   return {

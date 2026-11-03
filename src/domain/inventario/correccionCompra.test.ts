@@ -56,6 +56,13 @@ describe('corregirCostoCompra', () => {
     })
   })
 
+  it('rechaza corregir el costo de una compra anulada', () => {
+    const anulada: Compra = { ...vieja, estado: 'anulada' }
+    expect(() =>
+      corregirCostoCompra({ compra: anulada, costoNuevo: 31000, usuario: 'ana@ejemplo.com', momento }),
+    ).toThrow(/anulada/)
+  })
+
   it('rechaza un costo nuevo negativo o con decimales', () => {
     expect(() => corregirCostoCompra({ compra: mal, costoNuevo: -1, usuario: 'a@example.com', momento })).toThrow()
     expect(() => corregirCostoCompra({ compra: mal, costoNuevo: 10.5, usuario: 'a@example.com', momento })).toThrow()
