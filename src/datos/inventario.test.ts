@@ -9,42 +9,17 @@
  * Por qué: es la costura entre la app y la base de datos. Un nombre mal
  * escrito solo fallaría en producción; aquí falla en las pruebas.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { crearRepositorioInventario } from './inventario'
+import { clienteFalso as clienteBase, parametrosSql } from './apoyoPruebas'
 import type { ClienteDatos } from './clienteDatos'
 
 const ID = '11111111-1111-1111-1111-111111111111'
 const ID2 = '22222222-2222-2222-2222-222222222222'
 
-/** Migraciones como texto, para leer los parámetros de cada función. */
-const migraciones = import.meta.glob('../../supabase/migrations/*.sql', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
-const sql = Object.values(migraciones).join('\n').replace(/\r\n/g, '\n')
-
-/** Nombres de parámetros de una función SQL, en orden. */
-function parametrosSql(funcion: string): string[] {
-  const definicion = sql.match(new RegExp(`create function public\\.${funcion}\\(([\\s\\S]*?)\\)\\s*returns`, 'i'))
-  expect(definicion, `no se encontró la función ${funcion}`).not.toBeNull()
-  return [...(definicion?.[1] ?? '').matchAll(/\bp_\w+/g)].map((m) => m[0])
-}
-
-/** Cliente falso: respuesta de rpc y filas por tabla configurables. */
-function clienteFalso(respuesta: { data?: unknown; error?: string } = { data: ID }, filas: Record<string, unknown[]> = {}) {
-  const rpc = vi.fn<ClienteDatos['rpc']>(async () => ({
-    data: respuesta.data ?? null,
-    error: respuesta.error ? { message: respuesta.error } : null,
-  }))
-  const cliente: ClienteDatos = {
-    rpc,
-    from: (tabla: string) => ({
-      select: async () => ({ data: filas[tabla] ?? [], error: null }),
-    }),
-  }
-  return { cliente, rpc }
-}
+/** Cliente falso que responde con un id por defecto. */
+const clienteFalso = (respuesta: { data?: unknown; error?: string } = { data: ID }, filas: Record<string, unknown[]> = {}) =>
+  clienteBase(respuesta, filas)
 
 const producto = {
   nombre: 'Cerveza Ejemplo',
