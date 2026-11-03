@@ -13,6 +13,8 @@
  * cambia entre ellos es qué ventas y qué deudas se le pasan.
  */
 
+import { validarMonto } from '../compartido/validaciones'
+
 /** Datos que se comparan en un cierre, todos en pesos. */
 export interface DatosCierre {
   /** Valor total de lo vendido en el periodo. */
@@ -37,20 +39,6 @@ export interface ResultadoCuadre {
   faltante: number
   /** Plata que sobra; cero cuando no sobra o falta. */
   sobrante: number
-}
-
-/**
- * Comprueba que un monto sea un entero mayor o igual a cero.
- *
- * Qué hace: lanza un error si el monto no es válido.
- * Cómo lo hace: revisa que sea entero y no negativo.
- * Por qué: en pesos colombianos no se manejan decimales, y un monto negativo
- * falsearía el cuadre en silencio.
- */
-function validarMonto(nombre: string, valor: number): void {
-  if (!Number.isInteger(valor) || valor < 0) {
-    throw new Error(`${nombre} debe ser un entero mayor o igual a cero`)
-  }
 }
 
 /**
