@@ -169,6 +169,14 @@ describe('migraciones de la base de datos', () => {
     expect(sql).toMatch(/create trigger bitacora_sin_modificar before update on public\.bitacora/i)
   })
 
+  it('los movimientos de inventario no se modifican: un error se compensa con otro movimiento', () => {
+    // Ninguna función hace UPDATE sobre la tabla; el disparador frena también a postgres.
+    expect(sql).toMatch(
+      /create trigger movimientos_sin_modificar before update on public\.movimientos_inventario\s+for each row execute function public\.impedir_cambio\(\)/i,
+    )
+    expect(sql).not.toMatch(/update public\.movimientos_inventario/i)
+  })
+
   it('todas las funciones fijan search_path vacío', () => {
     expect(funciones.length).toBeGreaterThan(0)
     for (const funcion of funciones) {

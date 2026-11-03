@@ -256,7 +256,7 @@ create policy bitacora_postgres_agregar on public.bitacora for insert to postgre
 -- Función de disparador: impedir_cambio
 --
 -- Qué hace: lanza un error ante un borrado (en cualquier tabla) o una
--- modificación (en la bitácora).
+-- modificación (en la bitácora y en los movimientos de inventario).
 -- Cómo lo hace: se ejecuta antes de DELETE, TRUNCATE o UPDATE y aborta la
 -- operación con un mensaje que dice cuál fue y en qué tabla.
 -- Por qué: ni la app ni las políticas permiten borrar, pero esto también
@@ -323,4 +323,11 @@ create trigger bitacora_sin_vaciar before truncate on public.bitacora
 
 -- La bitácora no se modifica, ni siquiera por las funciones ni por postgres.
 create trigger bitacora_sin_modificar before update on public.bitacora
+  for each row execute function public.impedir_cambio();
+
+-- Los movimientos de inventario tampoco se modifican: el stock es su suma, y
+-- editar uno desde el editor SQL cambiaría el inventario sin dejar rastro.
+-- Un error se corrige con un movimiento compensatorio (compensa_a), no con
+-- un UPDATE. Ninguna función del sistema actualiza esta tabla.
+create trigger movimientos_sin_modificar before update on public.movimientos_inventario
   for each row execute function public.impedir_cambio();
