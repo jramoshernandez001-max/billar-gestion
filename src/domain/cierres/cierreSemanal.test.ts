@@ -90,6 +90,10 @@ describe('lineasReposicion', () => {
       ],
       productosSinCosto: [],
       comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
+      costosUsados: [
+        { productoId: 'cerveza-a', compra: { id: 'cerveza-a-2026-03-05', fecha: '2026-03-05' } },
+        { productoId: 'cerveza-b', compra: { id: 'cerveza-b-2026-03-01', fecha: '2026-03-01' } },
+      ],
     })
   })
 
@@ -101,6 +105,7 @@ describe('lineasReposicion', () => {
       lineas: [],
       productosSinCosto: [],
       comprasUsadas: [],
+      costosUsados: [],
     })
   })
 
@@ -112,6 +117,8 @@ describe('lineasReposicion', () => {
       lineas: [],
       productosSinCosto: ['cerveza-c'],
       comprasUsadas: [],
+      // Sin compra: el cierre lo usó sin costo.
+      costosUsados: [{ productoId: 'cerveza-c', compra: null }],
     })
   })
 
@@ -124,6 +131,7 @@ describe('lineasReposicion', () => {
       productosSinCosto: [],
       // Un costo manual no es una compra: no queda en la lista de usadas.
       comprasUsadas: [],
+      costosUsados: [{ productoId: 'cerveza-c', compra: null }],
     })
   })
 
@@ -160,6 +168,10 @@ describe('cerrarSemana', () => {
       productosSinCosto: [],
       ventasSinCosto: 0,
       comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
+      costosUsados: [
+        { productoId: 'cerveza-a', compra: { id: 'cerveza-a-2026-03-05', fecha: '2026-03-05' } },
+        { productoId: 'cerveza-b', compra: { id: 'cerveza-b-2026-03-01', fecha: '2026-03-01' } },
+      ],
       cuadre: { dineroTotal: 63000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0 },
       utilidad: { utilidadEsperada: 17000, utilidadReal: 17000, diferencia: 0 },
     })
@@ -211,6 +223,11 @@ describe('cerrarSemana', () => {
       productosSinCosto: ['cerveza-c'],
       ventasSinCosto: 6000,
       comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
+      costosUsados: [
+        { productoId: 'cerveza-a', compra: { id: 'cerveza-a-2026-03-05', fecha: '2026-03-05' } },
+        { productoId: 'cerveza-b', compra: { id: 'cerveza-b-2026-03-01', fecha: '2026-03-01' } },
+        { productoId: 'cerveza-c', compra: null },
+      ],
       // Venta total 69.000 contra dinero 69.000.
       cuadre: { dineroTotal: 69000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0 },
       // Solo productos con costo: ventas con costo (63.000) - costo (46.000).
