@@ -48,8 +48,9 @@ $$;
 
 -- normalizar_descripcion
 -- Qué hace: limpia la descripción de una deuda o un abono.
--- Cómo lo hace: quita los blancos de los lados y reduce a uno los espacios
--- repetidos en medio; el tipo descripcion_movimiento valida el resto.
+-- Cómo lo hace: quita los blancos de los lados y convierte en un solo
+-- espacio cualquier grupo de espacios, tabulaciones o saltos de línea en
+-- medio; el tipo descripcion_movimiento valida el resto.
 -- Por qué: es la misma regla de normalizarDescripcion en el dominio.
 create function public.normalizar_descripcion(p_texto text)
 returns text
@@ -58,7 +59,7 @@ immutable
 security invoker
 set search_path = ''
 as $$
-  select regexp_replace(public.texto_sin_blancos_lados(p_texto), ' {2,}', ' ', 'g');
+  select regexp_replace(public.texto_sin_blancos_lados(p_texto), '\s+', ' ', 'g');
 $$;
 
 -- motivo_obligatorio
