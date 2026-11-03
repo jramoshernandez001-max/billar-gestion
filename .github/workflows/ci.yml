@@ -1,0 +1,58 @@
+# Integración continua (CI).
+#
+# Qué hace: en cada push a main y en cada Pull Request instala las
+# dependencias, corre las pruebas, el linter y el build, y audita la seguridad.
+# Cómo lo hace: un solo trabajo en un servidor Linux de GitHub que ejecuta los
+# mismos comandos que se corren en local, uno tras otro; si uno falla, se detiene.
+# Por qué: el repositorio es público y el código maneja dinero e inventario.
+# Una verificación automática evita que entre un cambio que rompa las pruebas o
+# traiga una dependencia vulnerable, aunque se olvide correrlas a mano.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Permisos mínimos: este flujo solo necesita leer el código.
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Pruebas, lint, build y seguridad
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # npm ci instala exactamente lo que dice package-lock.json,
+      # sin modificarlo, para que el resultado sea reproducible.
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas unitarias
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      # Falla el flujo si hay vulnerabilidades en lo que va a producción.
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev
+
+      # Las alertas de herramientas de desarrollo no llegan a producción:
+      # se muestran como aviso y no detienen el flujo.
+      - name: Auditoría completa (solo aviso)
+        run: npm audit
+        continue-on-error: true
