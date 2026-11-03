@@ -24,18 +24,36 @@ const deuda = (id: string, fecha: string, monto: number): Deuda => ({
   fecha,
   monto,
   descripcion: 'Consumo fiado de ejemplo',
+  estado: 'vigente',
 })
 
 /** Crea un abono de ejemplo. */
 const abono = (deudaId: string, fecha: string, monto: number): Abono => ({
+  id: `${deudaId}-${fecha}-${monto}`,
   deudaId,
   fecha,
   monto,
   descripcion: 'Abono de ejemplo',
+  estado: 'vigente',
 })
 
 describe('saldoPendiente', () => {
   const d = deuda('d1', '2026-11-02', 50000)
+
+  it('no cuenta los abonos anulados', () => {
+    const anulado: Abono = { ...abono('d1', '2026-11-03', 20000), estado: 'anulada' }
+    expect(saldoPendiente(d, [anulado, abono('d1', '2026-11-04', 5000)], '2026-11-08')).toBe(45000)
+  })
+
+  it('una deuda anulada ya no debe nada', () => {
+    expect(saldoPendiente({ ...d, estado: 'anulada' }, [], '2026-11-08')).toBe(0)
+  })
+
+  it('rechaza una deuda o un abono con estado desconocido', () => {
+    expect(() => saldoPendiente({ ...d, estado: 'borrada' as Deuda['estado'] }, [], '2026-11-08')).toThrow(/estado/i)
+    const raro: Abono = { ...abono('d1', '2026-11-03', 1000), estado: 'borrada' as Abono['estado'] }
+    expect(() => saldoPendiente(d, [raro], '2026-11-08')).toThrow(/estado/i)
+  })
 
   it('rechaza una deuda sin descripción válida', () => {
     expect(() => saldoPendiente({ ...d, descripcion: '' }, [], '2026-11-08')).toThrow(/descripción/i)

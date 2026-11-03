@@ -190,8 +190,8 @@ describe('cerrarSemana', () => {
 
   it('las deudas de la semana cuentan como dinero; las de antes no', () => {
     const deudas: Deuda[] = [
-      { id: 'd1', cliente: 'Cliente X', fecha: '2026-03-12', monto: 3000, descripcion: 'Ronda fiada' },
-      { id: 'd2', cliente: 'Cliente Y', fecha: '2026-03-02', monto: 9000, descripcion: 'Ronda fiada' },
+      { id: 'd1', cliente: 'Cliente X', fecha: '2026-03-12', monto: 3000, descripcion: 'Ronda fiada', estado: 'vigente' },
+      { id: 'd2', cliente: 'Cliente Y', fecha: '2026-03-02', monto: 9000, descripcion: 'Ronda fiada', estado: 'vigente' },
     ]
     const resultado = comoCompleto(cerrarSemana(datos({ efectivo: 40000, deudas })))
     expect(resultado.cuadre.dineroTotal).toBe(63000)

@@ -55,8 +55,8 @@ describe('cerrarDia', () => {
   })
 
   it('las deudas del día cuentan como dinero, por lo que sigan debiendo', () => {
-    const deudas: Deuda[] = [{ id: 'd1', cliente: 'Cliente X', fecha: '2026-03-07', monto: 10000, descripcion: 'Ronda fiada' }]
-    const abonos: Abono[] = [{ deudaId: 'd1', fecha: '2026-03-07', monto: 4000, descripcion: 'Abono en efectivo' }]
+    const deudas: Deuda[] = [{ id: 'd1', cliente: 'Cliente X', fecha: '2026-03-07', monto: 10000, descripcion: 'Ronda fiada', estado: 'vigente' }]
+    const abonos: Abono[] = [{ id: 'a1', deudaId: 'd1', fecha: '2026-03-07', monto: 4000, descripcion: 'Abono en efectivo', estado: 'vigente' }]
     // 25.000 + 15.000 + (10.000 - 4.000) = 46.000: faltan 4.000.
     const resultado = cerrarDia(datos({ efectivo: 25000, transferencias: 15000, deudas, abonos }))
     expect(resultado.dineroTotal).toBe(46000)
@@ -66,15 +66,15 @@ describe('cerrarDia', () => {
 
   it('no cuenta deudas de otros días', () => {
     const deudas: Deuda[] = [
-      { id: 'd1', cliente: 'Cliente X', fecha: '2026-03-06', monto: 10000, descripcion: 'Ronda fiada' },
-      { id: 'd2', cliente: 'Cliente Y', fecha: '2026-03-08', monto: 10000, descripcion: 'Ronda fiada' },
+      { id: 'd1', cliente: 'Cliente X', fecha: '2026-03-06', monto: 10000, descripcion: 'Ronda fiada', estado: 'vigente' },
+      { id: 'd2', cliente: 'Cliente Y', fecha: '2026-03-08', monto: 10000, descripcion: 'Ronda fiada', estado: 'vigente' },
     ]
     expect(cerrarDia(datos({ deudas })).dineroTotal).toBe(50000)
   })
 
   it('una deuda del día pagada el mismo día ya no entra', () => {
-    const deudas: Deuda[] = [{ id: 'd1', cliente: 'Cliente X', fecha: '2026-03-07', monto: 10000, descripcion: 'Ronda fiada' }]
-    const abonos: Abono[] = [{ deudaId: 'd1', fecha: '2026-03-07', monto: 10000, descripcion: 'Pago completo' }]
+    const deudas: Deuda[] = [{ id: 'd1', cliente: 'Cliente X', fecha: '2026-03-07', monto: 10000, descripcion: 'Ronda fiada', estado: 'vigente' }]
+    const abonos: Abono[] = [{ id: 'a1', deudaId: 'd1', fecha: '2026-03-07', monto: 10000, descripcion: 'Pago completo', estado: 'vigente' }]
     expect(cerrarDia(datos({ deudas, abonos })).dineroTotal).toBe(50000)
   })
 
@@ -83,6 +83,11 @@ describe('cerrarDia', () => {
     // La venta anulada (76.000) no suma: lo vendido sigue siendo 50.000.
     expect(cerrarDia(datos({ ventas: [venta(renglones), anulada] })).cuadra).toBe(true)
     expect(cerrarDia(datos({ ventas: [venta(renglones), anulada] })).diferencia).toBe(0)
+  })
+
+  it('no cuenta una deuda anulada', () => {
+    const deudas: Deuda[] = [{ id: 'd1', cliente: 'Cliente X', fecha: '2026-03-07', monto: 10000, descripcion: 'Ronda fiada', estado: 'anulada' }]
+    expect(cerrarDia(datos({ deudas })).dineroTotal).toBe(50000)
   })
 
   it('respeta el precio cobrado en la venta', () => {
