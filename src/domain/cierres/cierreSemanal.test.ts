@@ -282,6 +282,30 @@ describe('cerrarSemana', () => {
     expect(resultado.costoReposicion).toBe(46000)
   })
 
+  it('usa la última compra hasta el domingo: el jueves manda esa semana y la siguiente', () => {
+    // Lunes: una caja x20 por 30.000. Jueves: otra por 32.000 (1.600 c/u).
+    const comprasSemana: Compra[] = [
+      compra('cerveza-a', '2026-03-09', 30000),
+      compra('cerveza-a', '2026-03-12', 32000),
+    ]
+    const unaCaja: RenglonVenta[] = [
+      { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'caja', cantidad: 1 },
+    ]
+    const ventas = [vigente(unaCaja)]
+
+    // Semana del lunes 9 al domingo 15: usa el costo del jueves.
+    const estaSemana = cerrarSemana(datos({ ventas, compras: comprasSemana, efectivo: 40000, transferencias: 0 }))
+    expect(estaSemana.costoReposicion).toBe(32000)
+    expect(estaSemana.comprasUsadas).toEqual(['cerveza-a-2026-03-12'])
+
+    // Semana siguiente, sin compras nuevas: sigue usando el costo del jueves.
+    const siguiente = cerrarSemana(
+      datos({ desde: '2026-03-16', hasta: '2026-03-22', ventas, compras: comprasSemana, efectivo: 40000, transferencias: 0 }),
+    )
+    expect(siguiente.costoReposicion).toBe(32000)
+    expect(siguiente.comprasUsadas).toEqual(['cerveza-a-2026-03-12'])
+  })
+
   it('rechaza una semana que no va de lunes a domingo', () => {
     expect(() => cerrarSemana(datos({ desde: '2026-03-10', hasta: '2026-03-16' }))).toThrow(/lunes/i)
     expect(() => cerrarSemana(datos({ hasta: '2026-03-14' }))).toThrow(/domingo/i)
