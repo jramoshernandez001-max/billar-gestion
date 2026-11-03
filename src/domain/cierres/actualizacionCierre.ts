@@ -24,7 +24,7 @@
  */
 import { crearRegistroBitacora, type RegistroBitacora } from '../compartido/bitacora'
 import { validarSemana } from '../compartido/semana'
-import { validarFecha, validarFechaHoraIso } from '../compartido/validaciones'
+import { validarFecha, validarFechaHoraIso, validarMonto } from '../compartido/validaciones'
 import type { CostoUsado } from './cierreSemanal'
 
 /** Clase de cierre. */
@@ -39,6 +39,16 @@ export interface CierreGuardado<R> {
   hasta: string
   /** Momento en que se calculó, en ISO UTC. */
   calculadoEn: string
+  /** Efectivo contado, en pesos. */
+  efectivo: number
+  /** Transferencias recibidas, en pesos. */
+  transferencias: number
+  /**
+   * Momento de la última corrección del dinero contado, en ISO UTC; null si
+   * nunca se corrigió. Si es posterior al cálculo, el cierre está
+   * desactualizado.
+   */
+  dineroCorregidoEn: string | null
   /**
    * Por producto vendido, la compra usada como costo o null si no hubo;
    * vacío en el diario, que no usa costos.
@@ -55,6 +65,10 @@ export interface DatosGuardarCierre<R> {
   hasta: string
   /** Cuándo se calculó. */
   momento: Date
+  /** Efectivo contado, en pesos. */
+  efectivo: number
+  /** Transferencias recibidas, en pesos. */
+  transferencias: number
   costosUsados: readonly CostoUsado[]
   resultado: R
 }
@@ -144,11 +158,16 @@ function momentoIso(nombre: string, momento: Date): string {
  */
 export function guardarCierre<R>(datos: DatosGuardarCierre<R>): CierreGuardado<R> {
   validarPeriodo(datos.tipo, datos.desde, datos.hasta)
+  validarMonto('El efectivo', datos.efectivo)
+  validarMonto('Las transferencias', datos.transferencias)
   return {
     tipo: datos.tipo,
     desde: datos.desde,
     hasta: datos.hasta,
     calculadoEn: momentoIso('El momento del cálculo', datos.momento),
+    efectivo: datos.efectivo,
+    transferencias: datos.transferencias,
+    dineroCorregidoEn: null,
     costosUsados: datos.costosUsados.map((costo) => ({ ...costo })),
     resultado: datos.resultado,
   }
@@ -210,10 +229,13 @@ function afectaAlCierre<R>(cierre: CierreGuardado<R>, cambio: CambioRegistro): b
 /**
  * Dice si un cierre quedó desactualizado.
  *
- * Qué hace: devuelve true si algún cambio lo afecta.
- * Cómo lo hace: revisa cada cambio con afectaAlCierre.
+ * Qué hace: devuelve true si algún cambio lo afecta o si su dinero contado
+ * se corrigió después del cálculo.
+ * Cómo lo hace: revisa cada cambio con afectaAlCierre y compara
+ * dineroCorregidoEn con calculadoEn (texto ISO UTC).
  * Por qué: si quedó desactualizado, hay que recalcularlo para que muestre
- * los números vigentes.
+ * los números vigentes. Corregir el dinero cambia el cuadre, así que también
+ * cuenta como un evento que lo desactualiza.
  *
  * @throws Error si algún cambio es inválido.
  */
@@ -223,7 +245,9 @@ export function estaDesactualizado<R>(
 ): boolean {
   // Se validan todos los cambios aunque uno ya lo desactualice, para no
   // dejar pasar datos inválidos.
-  return cambios.map((cambio) => afectaAlCierre(cierre, cambio)).some(Boolean)
+  const porCambios = cambios.map((cambio) => afectaAlCierre(cierre, cambio)).some(Boolean)
+  const porDinero = cierre.dineroCorregidoEn !== null && cierre.dineroCorregidoEn > cierre.calculadoEn
+  return porCambios || porDinero
 }
 
 /**
@@ -242,14 +266,18 @@ export function estaDesactualizado<R>(
  */
 export function recalcularCierre<R>(datos: DatosRecalculo<R>): Recalculo<R> {
   const { anterior } = datos
-  const cierre = guardarCierre({
+  const nuevo = guardarCierre({
     tipo: anterior.tipo,
     desde: anterior.desde,
     hasta: anterior.hasta,
     momento: datos.momento,
+    efectivo: anterior.efectivo,
+    transferencias: anterior.transferencias,
     costosUsados: datos.costosUsados,
     resultado: datos.resultado,
   })
+  // Se conserva cuándo se corrigió el dinero: es historia, no se reinicia.
+  const cierre: CierreGuardado<R> = { ...nuevo, dineroCorregidoEn: anterior.dineroCorregidoEn }
   return {
     cierre,
     registro: crearRegistroBitacora({

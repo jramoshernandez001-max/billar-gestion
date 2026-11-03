@@ -35,6 +35,8 @@ const semanal: CierreGuardado<{ total: number }> = guardarCierre({
   desde: '2026-03-09',
   hasta: '2026-03-15',
   momento: calculadoEn,
+  efectivo: 30000,
+  transferencias: 20000,
   costosUsados: [costoA, costoB, costoC],
   resultado: { total: 100 },
 })
@@ -56,6 +58,9 @@ describe('guardarCierre', () => {
       desde: '2026-03-09',
       hasta: '2026-03-15',
       calculadoEn: '2026-03-16T02:00:00.000Z',
+      efectivo: 30000,
+      transferencias: 20000,
+      dineroCorregidoEn: null,
       costosUsados: [costoA, costoB, costoC],
       resultado: { total: 100 },
     })
@@ -63,19 +68,28 @@ describe('guardarCierre', () => {
 
   it('un cierre diario es de un solo día', () => {
     expect(() =>
-      guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-13', momento: calculadoEn, costosUsados: [], resultado: {} }),
+      guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-13', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} }),
     ).toThrow(/un solo día/i)
   })
 
   it('un cierre semanal va de lunes a domingo', () => {
     expect(() =>
-      guardarCierre({ tipo: 'semanal', desde: '2026-03-10', hasta: '2026-03-16', momento: calculadoEn, costosUsados: [], resultado: {} }),
+      guardarCierre({ tipo: 'semanal', desde: '2026-03-10', hasta: '2026-03-16', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} }),
     ).toThrow(/lunes/i)
+  })
+
+  it('rechaza dinero contado negativo o con decimales', () => {
+    expect(() =>
+      guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, efectivo: -1, transferencias: 0, costosUsados: [], resultado: {} }),
+    ).toThrow()
+    expect(() =>
+      guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, efectivo: 0, transferencias: 0.5, costosUsados: [], resultado: {} }),
+    ).toThrow()
   })
 
   it('rechaza un momento de cálculo inválido', () => {
     expect(() =>
-      guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: new Date('x'), costosUsados: [], resultado: {} }),
+      guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: new Date('x'), efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} }),
     ).toThrow(/cálculo/i)
   })
 })
@@ -115,7 +129,7 @@ describe('estaDesactualizado', () => {
   })
 
   it('un cierre diario solo mira su día', () => {
-    const diario = guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, costosUsados: [], resultado: {} })
+    const diario = guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} })
     expect(estaDesactualizado(diario, [cambio({ fecha: '2026-03-12' })])).toBe(true)
     expect(estaDesactualizado(diario, [cambio({ fecha: '2026-03-11' })])).toBe(false)
   })
@@ -175,7 +189,7 @@ describe('estaDesactualizado con registros nuevos', () => {
   })
 
   it('una compra nueva no desactualiza un cierre diario, que no usa costos', () => {
-    const diario = guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, costosUsados: [], resultado: {} })
+    const diario = guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} })
     expect(
       estaDesactualizado(diario, [nuevo({ registro: 'compra', productoId: 'cerveza-a', fecha: '2026-03-12' })]),
     ).toBe(false)
@@ -208,7 +222,7 @@ describe('recalcularCierre', () => {
   })
 
   it('un cierre diario usa la acción de recálculo diario', () => {
-    const diario = guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, costosUsados: [], resultado: { total: 1 } })
+    const diario = guardarCierre({ tipo: 'diario', desde: '2026-03-12', hasta: '2026-03-12', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: { total: 1 } })
     const { registro } = recalcularCierre({ anterior: diario, resultado: { total: 2 }, costosUsados: [], usuario: 'a@example.com', momento })
     expect(registro.accion).toBe('recalcular-cierre-diario')
   })
