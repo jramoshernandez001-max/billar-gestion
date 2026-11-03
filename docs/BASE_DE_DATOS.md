@@ -8,7 +8,7 @@ Reglas generales:
 - Momentos en `timestamptz` (UTC); fechas de negocio en `date`; dinero en `bigint` (pesos enteros, nunca negativo); unidades en `integer`.
 - Cada tabla de datos guarda `creado_en` y `creado_por` (el `auth.uid()` de quien la escribió). En la bitácora, `momento` cumple el papel de `creado_en`.
 - **La app solo lee las tablas.** Toda escritura pasa por las funciones de `0004_operaciones_atomicas.sql`, y cada una deja su bitácora en la misma transacción.
-- **Nada se borra.** Compras, ventas, deudas y abonos se anulan con su `estado`, y lo anulado no vuelve a quedar vigente. Los movimientos de inventario se compensan con movimientos contrarios. Ninguna política permite borrar, y un disparador lo impide en todas las tablas, incluso desde el editor SQL.
+- **Nada se borra.** Compras, ventas, deudas y abonos se anulan con su `estado`, y lo anulado no vuelve a quedar vigente. Los movimientos de inventario se compensan con movimientos contrarios y tampoco se pueden editar. Ninguna política permite borrar, y un disparador lo impide en todas las tablas, incluso desde el editor SQL.
 
 ## Migraciones
 
@@ -72,7 +72,7 @@ La app no tiene permisos de escritura en ninguna tabla: así ningún cambio se p
 2. **El usuario sale del token.** `creado_por` es `auth.uid()` y el usuario de la bitácora es el correo del token (`correo_del_token()`). Ningún parámetro permite registrar a nombre de otro.
 3. **`search_path` vacío.** Todos los nombres van con `public.` o `auth.`, así nadie puede crear una tabla o función con el mismo nombre en otro esquema para engañar a la función.
 4. **Solo `authenticated` las ejecuta.** Cada una tiene `REVOKE` a `public` y `anon` y `GRANT EXECUTE` a `authenticated`. Las funciones auxiliares (`anotar_bitacora`, `motivo_obligatorio`, etc.) no las ejecuta nadie desde la app.
-5. **Dueño explícito y RLS forzada.** El dueño de todas las funciones `DEFINER` es `postgres` (`ALTER FUNCTION … OWNER TO postgres`), sin depender de quién aplique la migración. RLS está forzada también para el dueño de las tablas, así que no se asume que `postgres` se la salte: tiene políticas explícitas para leer, agregar y actualizar en cada tabla (en la bitácora, los movimientos y los renglones, solo leer y agregar). No tiene ninguna política para borrar, y los disparadores bloquean el borrado y la modificación de la bitácora de todas formas.
+5. **Dueño explícito y RLS forzada.** El dueño de todas las funciones `DEFINER` es `postgres` (`ALTER FUNCTION … OWNER TO postgres`), sin depender de quién aplique la migración. RLS está forzada también para el dueño de las tablas, así que no se asume que `postgres` se la salte: tiene políticas explícitas para leer, agregar y actualizar en cada tabla (en la bitácora, los movimientos y los renglones, solo leer y agregar). No tiene ninguna política para borrar, y los disparadores bloquean el borrado en todas las tablas y la modificación de la bitácora y de los movimientos de inventario de todas formas.
 6. **`es_usuario_autorizado()`** también es `SECURITY DEFINER`, para que los usuarios autorizados puedan leer toda la lista de `usuarios_autorizados` sin recursión entre la política y la función. Devuelve solo un booleano, fija `search_path` y no expone filas.
 
 Consecuencia: las políticas de `postgres` también permiten escribir directo desde el editor SQL de Supabase, sin bitácora. Solo el dueño debe tener acceso al panel.
@@ -165,7 +165,7 @@ Hacerla después de aplicar las migraciones y cada vez que se cambien políticas
    delete from public.bitacora;
    ```
 
-7. **Nada se borra en ninguna tabla.** Desde el editor SQL, `delete from public.ventas;` debe fallar con el mensaje del disparador.
+7. **Nada se borra en ninguna tabla y el inventario no se edita.** Desde el editor SQL, `delete from public.ventas;` y `update public.movimientos_inventario set unidades = unidades + 1;` deben fallar con el mensaje del disparador.
 
 8. **El rol anon no accede a nada.** Las dos sentencias deben fallar con "permission denied":
 
