@@ -285,6 +285,15 @@ begin
   if not found then
     raise exception 'La compra % no existe', p_compra_id;
   end if;
+  -- Una compra anulada ya no cuenta como última compra: corregirle el costo
+  -- no cambia nada real y confundiría la bitácora.
+  if v_antes.estado = 'anulada' then
+    raise exception 'La compra % está anulada: no se puede corregir su costo', p_compra_id;
+  end if;
+  -- Un costo igual al que ya tiene no es una corrección: no se registra nada.
+  if v_antes.costo_total = p_costo_nuevo then
+    return;
+  end if;
 
   update public.compras set costo_total = p_costo_nuevo where id = p_compra_id
   returning * into v_despues;
@@ -924,6 +933,11 @@ begin
   select * into v_antes from public.cierres where id = p_cierre_id for update;
   if not found then
     raise exception 'El cierre % no existe', p_cierre_id;
+  end if;
+  -- Si el dinero queda igual no hay corrección: no se toca el cierre (que
+  -- quedaría desactualizado sin motivo) ni se registra nada.
+  if v_antes.efectivo = p_efectivo and v_antes.transferencias = p_transferencias then
+    return;
   end if;
 
   update public.cierres
