@@ -190,6 +190,74 @@ describe('migraciones de la base de datos', () => {
     )
   })
 
+  describe('funciones de escritura (SECURITY DEFINER)', () => {
+    /** Las DEFINER, menos es_usuario_autorizado, que es la verificación misma. */
+    const definer = funciones.filter(
+      (f) => /security definer/i.test(f.texto) && f.nombre !== 'es_usuario_autorizado',
+    )
+
+    it('existe una función por cada operación de escritura', () => {
+      expect(definer.map((f) => f.nombre).sort()).toEqual(
+        [
+          'crear_producto',
+          'editar_producto',
+          'registrar_compra',
+          'corregir_costo_compra',
+          'anular_compra',
+          'registrar_traslado',
+          'registrar_venta',
+          'anular_venta',
+          'registrar_ajuste',
+          'registrar_deuda',
+          'anular_deuda',
+          'registrar_abono',
+          'anular_abono',
+          'guardar_cierre',
+          'recalcular_cierre',
+          'corregir_dinero_cierre',
+        ].sort(),
+      )
+    })
+
+    it('su primera instrucción verifica es_usuario_autorizado() y no hay nada que corra antes', () => {
+      for (const funcion of definer) {
+        const cuerpo = funcion.texto.split(/\nbegin\n/i)[1] ?? ''
+        expect(cuerpo.trimStart(), funcion.nombre).toMatch(/^if not public\.es_usuario_autorizado\(\) then\s+raise exception/i)
+        // En declare no se asigna nada: una asignación correría antes de la verificación.
+        const declaracion = funcion.texto.split(/\nbegin\n/i)[0]
+        expect(declaracion, funcion.nombre).not.toMatch(/:=/)
+      }
+    })
+
+    it('fijan search_path vacío, tienen dueño postgres y solo authenticated las ejecuta', () => {
+      for (const funcion of definer) {
+        expect(funcion.texto, funcion.nombre).toMatch(/set search_path = ''/i)
+        expect(sql, funcion.nombre).toMatch(new RegExp(`alter function public\\.${funcion.nombre}\\([^)]*\\) owner to postgres`, 'i'))
+        expect(sql, funcion.nombre).toMatch(new RegExp(`grant execute on function public\\.${funcion.nombre}\\([^)]*\\) to authenticated`, 'i'))
+      }
+    })
+
+    it('el usuario y creado_por salen del token, nunca de un parámetro', () => {
+      for (const funcion of definer) {
+        const parametros = funcion.texto.split(/\)\s*returns/i)[0]
+        expect(parametros, funcion.nombre).not.toMatch(/p_(usuario|creado_por|correo)\b/i)
+      }
+      expect(sql).toMatch(/creado_por\s*=\s*auth\.uid\(\)|auth\.uid\(\)/)
+    })
+
+    it('registrar_abono bloquea la deuda y no deja pasar abonos de más', () => {
+      const abono = definer.find((f) => f.nombre === 'registrar_abono')?.texto ?? ''
+      expect(abono).toMatch(/from public\.deudas[\s\S]*for update/i)
+      expect(abono).toMatch(/estado = 'vigente'/i)
+      expect(abono).toMatch(/raise exception/i)
+    })
+
+    it('registrar_venta ignora los renglones de cantidad cero', () => {
+      const venta = definer.find((f) => f.nombre === 'registrar_venta')?.texto ?? ''
+      expect(venta).toMatch(/= 0 then\s+continue/i)
+    })
+  })
+
   it('la vista stock_actual respeta RLS con security_invoker', () => {
     expect(sql).toMatch(/create view public\.stock_actual\s+with \(security_invoker = true\)/i)
   })
