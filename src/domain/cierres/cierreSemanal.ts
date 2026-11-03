@@ -39,7 +39,7 @@ export interface DatosCierreSemanal {
   abonos: readonly Abono[]
   /**
    * Compras de donde sale el costo de la última compra de cada producto.
-   * Quien llama decide qué compras pasa (ver docs/PENDIENTES.md).
+   * Solo cuentan las de fecha igual o anterior a `hasta`.
    */
   compras: readonly Compra[]
 }
@@ -56,13 +56,14 @@ export interface ResultadoCierreSemanal {
  * Arma las líneas de reposición de lo vendido.
  *
  * Qué hace: devuelve, por producto vendido, las unidades vendidas y la
- * referencia de su última compra.
+ * referencia de su última compra con fecha igual o anterior a `hasta`.
  * Cómo lo hace: suma las unidades de los renglones por producto (en el orden
  * en que aparece cada uno por primera vez), descarta los que suman cero y
- * busca la última compra de cada uno.
+ * busca la última compra de cada uno hasta esa fecha.
  * Por qué: el costo se calcula por producto con el total de unidades, para
  * redondear una sola vez por producto. Un producto con cero unidades no
- * cuesta nada reponer, así que no necesita compra.
+ * cuesta nada reponer, así que no necesita compra. Ignorar las compras
+ * posteriores hace que recalcular el cierre más tarde dé el mismo resultado.
  *
  * @throws Error si un producto vendido no tiene compras registradas: sin
  * costo no hay utilidad, y no está definido qué hacer (ver
@@ -71,6 +72,7 @@ export interface ResultadoCierreSemanal {
 export function lineasReposicion(
   renglones: readonly RenglonVenta[],
   compras: readonly Compra[],
+  hasta: string,
 ): LineaReposicion[] {
   const unidadesPorProducto = new Map<string, number>()
   for (const renglon of renglones) {
@@ -84,7 +86,7 @@ export function lineasReposicion(
   return [...unidadesPorProducto]
     .filter(([, unidadesVendidas]) => unidadesVendidas > 0)
     .map(([productoId, unidadesVendidas]) => {
-      const ultima = ultimaCompraDe(compras, productoId)
+      const ultima = ultimaCompraDe(compras, productoId, hasta)
       if (ultima === undefined) {
         throw new Error(`El producto ${productoId} se vendió pero no tiene compras registradas`)
       }
@@ -113,7 +115,7 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.desde, datos.hasta),
   })
-  const costoReposicion = costoReposicionTotal(lineasReposicion(datos.renglones, datos.compras))
+  const costoReposicion = costoReposicionTotal(lineasReposicion(datos.renglones, datos.compras, datos.hasta))
 
   return {
     costoReposicion,

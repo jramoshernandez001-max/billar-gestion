@@ -61,7 +61,7 @@ const datos = (cambios: Partial<DatosCierreSemanal> = {}): DatosCierreSemanal =>
 
 describe('lineasReposicion', () => {
   it('suma las unidades vendidas por producto y toma su última compra', () => {
-    expect(lineasReposicion(renglones, compras)).toEqual([
+    expect(lineasReposicion(renglones, compras, '2026-03-15')).toEqual([
       { unidadesVendidas: 24, ultimaCompra: { unidades: 20, costoTotal: 30000 } },
       { unidadesVendidas: 5, ultimaCompra: { unidades: 10, costoTotal: 20000 } },
     ])
@@ -71,18 +71,25 @@ describe('lineasReposicion', () => {
     const sinVenta: RenglonVenta[] = [
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 0 },
     ]
-    expect(lineasReposicion(sinVenta, compras)).toEqual([])
+    expect(lineasReposicion(sinVenta, compras, '2026-03-15')).toEqual([])
   })
 
   it('rechaza un producto vendido sin compras registradas', () => {
     const sinCompras: RenglonVenta[] = [
       { productoId: 'cerveza-c', producto: cervezaB, presentacion: 'unidad', cantidad: 1 },
     ]
-    expect(() => lineasReposicion(sinCompras, compras)).toThrow(/compra/i)
+    expect(() => lineasReposicion(sinCompras, compras, '2026-03-15')).toThrow(/compra/i)
   })
 })
 
 describe('cerrarSemana', () => {
+  it('usa la última compra hasta el último día de la semana, no las posteriores', () => {
+    // Compra de A después del cierre, con otro costo: no debe cambiar nada,
+    // así recalcular el cierre más tarde da el mismo resultado.
+    const conCompraPosterior = [...compras, compra('cerveza-a', '2026-03-16', 99000)]
+    expect(cerrarSemana(datos({ compras: conCompraPosterior })).costoReposicion).toBe(46000)
+  })
+
   it('devuelve el costo de reposición, el cuadre y la utilidad', () => {
     // Costo: A 24 x 1.500 = 36.000; B 5 x 2.000 = 10.000. Total 46.000.
     expect(cerrarSemana(datos())).toEqual({
