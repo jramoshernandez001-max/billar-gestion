@@ -45,4 +45,10 @@ describe('crearServicios', () => {
     await expect(crearServicios(cliente).servicioCierres.recalcularCierre('x')).rejects.toThrow(/no existe/i)
     expect(leidas).toEqual(['cierres'])
   })
+
+  it('el detector de desactualizados lee cierres y bitácora', async () => {
+    const { cliente, leidas } = clienteEspia()
+    expect(await crearServicios(cliente).desactualizados.idsDesactualizados()).toEqual([])
+    expect(leidas.sort()).toEqual(['bitacora', 'cierres'])
+  })
 })
