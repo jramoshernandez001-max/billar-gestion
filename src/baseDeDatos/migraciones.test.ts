@@ -75,6 +75,25 @@ describe('migraciones de la base de datos', () => {
     )
   })
 
+  it('compras, ventas, deudas y abonos tienen estado y no se pueden reactivar', () => {
+    for (const tabla of ['compras', 'ventas', 'deudas', 'abonos_deuda']) {
+      const definicion = sql.match(new RegExp(`create table public\\.${tabla} \\(([\\s\\S]*?)\\n\\);`, 'i'))
+      expect(definicion?.[1]).toMatch(/estado text not null default 'vigente' check \(estado in \('vigente', 'anulada'\)\)/)
+      expect(sql).toMatch(new RegExp(`before update of estado on public\\.${tabla}\\s+for each row execute function public\\.impedir_reactivar\\(\\)`, 'i'))
+    }
+  })
+
+  it('un renglón de venta siempre tiene cantidad y unidades mayores a cero', () => {
+    const definicion = sql.match(/create table public\.venta_items \(([\s\S]*?)\n\);/i)?.[1] ?? ''
+    expect(definicion).toMatch(/cantidad integer not null check \(cantidad > 0\)/)
+    expect(definicion).toMatch(/unidades integer not null check \(unidades > 0\)/)
+  })
+
+  it('un cierre guarda cuándo se corrigió su dinero contado', () => {
+    const definicion = sql.match(/create table public\.cierres \(([\s\S]*?)\n\);/i)?.[1] ?? ''
+    expect(definicion).toMatch(/dinero_corregido_en timestamptz/)
+  })
+
   it('todas las tablas tienen RLS activada y forzada', () => {
     for (const tabla of tablas) {
       expect(sql).toContain(`alter table public.${tabla} enable row level security`)
