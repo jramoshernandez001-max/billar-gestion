@@ -27,6 +27,7 @@ describe('movimientosInversos', () => {
 
   it('anular una compra deja la bodega como estaba', () => {
     const compra = compraAMovimiento({
+      id: 'compra-1',
       productoId: 'cerveza-a',
       producto: { unidadesPorCaja: 20, manejaSixpack: false },
       presentacion: 'caja',

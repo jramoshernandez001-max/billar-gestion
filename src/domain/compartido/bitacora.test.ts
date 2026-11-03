@@ -84,6 +84,7 @@ describe('crearRegistroBitacora', () => {
     expect([...ACCIONES_BITACORA].sort()).toEqual(
       [
         'registrar-compra',
+        'corregir-costo-compra',
         'registrar-traslado',
         'registrar-venta',
         'registrar-cierre-diario',

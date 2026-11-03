@@ -19,6 +19,7 @@ import {
 
 /** Crea una compra de ejemplo: por defecto 2 cajas x20 por 50.000. */
 const compra = (cambios: Partial<Compra> = {}): Compra => ({
+  id: 'compra-1',
   productoId: 'cerveza-a',
   producto: { unidadesPorCaja: 20, manejaSixpack: true },
   presentacion: 'caja',
