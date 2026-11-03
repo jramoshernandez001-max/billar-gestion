@@ -10,6 +10,7 @@
  * forma en que entra producto. El costo varía en cada compra, así que se
  * guarda por compra y la utilidad usa el de la más reciente.
  */
+import { estaVigente, type EstadoRegistro } from '../compartido/estado'
 import { validarFecha, validarFechaHoraIso, validarMonto } from '../compartido/validaciones'
 import type { UltimaCompra } from '../cierres/utilidadSemanal'
 import { aUnidades, type Presentacion, type ProductoConversion } from './conversiones'
@@ -39,6 +40,11 @@ export interface Compra {
    * solo formato fijo, comparar el texto equivale a comparar el momento.
    */
   registradoEn: string
+  /**
+   * Vigente o anulada. Una compra anulada no se borra, pero deja de contar
+   * como última compra y su entrada a la bodega se compensa.
+   */
+  estado: EstadoRegistro
 }
 
 /**
@@ -101,13 +107,13 @@ export function compraAUltimaCompra(compra: Compra): UltimaCompra {
 /**
  * Elige la última compra de un producto.
  *
- * Qué hace: devuelve la compra del producto con la fecha más reciente y, si
- * hay varias ese día, la que se registró de último; o undefined si el
- * producto no tiene compras. Con `fechaLimite`, solo cuentan las compras con
- * fecha igual o anterior a ese día.
- * Cómo lo hace: filtra por producto, valida fechas y momentos de registro,
- * descarta las posteriores a la fecha límite y ordena por fecha y luego por
- * momento de registro. Comparar texto
+ * Qué hace: devuelve la compra vigente del producto con la fecha más
+ * reciente y, si hay varias ese día, la que se registró de último; o
+ * undefined si el producto no tiene compras vigentes. Con `fechaLimite`,
+ * solo cuentan las compras con fecha igual o anterior a ese día.
+ * Cómo lo hace: filtra por producto, valida fechas, momentos de registro y
+ * estados, descarta las anuladas y las posteriores a la fecha límite, y
+ * ordena por fecha y luego por momento de registro. Comparar texto
  * AAAA-MM-DD o ISO UTC equivale a comparar el tiempo.
  * Por qué: la utilidad semanal usa el costo de la última compra, que es lo
  * que cuesta reponer hoy. Las fechas de compra no tienen hora, así que el
@@ -115,8 +121,8 @@ export function compraAUltimaCompra(compra: Compra): UltimaCompra {
  * que un cierre use el costo vigente a su último día, de modo que
  * recalcularlo más tarde, con compras nuevas, dé el mismo resultado.
  *
- * @throws Error si alguna fecha (incluida la límite) o momento de registro
- * es inválido, o si las
+ * @throws Error si alguna fecha (incluida la límite), momento de registro o
+ * estado es inválido, o si las
  * dos compras más recientes empatan en fecha y en momento de registro: no
  * hay forma de saber cuál fue la última.
  */
@@ -131,10 +137,12 @@ export function ultimaCompraDe(
     validarFecha('La fecha de la compra', compra.fecha)
     validarFechaHoraIso('El momento de registro de la compra', compra.registradoEn)
   })
+  // Una compra anulada no cuenta, ni siquiera para el empate.
+  const noAnuladas = delProducto.filter((compra) => estaVigente(compra, `La compra ${compra.id}`))
   const vigentes =
     fechaLimite === undefined
-      ? delProducto
-      : delProducto.filter((compra) => compra.fecha <= fechaLimite)
+      ? noAnuladas
+      : noAnuladas.filter((compra) => compra.fecha <= fechaLimite)
   if (vigentes.length === 0) return undefined
 
   // De más reciente a más antigua: primero por fecha, luego por registro.
