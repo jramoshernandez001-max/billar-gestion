@@ -68,6 +68,7 @@ describe('lineasReposicion', () => {
         { unidadesVendidas: 5, ultimaCompra: { unidades: 10, costoTotal: 20000 } },
       ],
       productosSinCosto: [],
+      comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
     })
   })
 
@@ -78,6 +79,7 @@ describe('lineasReposicion', () => {
     expect(lineasReposicion(sinVenta, compras, '2026-03-15')).toEqual({
       lineas: [],
       productosSinCosto: [],
+      comprasUsadas: [],
     })
   })
 
@@ -88,6 +90,7 @@ describe('lineasReposicion', () => {
     expect(lineasReposicion(sinCompras, compras, '2026-03-15')).toEqual({
       lineas: [],
       productosSinCosto: ['cerveza-c'],
+      comprasUsadas: [],
     })
   })
 
@@ -98,6 +101,8 @@ describe('lineasReposicion', () => {
     expect(lineasReposicion(sinCompras, compras, '2026-03-15', { 'cerveza-c': 1800 })).toEqual({
       lineas: [{ unidadesVendidas: 3, ultimaCompra: { unidades: 1, costoTotal: 1800 } }],
       productosSinCosto: [],
+      // Un costo manual no es una compra: no queda en la lista de usadas.
+      comprasUsadas: [],
     })
   })
 
@@ -133,6 +138,7 @@ describe('cerrarSemana', () => {
       completo: true,
       productosSinCosto: [],
       ventasSinCosto: 0,
+      comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
       cuadre: { dineroTotal: 63000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0 },
       utilidad: { utilidadEsperada: 17000, utilidadReal: 17000, diferencia: 0 },
     })
