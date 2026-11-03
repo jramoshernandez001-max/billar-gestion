@@ -11,7 +11,7 @@
  * comporte igual en todos.
  */
 import { describe, it, expect } from 'vitest'
-import { validarFecha, validarMonto } from './validaciones'
+import { validarFecha, validarFechaHoraIso, validarMonto } from './validaciones'
 
 describe('validarMonto', () => {
   it('acepta cero y enteros positivos', () => {
@@ -65,6 +65,29 @@ describe('validarFecha', () => {
   it('el mensaje de error nombra el campo inválido', () => {
     expect(() => validarFecha('La fecha de corte', 'mañana')).toThrow(
       'La fecha de corte debe ser una fecha válida con formato AAAA-MM-DD',
+    )
+  })
+})
+
+describe('validarFechaHoraIso', () => {
+  it('acepta el formato exacto de toISOString en UTC', () => {
+    expect(() => validarFechaHoraIso('El momento', '2026-03-12T20:00:00.000Z')).not.toThrow()
+  })
+
+  it('rechaza otros formatos o zonas horarias', () => {
+    expect(() => validarFechaHoraIso('El momento', '2026-03-12 20:00')).toThrow()
+    expect(() => validarFechaHoraIso('El momento', '2026-03-12T20:00:00Z')).toThrow()
+    expect(() => validarFechaHoraIso('El momento', '2026-03-12T20:00:00.000-05:00')).toThrow()
+  })
+
+  it('rechaza momentos que no existen', () => {
+    expect(() => validarFechaHoraIso('El momento', '2026-02-30T10:00:00.000Z')).toThrow()
+    expect(() => validarFechaHoraIso('El momento', '2026-03-12T25:00:00.000Z')).toThrow()
+  })
+
+  it('el mensaje de error nombra el campo inválido', () => {
+    expect(() => validarFechaHoraIso('El momento del cálculo', 'ayer')).toThrow(
+      'El momento del cálculo debe ser una fecha y hora ISO en UTC',
     )
   })
 })

@@ -10,7 +10,7 @@
  * forma en que entra producto. El costo varía en cada compra, así que se
  * guarda por compra y la utilidad usa el de la más reciente.
  */
-import { validarFecha, validarMonto } from '../compartido/validaciones'
+import { validarFecha, validarFechaHoraIso, validarMonto } from '../compartido/validaciones'
 import type { UltimaCompra } from '../cierres/utilidadSemanal'
 import { aUnidades, type Presentacion, type ProductoConversion } from './conversiones'
 import type { Movimiento } from './stock'
@@ -39,30 +39,6 @@ export interface Compra {
    * solo formato fijo, comparar el texto equivale a comparar el momento.
    */
   registradoEn: string
-}
-
-/** Formato exacto de Date.toISOString: así el texto se compara como fecha. */
-const FORMATO_ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-
-/**
- * Comprueba que el momento de registro sea una fecha y hora ISO UTC real.
- *
- * Qué hace: lanza un error si el texto no tiene el formato de toISOString o
- * no es un momento que exista.
- * Cómo lo hace: revisa el formato con una expresión regular y confirma que
- * al convertirlo y volverlo a texto quede igual.
- * Por qué: el orden de registro se decide comparando texto; con otro formato
- * la comparación daría un orden falso sin avisar.
- */
-function validarRegistradoEn(registradoEn: string): void {
-  const instante = new Date(registradoEn)
-  const esValido =
-    FORMATO_ISO_UTC.test(registradoEn) &&
-    !Number.isNaN(instante.getTime()) &&
-    instante.toISOString() === registradoEn
-  if (!esValido) {
-    throw new Error('El momento de registro de la compra debe ser una fecha y hora ISO en UTC')
-  }
 }
 
 /**
@@ -153,7 +129,7 @@ export function ultimaCompraDe(
   const delProducto = compras.filter((compra) => compra.productoId === productoId)
   delProducto.forEach((compra) => {
     validarFecha('La fecha de la compra', compra.fecha)
-    validarRegistradoEn(compra.registradoEn)
+    validarFechaHoraIso('El momento de registro de la compra', compra.registradoEn)
   })
   const vigentes =
     fechaLimite === undefined
