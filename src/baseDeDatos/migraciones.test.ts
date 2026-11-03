@@ -23,8 +23,18 @@ const archivos = import.meta.glob('../../supabase/migrations/*.sql', {
   eager: true,
 }) as Record<string, string>
 
-/** Quita los comentarios de línea (--) para no confundirlos con SQL. */
-const sinComentarios = (sql: string): string => sql.replace(/--[^\n]*/g, '')
+/**
+ * Prepara el texto de una migración para revisarlo.
+ *
+ * Qué hace: pasa los fines de línea a \n y quita los comentarios de línea.
+ * Cómo lo hace: reemplaza \r\n por \n y borra todo desde -- hasta el fin de
+ * la línea.
+ * Por qué: en Windows, git puede guardar los archivos con \r\n
+ * (core.autocrlf), y los patrones de las pruebas buscan \n; sin normalizar,
+ * las pruebas fallarían según el equipo. Los comentarios se quitan para no
+ * confundirlos con SQL.
+ */
+const sinComentarios = (sql: string): string => sql.replace(/\r\n/g, '\n').replace(/--[^\n]*/g, '')
 
 /** Todo el SQL de las migraciones, en orden, sin comentarios. */
 const sql = Object.keys(archivos)
