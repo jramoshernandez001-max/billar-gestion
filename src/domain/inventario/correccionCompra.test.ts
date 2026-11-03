@@ -27,6 +27,7 @@ const compra = (id: string, fecha: string, costoTotal: number): Compra => ({
   costoTotal,
   fecha,
   registradoEn: `${fecha}T10:00:00.000Z`,
+  estado: 'vigente',
 })
 
 const vieja = compra('c1', '2026-03-01', 30000)

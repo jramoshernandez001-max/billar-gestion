@@ -35,6 +35,7 @@ describe('movimientosInversos', () => {
       costoTotal: 50000,
       fecha: '2026-03-09',
       registradoEn: '2026-03-09T15:00:00.000Z',
+      estado: 'vigente',
     })
     const historial = [compra, ...movimientosInversos([compra])]
     expect(calcularStock(historial, 'cerveza-a')).toEqual({ bodega: 0, nevera: 0, total: 0 })

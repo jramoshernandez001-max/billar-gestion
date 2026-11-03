@@ -27,6 +27,7 @@ const compra = (cambios: Partial<Compra> = {}): Compra => ({
   costoTotal: 50000,
   fecha: '2026-01-10',
   registradoEn: '2026-01-10T15:00:00.000Z',
+  estado: 'vigente',
   ...cambios,
 })
 
@@ -111,6 +112,30 @@ describe('ultimaCompraDe', () => {
 
   it('devuelve undefined si el producto no tiene compras', () => {
     expect(ultimaCompraDe([compra()], 'cerveza-b')).toBeUndefined()
+  })
+
+  it('ignora las compras anuladas', () => {
+    const compras = [
+      compra({ fecha: '2026-01-10', costoTotal: 50000 }),
+      compra({ fecha: '2026-01-20', costoTotal: 99000, estado: 'anulada' }),
+    ]
+    expect(ultimaCompraDe(compras, 'cerveza-a')?.costoTotal).toBe(50000)
+  })
+
+  it('si todas las compras del producto están anuladas, no hay última compra', () => {
+    expect(ultimaCompraDe([compra({ estado: 'anulada' })], 'cerveza-a')).toBeUndefined()
+  })
+
+  it('una compra anulada no cuenta para el empate del mismo momento', () => {
+    const compras = [
+      compra({ fecha: '2026-01-20', registradoEn: '2026-01-20T09:00:00.000Z', costoTotal: 50000 }),
+      compra({ fecha: '2026-01-20', registradoEn: '2026-01-20T09:00:00.000Z', costoTotal: 52000, estado: 'anulada' }),
+    ]
+    expect(ultimaCompraDe(compras, 'cerveza-a')?.costoTotal).toBe(50000)
+  })
+
+  it('rechaza una compra con estado desconocido', () => {
+    expect(() => ultimaCompraDe([compra({ estado: 'borrada' as Compra['estado'] })], 'cerveza-a')).toThrow(/estado/i)
   })
 
   it('rechaza fechas inválidas', () => {

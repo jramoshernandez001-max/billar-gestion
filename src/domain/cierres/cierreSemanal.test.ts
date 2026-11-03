@@ -36,6 +36,7 @@ const compra = (productoId: string, fecha: string, costoTotal: number): Compra =
   costoTotal,
   fecha,
   registradoEn: `${fecha}T12:00:00.000Z`,
+  estado: 'vigente',
 })
 
 // Compras: para A manda la del 2026-03-05 (caja x20 por 30.000 = 1.500 c/u);
@@ -321,6 +322,13 @@ describe('cerrarSemana', () => {
     )
     expect(siguiente.costoReposicion).toBe(32000)
     expect(siguiente.comprasUsadas).toEqual(['cerveza-a-2026-03-12'])
+  })
+
+  it('el costo de reposición ignora las compras anuladas', () => {
+    // La compra de A del 2026-03-05 se anula: manda la del 2026-02-20 (28.000).
+    const conAnulada = compras.map((c) => (c.id === 'cerveza-a-2026-03-05' ? { ...c, estado: 'anulada' as const } : c))
+    // A: 24 x 1.400 = 33.600; B: 5 x 2.000 = 10.000.
+    expect(cerrarSemana(datos({ compras: conAnulada })).costoReposicion).toBe(43600)
   })
 
   it('rechaza una semana que no va de lunes a domingo', () => {
