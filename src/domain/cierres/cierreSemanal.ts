@@ -3,7 +3,8 @@
  *
  * Qué hace: calcula el costo de reponer lo vendido en la semana, cuadra la
  * semana con sus deudas y devuelve el cuadre junto con la utilidad semanal
- * (esperada, real y diferencia).
+ * (esperada, real y diferencia). Si algún producto vendido no tiene costo,
+ * el cierre sale incompleto y solo trae la utilidad esperada.
  * Cómo lo hace: funciones puras que componen piezas ya probadas: aUnidades
  * para las unidades vendidas, ultimaCompraDe y compraAUltimaCompra para el
  * costo, costoReposicionTotal, valorVenta, totalDeudasPendientes,
@@ -52,12 +53,10 @@ export interface DatosCierreSemanal {
   costosManuales?: Readonly<Record<string, number>>
 }
 
-/** Resultado del cierre semanal. */
-export interface ResultadoCierreSemanal {
+/** Lo que devuelven por igual un cierre semanal completo y uno incompleto. */
+interface BaseCierreSemanal {
   /** Costo de volver a comprar lo vendido que sí tiene costo, en pesos. */
   costoReposicion: number
-  /** Falso si algún producto vendido quedó sin costo. */
-  completo: boolean
   /** Productos vendidos sin compras ni costo manual; vacío si completo. */
   productosSinCosto: string[]
   /**
@@ -70,9 +69,34 @@ export interface ResultadoCierreSemanal {
    * el cierre queda desactualizado cuando una de ellas se anula o corrige.
    */
   comprasUsadas: string[]
+  /** Cuadre contra el dinero, con la venta total; trae faltante o sobrante. */
   cuadre: ResultadoCuadre
+}
+
+/** Cierre semanal con costo para todo lo vendido: trae la utilidad completa. */
+export interface CierreSemanalCompleto extends BaseCierreSemanal {
+  completo: true
+  /** Utilidad esperada, real y diferencia. */
   utilidad: ResultadoUtilidad
 }
+
+/**
+ * Cierre semanal con productos vendidos sin costo. No trae utilidad real:
+ * el dinero es uno solo y no se puede separar por producto. Trae la
+ * utilidad esperada de lo que sí tiene costo, y aparte lo vendido sin
+ * costo y el cuadre.
+ */
+export interface CierreSemanalIncompleto extends BaseCierreSemanal {
+  completo: false
+  /** Ventas de los productos con costo menos su costo de reposición. */
+  utilidadEsperada: number
+}
+
+/**
+ * Resultado del cierre semanal. Se distingue por `completo`, así no se
+ * puede leer una utilidad real que no se calculó.
+ */
+export type ResultadoCierreSemanal = CierreSemanalCompleto | CierreSemanalIncompleto
 
 /** Líneas con costo, productos que se quedaron sin él y compras usadas. */
 export interface LineasReposicion {
@@ -163,56 +187,22 @@ function valorDeProductos(
 }
 
 /**
- * Calcula la utilidad solo con los productos que tienen costo.
- *
- * Qué hace: devuelve la utilidad esperada, la real y la diferencia dejando
- * por fuera lo vendido de los productos sin costo.
- * Cómo lo hace: la esperada es lo vendido con costo menos el costo. La real
- * parte del dinero total y le quita lo vendido sin costo (el dinero es uno
- * solo y no se puede separar por producto, así que se descuenta ese valor)
- * y el costo. Se usa calcularUtilidadSemanal con el dinero completo y luego
- * se resta lo vendido sin costo, porque el dinero que queda puede salir
- * negativo si el faltante es grande, y esa función no acepta dinero
- * negativo.
- * Por qué: así la utilidad no se infla con ventas cuyo costo no se conoce,
- * y la diferencia (real menos esperada) sigue siendo igual a la del cuadre.
- * Con todo el costo conocido, lo vendido sin costo es cero y el resultado es
- * el mismo de siempre.
- */
-function utilidadConCosto(
-  valorVentas: number,
-  ventasSinCosto: number,
-  costoReposicion: number,
-  dineroTotal: number,
-): ResultadoUtilidad {
-  const base = calcularUtilidadSemanal({
-    valorVentas: valorVentas - ventasSinCosto,
-    costoReposicion,
-    dineroTotal,
-  })
-  const utilidadReal = base.utilidadReal - ventasSinCosto
-  return {
-    utilidadEsperada: base.utilidadEsperada,
-    utilidadReal,
-    diferencia: utilidadReal - base.utilidadEsperada,
-  }
-}
-
-/**
  * Cierra una semana.
  *
- * Qué hace: devuelve el costo de reposición, el cuadre, la utilidad y si
- * el resultado está completo (todos los productos vendidos con costo).
+ * Qué hace: devuelve el costo de reposición, el cuadre y, si todo lo
+ * vendido tiene costo, la utilidad completa; si no, solo la utilidad
+ * esperada de lo que tiene costo y, aparte, lo vendido sin costo.
  * Cómo lo hace: valida que el periodo vaya de lunes a domingo, toma solo
  * las ventas vigentes, cuadra lo vendido contra efectivo, transferencias y las
- * deudas nacidas en el periodo (por lo que sigan debiendo al último día), y
- * calcula la utilidad solo con los productos que tienen costo; lo vendido
- * de los demás se devuelve aparte.
+ * deudas nacidas en el periodo (por lo que sigan debiendo al último día).
+ * Si todo tiene costo, calcula la utilidad con calcularUtilidadSemanal; si
+ * no, resta el costo de las ventas de los productos con costo.
  * Por qué: el cuadre usa la venta total, porque toda la venta debe estar en
- * el dinero. La utilidad solo puede calcularse donde hay costo, y su
- * diferencia coincide con el faltante o sobrante de la semana. Un producto
- * sin costo no impide cerrar: el resultado sale marcado como incompleto,
- * con la lista de esos productos y su venta, para no ocultar el hueco.
+ * el dinero. La utilidad real compara el dinero con el costo, y el dinero
+ * no se puede separar por producto: con productos sin costo no hay forma
+ * honesta de calcularla, así que no se calcula. Un producto sin costo no
+ * impide cerrar: el resultado sale incompleto, con la lista de esos
+ * productos, su venta y el faltante o sobrante del cuadre, sin mezclarlos.
  *
  * @throws Error si alguna fecha, monto, costo manual o renglón es inválido,
  * o si el periodo no va de un lunes al domingo siguiente.
@@ -237,13 +227,28 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
   const costoReposicion = costoReposicionTotal(lineas)
   const ventasSinCosto = valorDeProductos(renglones, productosSinCosto)
 
-  return {
+  const base: BaseCierreSemanal = {
     costoReposicion,
-    completo: productosSinCosto.length === 0,
     productosSinCosto,
     ventasSinCosto,
     comprasUsadas,
     cuadre,
-    utilidad: utilidadConCosto(valorVentas, ventasSinCosto, costoReposicion, cuadre.dineroTotal),
+  }
+
+  if (productosSinCosto.length > 0) {
+    return {
+      completo: false,
+      ...base,
+      utilidadEsperada: valorVentas - ventasSinCosto - costoReposicion,
+    }
+  }
+  return {
+    completo: true,
+    ...base,
+    utilidad: calcularUtilidadSemanal({
+      valorVentas,
+      costoReposicion,
+      dineroTotal: cuadre.dineroTotal,
+    }),
   }
 }
