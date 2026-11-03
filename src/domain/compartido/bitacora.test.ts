@@ -86,6 +86,7 @@ describe('crearRegistroBitacora', () => {
         'registrar-compra',
         'corregir-costo-compra',
         'registrar-traslado',
+        'registrar-ajuste',
         'registrar-venta',
         'registrar-cierre-diario',
         'registrar-cierre-semanal',

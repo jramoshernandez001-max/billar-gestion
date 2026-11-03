@@ -240,6 +240,22 @@ describe('cerrarSemana', () => {
     expect(resultado.costoReposicion).toBe(46000 + 3600)
   })
 
+  it('un inventario inicial cargado como compras con fecha anterior da costo al siguiente cierre', () => {
+    // El inventario inicial no usa ajustes: se registra como compras con la
+    // fecha que elige el usuario (antes de la semana), aunque el registro en
+    // el sistema se haga después, ya dentro de la semana.
+    const inventarioInicial: Compra[] = [
+      { ...compra('cerveza-a', '2026-03-01', 30000), id: 'inicial-a', registradoEn: '2026-03-10T14:00:00.000Z' },
+      { ...compra('cerveza-b', '2026-03-01', 20000), id: 'inicial-b', registradoEn: '2026-03-10T14:05:00.000Z' },
+    ]
+    const resultado = cerrarSemana(datos({ compras: inventarioInicial }))
+    expect(resultado.completo).toBe(true)
+    expect(resultado.productosSinCosto).toEqual([])
+    // A: 24 x 1.500 = 36.000; B: 5 x 2.000 = 10.000.
+    expect(resultado.costoReposicion).toBe(46000)
+    expect(resultado.comprasUsadas).toEqual(['inicial-a', 'inicial-b'])
+  })
+
   it('rechaza una semana que no va de lunes a domingo', () => {
     expect(() => cerrarSemana(datos({ desde: '2026-03-10', hasta: '2026-03-16' }))).toThrow(/lunes/i)
     expect(() => cerrarSemana(datos({ hasta: '2026-03-14' }))).toThrow(/domingo/i)
