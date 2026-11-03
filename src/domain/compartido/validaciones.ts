@@ -2,10 +2,10 @@
  * Validaciones compartidas por los módulos del dominio.
  *
  * Qué hace: reúne las reglas de validación que se repiten en varios módulos,
- * por ahora la de los montos de dinero.
+ * por ahora la de los montos de dinero y la de las fechas.
  * Cómo lo hace: funciones puras que lanzan un error con un mensaje claro
  * cuando el valor no cumple la regla y no devuelven nada si es válido.
- * Por qué: la misma regla estaba copiada en tres archivos. Si una regla
+ * Por qué: la misma regla estaba copiada en varios archivos. Si una regla
  * cambia (por ejemplo, aceptar centavos), basta con tocarla aquí.
  */
 
@@ -25,5 +25,34 @@
 export function validarMonto(nombre: string, valor: number): void {
   if (!Number.isInteger(valor) || valor < 0) {
     throw new Error(`${nombre} debe ser un entero mayor o igual a cero`)
+  }
+}
+
+/**
+ * Comprueba que un texto sea una fecha real con formato AAAA-MM-DD.
+ *
+ * Qué hace: lanza un error si la fecha no es válida.
+ * Cómo lo hace: revisa el formato con una expresión regular, construye la
+ * fecha en UTC y confirma que exista y que sea el mismo día escrito (así se
+ * rechaza 2026-02-30, que JavaScript convertiría en 2 de marzo).
+ * Por qué: las fechas se comparan como texto; eso solo funciona si todas
+ * tienen el mismo formato, y una fecha mal escrita daría resultados falsos
+ * sin avisar. Se usa UTC para que la zona horaria no mueva el día.
+ *
+ * @param nombre Nombre del campo, para que el mensaje diga cuál falló.
+ * @param fecha Texto que se va a validar.
+ * @throws Error si no es una fecha real con formato AAAA-MM-DD.
+ */
+export function validarFecha(nombre: string, fecha: string): void {
+  const tieneFormato = /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+  const instante = tieneFormato ? new Date(`${fecha}T00:00:00Z`) : null
+  // Un mes 13 da una fecha inválida (NaN); se revisa antes de toISOString,
+  // que en ese caso lanzaría un error genérico sin nombrar el campo.
+  const esReal =
+    instante !== null &&
+    !Number.isNaN(instante.getTime()) &&
+    instante.toISOString().slice(0, 10) === fecha
+  if (!esReal) {
+    throw new Error(`${nombre} debe ser una fecha válida con formato AAAA-MM-DD`)
   }
 }

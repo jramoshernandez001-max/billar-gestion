@@ -12,7 +12,7 @@
  * evita errores por zona horaria.
  */
 
-import { validarMonto } from '../compartido/validaciones'
+import { validarFecha, validarMonto } from '../compartido/validaciones'
 
 /** Una deuda: alguien se llevó producto sin pagar. */
 export interface Deuda {
@@ -31,25 +31,6 @@ export interface Abono {
   fecha: string
   /** Monto pagado, en pesos. */
   monto: number
-}
-
-/**
- * Comprueba que un texto sea una fecha real con formato AAAA-MM-DD.
- *
- * Qué hace: lanza un error si la fecha no es válida.
- * Cómo lo hace: revisa el formato con una expresión regular y confirma que el
- * día exista (por ejemplo, rechaza 2026-02-30).
- * Por qué: comparar fechas como texto solo funciona si todas tienen el mismo
- * formato; una fecha mal escrita daría resultados falsos sin avisar.
- */
-function validarFecha(nombre: string, fecha: string): void {
-  const tieneFormato = /^\d{4}-\d{2}-\d{2}$/.test(fecha)
-  const esReal =
-    tieneFormato &&
-    new Date(`${fecha}T00:00:00Z`).toISOString().slice(0, 10) === fecha
-  if (!esReal) {
-    throw new Error(`${nombre} debe ser una fecha válida con formato AAAA-MM-DD`)
-  }
 }
 
 /**
