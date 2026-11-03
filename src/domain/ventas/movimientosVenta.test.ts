@@ -48,11 +48,14 @@ describe('ventaAMovimientos', () => {
     })
   })
 
-  it('un renglón de cantidad cero da un movimiento de cero, no de menos cero', () => {
+  it('un renglón de cantidad cero se ignora: no genera movimiento', () => {
     const renglones: RenglonVenta[] = [
       { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'unidad', cantidad: 0 },
+      { productoId: 'cerveza-b', producto: cervezaB, presentacion: 'unidad', cantidad: 2 },
     ]
-    expect(Object.is(ventaAMovimientos(renglones)[0].unidades, 0)).toBe(true)
+    expect(ventaAMovimientos(renglones)).toEqual([
+      { productoId: 'cerveza-b', tipo: 'venta', ubicacion: 'nevera', unidades: -2 },
+    ])
   })
 
   it('una venta sin renglones no genera movimientos', () => {

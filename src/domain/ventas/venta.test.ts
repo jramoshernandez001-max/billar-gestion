@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import type { RenglonVenta } from './movimientosVenta'
-import { renglonesVigentes, type Venta } from './venta'
+import { renglonesParaRegistrar, renglonesVigentes, type Venta } from './venta'
 
 const cervezaA = { unidadesPorCaja: 20, manejaSixpack: false, precioUnidad: 2000, precioCaja: 38000 }
 const r1: RenglonVenta = { productoId: 'cerveza-a', producto: cervezaA, presentacion: 'unidad', cantidad: 2 }
@@ -40,5 +40,30 @@ describe('renglonesVigentes', () => {
 
   it('rechaza un estado desconocido', () => {
     expect(() => renglonesVigentes([venta('v1', 'borrada' as Venta['estado'], [r1])])).toThrow(/estado/i)
+  })
+})
+
+describe('renglonesParaRegistrar', () => {
+  const cero: RenglonVenta = { ...r1, cantidad: 0 }
+
+  it('deja los renglones con cantidad y quita los de cantidad cero', () => {
+    expect(renglonesParaRegistrar([r1, cero, r2])).toEqual([r1, r2])
+  })
+
+  it('sin renglones de cero, los deja todos', () => {
+    expect(renglonesParaRegistrar([r1, r2])).toEqual([r1, r2])
+  })
+
+  it('si todos los renglones son cero, lanza un error claro', () => {
+    expect(() => renglonesParaRegistrar([cero, cero])).toThrow(/todos los renglones/i)
+  })
+
+  it('una venta sin renglones tampoco se puede registrar', () => {
+    expect(() => renglonesParaRegistrar([])).toThrow(/renglones/i)
+  })
+
+  it('rechaza cantidades negativas o con decimales', () => {
+    expect(() => renglonesParaRegistrar([{ ...r1, cantidad: -1 }])).toThrow()
+    expect(() => renglonesParaRegistrar([{ ...r1, cantidad: 1.5 }])).toThrow()
   })
 })

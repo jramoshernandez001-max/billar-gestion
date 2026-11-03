@@ -21,21 +21,21 @@ export interface RenglonVenta extends ItemVenta {
 /**
  * Convierte los renglones de una venta en salidas de la nevera.
  *
- * Qué hace: devuelve un movimiento por renglón, en el mismo orden.
- * Cómo lo hace: calcula las unidades del renglón y las resta en la nevera.
+ * Qué hace: devuelve un movimiento por renglón con unidades, en el mismo
+ * orden; un renglón de cantidad cero se ignora.
+ * Cómo lo hace: calcula las unidades de cada renglón, descarta los que dan
+ * cero y resta las demás en la nevera.
  * Por qué: un movimiento por renglón deja ver en la historia de qué renglón
- * salió cada descuento.
+ * salió cada descuento. Un renglón de cantidad cero no mueve inventario, así
+ * que no deja un movimiento vacío.
  *
  * @throws Error si una cantidad no es un entero mayor o igual a cero o si se
  * vende sixpack de un producto que no lo maneja.
  */
 export function ventaAMovimientos(renglones: readonly RenglonVenta[]): Movimiento[] {
-  return renglones.map((renglon) => ({
-    productoId: renglon.productoId,
-    tipo: 'venta',
-    ubicacion: 'nevera',
-    // 0 - unidades en vez de -unidades: con cantidad cero da 0 y no -0,
-    // que las comparaciones estrictas tratan como un valor distinto.
-    unidades: 0 - aUnidades(renglon.producto, renglon.presentacion, renglon.cantidad),
-  }))
+  return renglones.flatMap((renglon): Movimiento[] => {
+    const unidades = aUnidades(renglon.producto, renglon.presentacion, renglon.cantidad)
+    if (unidades === 0) return []
+    return [{ productoId: renglon.productoId, tipo: 'venta', ubicacion: 'nevera', unidades: -unidades }]
+  })
 }
