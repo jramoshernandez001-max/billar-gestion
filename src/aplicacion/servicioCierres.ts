@@ -43,6 +43,8 @@ export interface DatosCerrarPeriodo {
 
 /** Operaciones del servicio. */
 export interface ServicioCierres {
+  /** Calcula el cierre sin guardarlo, para mostrarlo antes de confirmar. */
+  vistaPreviaCierre(datos: DatosCerrarPeriodo): Promise<VistaPreviaCierre>
   /** Calcula y guarda un cierre; devuelve su id. */
   cerrarPeriodo(datos: DatosCerrarPeriodo): Promise<string>
   /** Vuelve a calcular un cierre guardado con los datos vigentes. */
@@ -53,6 +55,12 @@ export interface ServicioCierres {
 interface Calculo {
   resultado: unknown
   costosUsados: readonly CostoUsado[]
+}
+
+/** Lo que se muestra antes de guardar un cierre. */
+export interface VistaPreviaCierre extends Calculo {
+  /** Último día del periodo. */
+  hasta: string
 }
 
 /** Deja solo las ventas con fecha dentro del periodo (extremos incluidos). */
@@ -100,13 +108,28 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
     return { resultado, costosUsados: resultado.costosUsados }
   }
 
+  /**
+   * Calcula un cierre nuevo sin guardarlo.
+   * Cómo: deduce el último día, calcula con los datos de hoy y lo devuelve.
+   * Por qué: cerrarPeriodo y la vista previa deben dar exactamente lo mismo.
+   */
+  async function calcularNuevo(datos: DatosCerrarPeriodo) {
+    const hasta = ultimoDia(datos.tipo, datos.desde)
+    const costosManuales = datos.costosManuales ?? {}
+    const calculo = await calcular(
+      datos.tipo, datos.desde, hasta, datos.efectivo, datos.transferencias, costosManuales,
+    )
+    return { ...calculo, hasta, costosManuales }
+  }
+
   return {
+    async vistaPreviaCierre(datos) {
+      const { resultado, costosUsados, hasta } = await calcularNuevo(datos)
+      return { hasta, resultado, costosUsados }
+    },
+
     async cerrarPeriodo(datos) {
-      const hasta = ultimoDia(datos.tipo, datos.desde)
-      const costosManuales = datos.costosManuales ?? {}
-      const { resultado, costosUsados } = await calcular(
-        datos.tipo, datos.desde, hasta, datos.efectivo, datos.transferencias, costosManuales,
-      )
+      const { resultado, costosUsados, hasta, costosManuales } = await calcularNuevo(datos)
       return dependencias.cierres.guardarCierre({
         tipo: datos.tipo,
         desde: datos.desde,

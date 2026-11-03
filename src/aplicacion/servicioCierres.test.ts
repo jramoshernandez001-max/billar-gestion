@@ -119,6 +119,31 @@ describe('cerrarPeriodo semanal', () => {
   })
 })
 
+describe('vistaPreviaCierre', () => {
+  it('calcula el resultado sin guardar nada', async () => {
+    const { servicio, guardarCierre } = armar({ ventas: [venta('a', '2026-11-03', 2)] })
+    const previa = await servicio.vistaPreviaCierre({ tipo: 'diario', desde: '2026-11-03', efectivo: 3000, transferencias: 0 })
+    expect(previa).toEqual({
+      hasta: '2026-11-03',
+      costosUsados: [],
+      resultado: { dineroTotal: 4000, diferencia: -2000, cuadra: false, faltante: 2000, sobrante: 0 },
+    })
+    expect(guardarCierre).not.toHaveBeenCalled()
+  })
+
+  it('en la semana trae la fecha final y los costos usados', async () => {
+    const { servicio } = armar({ ventas: [venta('a', '2026-11-03', 1)] })
+    const previa = await servicio.vistaPreviaCierre({ tipo: 'semanal', desde: '2026-11-02', efectivo: 0, transferencias: 0 })
+    expect(previa.hasta).toBe('2026-11-08')
+    expect(previa.costosUsados).toEqual([{ productoId: P1, compra: { id: 'c1', fecha: '2026-11-01' } }])
+  })
+
+  it('rechaza una fecha inválida', async () => {
+    const { servicio } = armar()
+    await expect(servicio.vistaPreviaCierre({ tipo: 'diario', desde: 'hoy', efectivo: 0, transferencias: 0 })).rejects.toThrow(/fecha/i)
+  })
+})
+
 describe('recalcularCierre', () => {
   const guardado: CierreLeido = {
     id: 'cierre-1',
