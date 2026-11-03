@@ -2,7 +2,8 @@
  * Pruebas de la descripción de deudas y abonos.
  *
  * Qué hace: verifica que la descripción se limpie de espacios a los lados,
- * que no quede vacía y que no pase de 200 caracteres.
+ * que los espacios repetidos en medio queden en uno, que no quede vacía y
+ * que no pase de 200 caracteres.
  * Cómo lo hace: prueba textos válidos, vacíos, con espacios y largos, con
  * tildes y emojis para contar caracteres como los ve una persona.
  * Por qué: cada deuda y cada abono deben justificar el movimiento; una
@@ -14,6 +15,16 @@ import { MAXIMO_DESCRIPCION, normalizarDescripcion, validarDescripcion } from '.
 describe('normalizarDescripcion', () => {
   it('quita los espacios a los lados', () => {
     expect(normalizarDescripcion('  Dos cervezas fiadas ')).toBe('Dos cervezas fiadas')
+  })
+
+  it('reduce a uno los espacios repetidos en medio', () => {
+    expect(normalizarDescripcion('Dos   cervezas  fiadas')).toBe('Dos cervezas fiadas')
+    expect(normalizarDescripcion('  Abono    parcial  ')).toBe('Abono parcial')
+  })
+
+  it('los espacios repetidos que se quitan no cuentan para el máximo', () => {
+    const conEspacios = `${'a'.repeat(100)}     ${'b'.repeat(99)}`
+    expect(normalizarDescripcion(conEspacios)).toHaveLength(200)
   })
 
   it('rechaza un texto vacío o solo con espacios', () => {
@@ -44,6 +55,10 @@ describe('validarDescripcion', () => {
   it('rechaza una descripción con espacios sobrantes a los lados', () => {
     expect(() => validarDescripcion('La descripción', ' Abono')).toThrow(/espacios/i)
     expect(() => validarDescripcion('La descripción', 'Abono ')).toThrow(/espacios/i)
+  })
+
+  it('rechaza una descripción con espacios repetidos en medio', () => {
+    expect(() => validarDescripcion('La descripción', 'Abono  parcial')).toThrow(/espacios/i)
   })
 
   it('rechaza una descripción vacía o de más de 200 caracteres', () => {
