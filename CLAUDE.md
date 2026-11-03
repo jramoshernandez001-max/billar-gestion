@@ -53,6 +53,7 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - La base rechaza un abono que supere lo que se debe: bloquea la deuda y suma los abonos vigentes.
 - El efectivo y las transferencias de un cierre se pueden corregir; queda en la bitácora y deja el cierre desactualizado hasta que un usuario lo recalcule.
 - Un renglón de venta con cantidad cero se ignora sin error (no se guarda ni genera movimiento); si todos son cero, la venta se rechaza.
+- El monto de una deuda o de un abono debe ser mayor a cero. Un nombre de producto no se repite (sin importar mayúsculas ni espacios).
 - El catálogo con precios y costos es privado: está en `CLAUDE.local.md` y no se sube al repositorio.
 
 ## Seguridad (el repositorio es público)

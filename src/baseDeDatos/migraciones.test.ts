@@ -108,6 +108,13 @@ describe('migraciones de la base de datos', () => {
     expect(definicion).toMatch(/unidades integer not null check \(unidades > 0\)/)
   })
 
+  it('las deudas y los abonos exigen un monto mayor a cero', () => {
+    for (const tabla of ['deudas', 'abonos_deuda']) {
+      const definicion = sql.match(new RegExp(`create table public\\.${tabla} \\(([\\s\\S]*?)\\n\\);`, 'i'))
+      expect(definicion?.[1], tabla).toMatch(/monto bigint not null check \(monto > 0\)/)
+    }
+  })
+
   it('un cierre guarda cuándo se corrigió su dinero contado', () => {
     const definicion = sql.match(/create table public\.cierres \(([\s\S]*?)\n\);/i)?.[1] ?? ''
     expect(definicion).toMatch(/dinero_corregido_en timestamptz/)

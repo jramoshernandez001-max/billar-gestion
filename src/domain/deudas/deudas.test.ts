@@ -106,6 +106,15 @@ describe('saldoPendiente', () => {
   it('rechaza fechas con formato inválido', () => {
     expect(() => saldoPendiente(d, [], '08/11/2026')).toThrow()
   })
+
+  it('rechaza una deuda de monto cero', () => {
+    expect(() => saldoPendiente(deuda('d0', '2026-11-03', 0), [], '2026-11-08')).toThrow(/mayor a cero/)
+  })
+
+  it('rechaza un abono de monto cero', () => {
+    const abonos = [abono('d1', '2026-11-04', 0)]
+    expect(() => saldoPendiente(d, abonos, '2026-11-08')).toThrow(/mayor a cero/)
+  })
 })
 
 describe('totalDeudasPendientes', () => {
