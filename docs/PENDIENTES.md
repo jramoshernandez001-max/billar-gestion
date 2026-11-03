@@ -11,3 +11,8 @@ Reglas que no están definidas en `CLAUDE.md` ni en los datos privados del negoc
 2. **Compras posteriores al cierre.** Si el cierre de una semana se calcula (o se vuelve a calcular) después de que hubo nuevas compras, ¿se usa el costo de la última compra hasta el último día de la semana, o el de la última compra que exista al momento de calcular? Hoy `cerrarSemana` usa la más reciente de las compras que le pasen; quien llama decide cuáles pasa.
 3. **Producto vendido sin ninguna compra registrada.** Por ejemplo, el inventario inicial cargado con un ajuste y sin compra. No hay costo para calcular la utilidad. ¿Se pide un costo a mano, se toma como cero o se bloquea el cierre? Hoy `lineasReposicion` lanza un error.
 4. **Qué días forman la semana.** ¿La semana va de lunes a domingo, o de otro día a otro? ¿Se debe impedir un cierre semanal que no tenga 7 días? Hoy `cerrarSemana` acepta cualquier periodo `desde`–`hasta` válido.
+
+## Bitácora (`src/domain/compartido/bitacora.ts`)
+
+5. **Qué acciones se registran y con qué nombre.** ¿Se registra todo (compras, traslados, ventas, cierres, deudas, abonos, cambios de precio) o solo algunas cosas? ¿Hay una lista fija de acciones? Hoy la acción es un texto libre obligatorio.
+6. **¿Se pueden corregir o borrar registros ya hechos (ventas, compras, cierres)?** Si se puede, ¿quién y cómo queda en la bitácora? La función ya admite `antes` y `despues` nulos, pero la regla de qué se puede editar no está definida.
