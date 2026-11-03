@@ -47,8 +47,8 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - Un registro nuevo (venta, deuda, abono o compra) con fecha dentro del periodo de un cierre ya calculado se permite y lo deja desactualizado hasta que se recalcule; se compara su momento de registro con el del cálculo. Una compra nueva solo lo desactualiza si podría cambiar el costo que usó.
 - Ajuste de inventario (conteo físico): producto, ubicación, unidades con signo distintas de cero y motivo obligatorio, registrado en la bitácora. El inventario inicial no es un ajuste: se carga como compras con la fecha que elija el usuario.
 - Cada deuda y cada abono llevan una descripción obligatoria que justifica el movimiento: sin espacios sobrantes, no vacía, máximo 200 caracteres.
-- En esas descripciones se quitan los espacios de los lados y los espacios repetidos en medio se reducen a uno.
-- Compras, deudas y abonos también tienen estado (vigente o anulada) y se anulan como las ventas: cambia el estado y queda en la bitácora con antes, después y motivo. Los cálculos ignoran lo anulado; anular una compra crea su movimiento inverso, y una deuda con abonos vigentes no se puede anular.
+- En esas descripciones se quitan los espacios de los lados y cualquier grupo de espacios, tabulaciones o saltos de línea en medio se reduce a un solo espacio.
+- Compras, deudas y abonos también tienen estado (vigente o anulada) y se anulan como las ventas: cambia el estado y queda en la bitácora con antes, después y motivo. Los cálculos ignoran lo anulado; anular una compra crea su movimiento inverso, una deuda con abonos vigentes no se puede anular y no se corrige el costo de una compra anulada.
 - Toda escritura pasa por funciones de la base de datos (SECURITY DEFINER, que verifican primero al usuario autorizado y escriben su bitácora en la misma transacción); para la app, las tablas son solo de lectura.
 - La base rechaza un abono que supere lo que se debe: bloquea la deuda y suma los abonos vigentes.
 - El efectivo y las transferencias de un cierre se pueden corregir; queda en la bitácora y deja el cierre desactualizado hasta que un usuario lo recalcule.
