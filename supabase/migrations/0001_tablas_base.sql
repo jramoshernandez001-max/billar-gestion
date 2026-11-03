@@ -12,8 +12,9 @@
 -- estados, acciones) se validan con CHECK.
 -- Por qué: es el reflejo en la base de datos de las reglas de src/domain. Si
 -- una regla se valida aquí, ningún cliente (ni uno con errores) puede guardar
--- datos que la rompan. Nada se borra: lo que se anula cambia de estado o se
--- compensa con movimientos contrarios, y todo queda en la bitácora.
+-- datos que la rompan. Nada se borra: compras, ventas, deudas y abonos se
+-- anulan cambiando su estado, los movimientos se compensan con movimientos
+-- contrarios, y todo queda en la bitácora.
 -- =============================================================================
 
 
@@ -177,7 +178,7 @@ $$;
 -- 'anulada' y el nuevo no, lanza un error.
 -- Por qué: anular es la forma de corregir sin borrar; deshacer una anulación
 -- cambiaría la historia en silencio. El dominio también rechaza anular dos
--- veces la misma venta.
+-- veces el mismo registro. Se usa en compras, ventas, deudas y abonos.
 -- -----------------------------------------------------------------------------
 create function public.impedir_reactivar()
 returns trigger
@@ -205,8 +206,10 @@ $$;
 -- compras el mismo día, manda la registrada de último.
 -- Por qué: refleja Compra (src/domain/inventario/compras.ts). El costo puede
 -- corregirse después (corregir-costo-compra): se actualiza costo_total y el
--- antes y el después quedan en la bitácora. El inventario inicial también se
--- carga como compras, con la fecha que elija el usuario.
+-- antes y el después quedan en la bitácora. Una compra anulada deja de
+-- contar como última compra y su entrada a la bodega se compensa con un
+-- movimiento inverso (anularCompra). El inventario inicial también se carga
+-- como compras, con la fecha que elija el usuario.
 -- -----------------------------------------------------------------------------
 create table public.compras (
   id uuid primary key default gen_random_uuid(),
@@ -268,7 +271,9 @@ create trigger ventas_impedir_reactivar
 -- Qué hace: guarda los renglones de una venta: producto, presentación,
 -- cantidad, unidades y el precio por presentación que se cobró.
 -- Cómo lo hace: unidades calculadas por disparador; precio_cobrado siempre se
--- guarda (si en la venta no se cambió, es el de lista de ese momento).
+-- guarda (si en la venta no se cambió, es el de lista de ese momento). La
+-- cantidad es mayor a cero: un renglón de cantidad cero se ignora y no se
+-- guarda (renglonesParaRegistrar en el dominio).
 -- Por qué: refleja RenglonVenta. Guardar el precio cobrado en la venta hace
 -- que un cambio futuro de precio no altere el historial (CLAUDE.md).
 -- -----------------------------------------------------------------------------
@@ -277,8 +282,8 @@ create table public.venta_items (
   venta_id uuid not null references public.ventas (id),
   producto_id uuid not null references public.productos (id),
   presentacion text not null check (presentacion in ('unidad', 'sixpack', 'caja')),
-  cantidad integer not null check (cantidad >= 0),
-  unidades integer not null check (unidades >= 0),
+  cantidad integer not null check (cantidad > 0),
+  unidades integer not null check (unidades > 0),
   precio_cobrado bigint not null check (precio_cobrado >= 0),
   creado_en timestamptz not null default now(),
   creado_por uuid not null default auth.uid() references auth.users (id)
@@ -346,7 +351,7 @@ create table public.movimientos_inventario (
   constraint signo_de_compra
     check (tipo <> 'compra' or compensa_a is not null or unidades > 0),
   constraint signo_de_venta
-    check (tipo <> 'venta' or compensa_a is not null or unidades <= 0)
+    check (tipo <> 'venta' or compensa_a is not null or unidades < 0)
 );
 
 comment on table public.movimientos_inventario is
@@ -361,10 +366,11 @@ create index movimientos_venta_idx on public.movimientos_inventario (venta_id);
 -- Tabla: deudas
 --
 -- Qué hace: guarda lo que un cliente se llevó sin pagar.
--- Cómo lo hace: cliente, fecha en que nació, monto en pesos y descripción
--- obligatoria que la justifica.
+-- Cómo lo hace: cliente, fecha en que nació, monto en pesos, descripción
+-- obligatoria que la justifica y estado.
 -- Por qué: refleja Deuda (src/domain/deudas/deudas.ts). En un cierre entran
--- solo las nacidas en el periodo y por lo que sigan debiendo.
+-- solo las nacidas en el periodo y por lo que sigan debiendo. Una deuda
+-- anulada no debe nada; solo se puede anular si no tiene abonos vigentes.
 -- -----------------------------------------------------------------------------
 create table public.deudas (
   id uuid primary key default gen_random_uuid(),
@@ -372,11 +378,16 @@ create table public.deudas (
   fecha date not null,
   monto bigint not null check (monto >= 0),
   descripcion public.descripcion_movimiento not null,
+  estado text not null default 'vigente' check (estado in ('vigente', 'anulada')),
   creado_en timestamptz not null default now(),
   creado_por uuid not null default auth.uid() references auth.users (id)
 );
 
-comment on table public.deudas is 'Deudas de clientes con descripción obligatoria.';
+comment on table public.deudas is 'Deudas de clientes con descripción obligatoria y estado.';
+
+create trigger deudas_impedir_reactivar
+  before update of estado on public.deudas
+  for each row execute function public.impedir_reactivar();
 
 
 -- -----------------------------------------------------------------------------
@@ -385,7 +396,9 @@ comment on table public.deudas is 'Deudas de clientes con descripción obligator
 -- Qué hace: guarda cada pago, parcial o total, de una deuda.
 -- Cómo lo hace: deuda, fecha, monto, descripción obligatoria y estado.
 -- Por qué: refleja Abono (src/domain/deudas/deudas.ts). Un abono mal
--- registrado se anula con su estado; nada se borra.
+-- registrado se anula con su estado; nada se borra. Un abono anulado deja de
+-- restar de la deuda. La suma de abonos vigentes nunca supera el monto de la
+-- deuda (lo revisa registrar_abono).
 -- -----------------------------------------------------------------------------
 create table public.abonos_deuda (
   id uuid primary key default gen_random_uuid(),
@@ -412,13 +425,16 @@ create trigger abonos_deuda_impedir_reactivar
 --
 -- Qué hace: guarda cada cierre calculado, diario o semanal.
 -- Cómo lo hace: tipo, periodo (desde y hasta), el dinero contado (efectivo y
--- transferencias), los costos manuales usados, el momento del cálculo, los
--- costos usados por producto y el resultado del cálculo.
+-- transferencias), los costos manuales usados, el momento del cálculo, el
+-- momento de la última corrección del dinero, los costos usados por producto
+-- y el resultado del cálculo.
 -- Por qué: refleja CierreGuardado (src/domain/cierres/actualizacionCierre.ts).
 -- El diario es de un solo día; el semanal va de lunes a domingo. Un cierre se
 -- recalcula a mano actualizando calculado_en, costos_usados y resultado, y
--- el antes y el después quedan en la bitácora. Hay un solo cierre por tipo y
--- periodo: recalcular cambia ese mismo cierre.
+-- el antes y el después quedan en la bitácora. Si el dinero contado se
+-- corrige (dinero_corregido_en posterior a calculado_en), el cierre queda
+-- desactualizado hasta que un usuario lo recalcule. Hay un solo cierre por
+-- tipo y periodo: recalcular cambia ese mismo cierre.
 -- -----------------------------------------------------------------------------
 create table public.cierres (
   id uuid primary key default gen_random_uuid(),
@@ -430,6 +446,7 @@ create table public.cierres (
   costos_manuales jsonb not null default '{}'::jsonb
     check (jsonb_typeof(costos_manuales) = 'object'),
   calculado_en timestamptz not null default now(),
+  dinero_corregido_en timestamptz,
   costos_usados jsonb not null default '[]'::jsonb
     check (jsonb_typeof(costos_usados) = 'array'),
   resultado jsonb not null check (jsonb_typeof(resultado) = 'object'),
