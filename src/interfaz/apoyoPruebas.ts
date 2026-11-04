@@ -33,7 +33,12 @@ export function serviciosVacios(): ServiciosApp {
       anularCompra: async () => undefined,
     },
     bitacora: { listarBitacora: async () => [] },
-    cierres: { listarCierres: async () => [] },
+    cierres: { listarCierres: async () => [], corregirDineroCierre: async () => undefined },
+    servicioCierres: {
+      vistaPreviaCierre: async () => ({ hasta: '2026-01-01', costosUsados: [], resultado: { dineroTotal: 0, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0 } }),
+      cerrarPeriodo: async () => 'cierre',
+      recalcularCierre: async () => undefined,
+    },
     desactualizados: { idsDesactualizados: async () => [] },
   }
 }

@@ -20,6 +20,9 @@ import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/Ajusta
 import { Comprar, type ServiciosComprar } from './interfaz/pantallas/Comprar'
 import { Compras, type ServiciosCompras } from './interfaz/pantallas/Compras'
 import { CorregirCosto, type ServiciosCorregirCosto } from './interfaz/pantallas/CorregirCosto'
+import { Cerrar, type ServiciosCerrar } from './interfaz/pantallas/Cerrar'
+import { Cierres, type ServiciosCierresPantalla } from './interfaz/pantallas/Cierres'
+import { DetalleCierre, type ServiciosDetalleCierre } from './interfaz/pantallas/DetalleCierre'
 import { Abonar, type ServiciosAbonar } from './interfaz/pantallas/Abonar'
 import { DetalleDeuda, type ServiciosDetalleDeuda } from './interfaz/pantallas/DetalleDeuda'
 import { Deudas, type ServiciosDeudas } from './interfaz/pantallas/Deudas'
@@ -50,7 +53,10 @@ export type ServiciosApp = ServiciosInicio &
   ServiciosDeudas &
   ServiciosNuevaDeuda &
   ServiciosAbonar &
-  ServiciosDetalleDeuda
+  ServiciosDetalleDeuda &
+  ServiciosCerrar &
+  ServiciosCierresPantalla &
+  ServiciosDetalleCierre
 
 interface Propiedades {
   servicio: ServicioAcceso
@@ -68,6 +74,12 @@ interface Propiedades {
 function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
   // Tramos de la ruta: sección/acción/tercero/cuarto (ids o subacciones).
   const [seccion, accion, tercero, cuarto] = segmentosDeRuta(ruta)
+  if (seccion === 'cierres' && (accion === 'diario' || accion === 'semanal')) {
+    return <Cerrar servicios={servicios} tipo={accion} hoy={hoy} alIr={ir} />
+  }
+  if (seccion === 'mas' && accion === 'cierres' && tercero !== undefined) {
+    return <DetalleCierre servicios={servicios} cierreId={tercero} alIr={ir} />
+  }
   if (seccion === 'deudas' && accion === 'nueva') return <NuevaDeuda servicios={servicios} hoy={hoy} alIr={ir} />
   if (seccion === 'deudas' && accion === 'abonar') return <Abonar servicios={servicios} deudaId={tercero} hoy={hoy} alIr={ir} />
   if (seccion === 'deudas' && accion !== undefined) return <DetalleDeuda servicios={servicios} deudaId={accion} hoy={hoy} alIr={ir} />
@@ -99,6 +111,8 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
       return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
     case 'vender':
       return <Vender servicios={servicios} hoy={hoy} alIr={ir} />
+    case 'mas/cierres':
+      return <Cierres servicios={servicios} alIr={ir} />
     case 'deudas':
       return <Deudas servicios={servicios} hoy={hoy} alIr={ir} />
     case 'mas/productos':

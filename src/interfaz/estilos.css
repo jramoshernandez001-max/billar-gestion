@@ -1003,3 +1003,11 @@ button {
   outline: 0;
   border-color: var(--primario);
 }
+
+/* Lista de nombres dentro de una tarjeta (ej. productos sin costo). */
+.lista-simple {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--suave);
+}

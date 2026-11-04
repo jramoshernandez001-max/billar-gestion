@@ -9,7 +9,7 @@
  * todas las semanas cubren los mismos días.
  */
 import { describe, it, expect } from 'vitest'
-import { diaDeLaSemana, sumarDias, validarSemana } from './semana'
+import { diaDeLaSemana, lunesDe, sumarDias, validarSemana } from './semana'
 
 describe('sumarDias', () => {
   it('suma días dentro del mes, cruzando de mes y de año', () => {
@@ -56,5 +56,20 @@ describe('validarSemana', () => {
   it('rechaza fechas inválidas', () => {
     expect(() => validarSemana('2026-02-30', '2026-03-08')).toThrow(/fecha/i)
     expect(() => validarSemana('2026-03-09', 'domingo')).toThrow(/fecha/i)
+  })
+})
+
+describe('lunesDe', () => {
+  it('devuelve el mismo día si ya es lunes', () => {
+    expect(lunesDe('2026-11-02')).toBe('2026-11-02')
+  })
+
+  it('retrocede hasta el lunes, incluso desde el domingo y cruzando mes', () => {
+    expect(lunesDe('2026-11-08')).toBe('2026-11-02')
+    expect(lunesDe('2026-12-02')).toBe('2026-11-30')
+  })
+
+  it('rechaza fechas inválidas', () => {
+    expect(() => lunesDe('hoy')).toThrow()
   })
 })

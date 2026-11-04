@@ -124,4 +124,14 @@ describe('App', () => {
     }
     window.location.hash = ''
   })
+
+  it('las rutas de cierres abren cerrar día, cerrar semana, historial y detalle', async () => {
+    for (const [hash, titulo] of [['#/cierres/diario', 'Cerrar día'], ['#/cierres/semanal', 'Cerrar semana'], ['#/mas/cierres', 'Cierres'], ['#/mas/cierres/abc', 'Cierre']]) {
+      window.location.hash = hash
+      const r = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+      expect(await screen.findByRole('heading', { name: titulo })).toBeTruthy()
+      r.unmount()
+    }
+    window.location.hash = ''
+  })
 })
