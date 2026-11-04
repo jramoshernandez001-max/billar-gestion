@@ -84,4 +84,14 @@ describe('leerConfiguracionSupabase', () => {
       leerConfiguracionSupabase({ VITE_SUPABASE_URL: URL_VALIDA, VITE_SUPABASE_PUBLISHABLE_KEY: anon }).clavePublica,
     ).toBe(anon)
   })
+
+  it('rechaza una URL con ruta, como la de la API de datos (/rest/v1)', () => {
+    const entorno = { VITE_SUPABASE_URL: 'https://abc.supabase.co/rest/v1', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_x' }
+    expect(() => leerConfiguracionSupabase(entorno)).toThrow(/sin ruta/i)
+  })
+
+  it('acepta la URL con barra final o con espacios (no es una ruta)', () => {
+    const entorno = { VITE_SUPABASE_URL: ' https://abc.supabase.co/ ', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_x' }
+    expect(leerConfiguracionSupabase(entorno).url).toBe('https://abc.supabase.co')
+  })
 })

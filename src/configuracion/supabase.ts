@@ -48,6 +48,8 @@ function leerObligatoria(entorno: EntornoVite, nombre: string): string {
  * Qué hace: devuelve la URL sin barra final o lanza un error.
  * Cómo lo hace: la interpreta con URL; exige https, salvo http en hosts
  * locales.
+ * También rechaza una URL con ruta (por ejemplo /rest/v1): el cliente de
+ * Supabase le agrega sus propias rutas y quedarían mal armadas.
  * Por qué: con http en internet, el token de sesión viajaría sin cifrar.
  */
 function validarUrl(texto: string): string {
@@ -60,6 +62,11 @@ function validarUrl(texto: string): string {
   const esLocal = HOSTS_LOCALES.has(url.hostname)
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && esLocal)) {
     throw new Error('VITE_SUPABASE_URL debe usar https (http solo se acepta en localhost)')
+  }
+  if (url.pathname.replace(/\/+$/, '') !== '' || url.search !== '' || url.hash !== '') {
+    throw new Error(
+      'VITE_SUPABASE_URL debe ser solo la dirección del proyecto, sin ruta (por ejemplo https://xxxx.supabase.co, sin /rest/v1)',
+    )
   }
   return texto.replace(/\/+$/, '')
 }
