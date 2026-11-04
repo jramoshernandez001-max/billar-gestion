@@ -171,6 +171,14 @@ button {
   background: var(--superficie);
 }
 
+.tarjeta--boton {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .tarjeta--destacada {
   border: 0;
   background: var(--tinte);

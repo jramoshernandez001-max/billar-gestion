@@ -21,6 +21,7 @@ import {
 import type { RepositorioBitacora } from '../../datos/bitacora'
 import type { RepositorioInventario } from '../../datos/inventario'
 import type { RepositorioVentas } from '../../datos/ventas'
+import { FormularioAnulacion } from '../componentes/FormularioAnulacion'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
 import { Opciones } from '../componentes/Opciones'
@@ -49,44 +50,6 @@ const FILTROS = [
   { valor: 'vigentes', etiqueta: 'Vigentes' },
   { valor: 'anuladas', etiqueta: 'Anuladas' },
 ] as const
-
-/** Formulario para anular una venta con motivo. */
-function FormularioAnular({ alConfirmar, alCancelar }: { alConfirmar: (motivo: string) => Promise<void>; alCancelar: () => void }) {
-  const [motivo, setMotivo] = useState('')
-  const [enviando, setEnviando] = useState(false)
-  const [fallo, setFallo] = useState<string | null>(null)
-
-  const confirmar = async () => {
-    setEnviando(true)
-    setFallo(null)
-    try {
-      await alConfirmar(motivo.trim())
-    } catch (causa) {
-      setFallo(causa instanceof Error ? causa.message : String(causa))
-      setEnviando(false)
-    }
-  }
-
-  return (
-    <div className="campo">
-      <label className="campo__etiqueta" htmlFor="motivo-anulacion">Motivo de la anulación</label>
-      <textarea
-        id="motivo-anulacion"
-        className="entrada entrada--texto"
-        rows={2}
-        value={motivo}
-        onChange={(e) => setMotivo(e.target.value)}
-      />
-      {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
-      <div className="acciones">
-        <button type="button" className="boton" onClick={alCancelar}>Cancelar</button>
-        <button type="button" className="boton boton--peligro" disabled={motivo.trim() === '' || enviando} onClick={confirmar}>
-          Confirmar anulación
-        </button>
-      </div>
-    </div>
-  )
-}
 
 /** Una venta. */
 function Tarjeta({
@@ -127,7 +90,7 @@ function Tarjeta({
       {vigente && !anulando && (
         <button type="button" className="boton boton--peligro-texto" onClick={alAnular}>Anular</button>
       )}
-      {vigente && anulando && <FormularioAnular alConfirmar={alConfirmar} alCancelar={alCancelar} />}
+      {vigente && anulando && <FormularioAnulacion alConfirmar={alConfirmar} alCancelar={alCancelar} />}
       {tarjeta.anulacion !== null && (
         <p className="texto-suave">Motivo: {tarjeta.anulacion.motivo} · {fechaCompleta(tarjeta.anulacion.fecha)}</p>
       )}

@@ -55,9 +55,9 @@ describe('App', () => {
   it('la navegación cambia de pantalla y resalta la pestaña', async () => {
     render(<App servicio={autorizado} servicios={serviciosVacios()} />)
     await screen.findByText('Hola, Ana')
-    fireEvent.click(screen.getByRole('button', { name: 'Deudas' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Más' }))
     expect(await screen.findByText(/está en construcción/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Deudas' }).getAttribute('aria-current')).toBe('page')
+    expect(screen.getByRole('button', { name: 'Más' }).getAttribute('aria-current')).toBe('page')
   })
 
   it('la ruta #/vender abre la nueva venta y #/mas/ventas el listado de ventas', async () => {
@@ -109,6 +109,17 @@ describe('App', () => {
       window.location.hash = hash
       const r = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
       expect(await screen.findByRole('heading', { name: titulo })).toBeTruthy()
+      r.unmount()
+    }
+    window.location.hash = ''
+  })
+
+  it('las rutas de deudas abren lista, nueva, abonar y detalle', async () => {
+    for (const [hash, titulo] of [['#/deudas', 'Deudas'], ['#/deudas/nueva', 'Nueva deuda'], ['#/deudas/abonar/abc', 'Abonar'], ['#/deudas/abc', 'Detalle de deuda']]) {
+      window.location.hash = hash
+      const r = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+      expect(await screen.findByRole('heading', { name: titulo })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Deudas' }).getAttribute('aria-current')).toBe('page')
       r.unmount()
     }
     window.location.hash = ''
