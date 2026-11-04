@@ -36,12 +36,22 @@ export interface DatosVenta {
   renglones: RenglonVenta[]
 }
 
+/**
+ * Venta leída de la base: la del dominio más el momento en que se registró.
+ * Por qué: la pantalla de ventas muestra la hora y numera las ventas por
+ * orden de registro; el dominio no necesita ese dato.
+ */
+export interface VentaRegistrada extends Venta {
+  /** Cuándo se registró, en ISO 8601 UTC. */
+  creadoEn: string
+}
+
 /** Operaciones de ventas. */
 export interface RepositorioVentas {
   registrarVenta(datos: DatosVenta): Promise<string>
   anularVenta(ventaId: string, motivo: string): Promise<void>
   /** Ventas con sus renglones (vigentes y anuladas), como las usa el dominio. */
-  listarVentas(): Promise<Venta[]>
+  listarVentas(): Promise<VentaRegistrada[]>
 }
 
 /**
@@ -76,7 +86,7 @@ function renglonAJson(renglon: RenglonVenta): Record<string, unknown> {
  * y copia el precio cobrado guardado en cada renglón.
  * Por qué: el cierre usa el precio que se cobró entonces, no el de hoy.
  */
-function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown[]): Venta[] {
+function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown[]): VentaRegistrada[] {
   const porProducto = new Map(productos.map((fila) => {
     const p = filaAProductoVendible(fila)
     return [p.id, p.producto] as const
@@ -110,11 +120,20 @@ function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown
       !esObjeto(fila) ||
       typeof fila.id !== 'string' ||
       typeof fila.fecha !== 'string' ||
+      typeof fila.creado_en !== 'string' ||
+      Number.isNaN(new Date(fila.creado_en).getTime()) ||
       (fila.estado !== 'vigente' && fila.estado !== 'anulada')
     ) {
       throw new Error('Una fila de ventas no tiene la forma esperada')
     }
-    return { id: fila.id, fecha: fila.fecha, estado: fila.estado, renglones: porVenta.get(fila.id) ?? [] }
+    return {
+      id: fila.id,
+      fecha: fila.fecha,
+      estado: fila.estado,
+      // PostgREST entrega "...+00:00"; se normaliza a ISO UTC como en los cierres.
+      creadoEn: new Date(fila.creado_en).toISOString(),
+      renglones: porVenta.get(fila.id) ?? [],
+    }
   })
 }
 
@@ -149,7 +168,7 @@ export function crearRepositorioVentas(cliente: ClienteDatos): RepositorioVentas
 
     async listarVentas() {
       const [ventas, renglones, productos] = await Promise.all([
-        leerFilas(cliente, 'ventas', 'id, fecha, estado'),
+        leerFilas(cliente, 'ventas', 'id, fecha, estado, creado_en'),
         leerFilas(cliente, 'venta_items', 'venta_id, producto_id, presentacion, cantidad, precio_cobrado'),
         leerFilas(cliente, 'productos', COLUMNAS_PRODUCTO),
       ])

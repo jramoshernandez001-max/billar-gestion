@@ -20,11 +20,11 @@ import type { Venta } from '../domain/ventas/venta'
 import type { RepositorioCierres } from '../datos/cierres'
 import type { RepositorioDeudas } from '../datos/deudas'
 import type { RepositorioInventario } from '../datos/inventario'
-import type { RepositorioVentas } from '../datos/ventas'
 
 /** Lo que el servicio necesita de cada repositorio. */
 export interface DependenciasCierres {
-  ventas: Pick<RepositorioVentas, 'listarVentas'>
+  /** Solo necesita leer ventas del dominio (no el momento de registro). */
+  ventas: { listarVentas(): Promise<Venta[]> }
   deudas: Pick<RepositorioDeudas, 'listarDeudas' | 'listarAbonos'>
   inventario: Pick<RepositorioInventario, 'listarCompras'>
   cierres: Pick<RepositorioCierres, 'guardarCierre' | 'recalcularCierre' | 'listarCierres'>
