@@ -8,7 +8,7 @@
  * la configuración regional del navegador ni de la zona horaria.
  */
 import { describe, it, expect } from 'vitest'
-import { diaSemanaCorto, fechaCorta, fechaLarga, fechaLocalIso, formatoPesos, horaLocal, rangoCorto } from './formato'
+import { diaSemanaCorto, fechaCompleta, fechaCorta, fechaLarga, fechaLocalIso, formatoPesos, horaLocal, rangoCorto } from './formato'
 
 describe('formatoPesos', () => {
   it('agrupa los miles con punto y antepone el signo', () => {
@@ -58,5 +58,15 @@ describe('horaLocal', () => {
 
   it('rechaza un instante inválido', () => {
     expect(() => horaLocal('ayer')).toThrow(/instante/i)
+  })
+})
+
+describe('fechaCompleta', () => {
+  it('da día/mes/año con dos dígitos', () => {
+    expect(fechaCompleta('2026-11-03')).toBe('03/11/2026')
+  })
+
+  it('rechaza una fecha inválida', () => {
+    expect(() => fechaCompleta('2026-13-40')).toThrow()
   })
 })

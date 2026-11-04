@@ -44,6 +44,12 @@ export function fechaLarga(fecha: string): string {
   return `${DIAS_LARGOS[indiceDia(fecha)]}, ${dia} de ${MESES[mes - 1]}`
 }
 
+/** "03/11/2026" (día/mes/año). */
+export function fechaCompleta(fecha: string): string {
+  const { anio } = partes(fecha)
+  return `${fechaCorta(fecha)}/${anio}`
+}
+
 /** "02/11" (día/mes). */
 export function fechaCorta(fecha: string): string {
   const { mes, dia } = partes(fecha)

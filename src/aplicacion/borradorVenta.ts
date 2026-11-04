@@ -13,6 +13,7 @@
  */
 import type { Presentacion } from '../domain/inventario/conversiones'
 import { validarFecha } from '../domain/compartido/validaciones'
+import { aUnidades } from '../domain/inventario/conversiones'
 import { precioDeLista, valorItem, type ProductoVendible } from '../domain/ventas/valorVenta'
 import type { DatosVenta } from '../datos/ventas'
 
@@ -44,6 +45,8 @@ export interface RenglonCalculado {
   precioLista: number | null
   /** Cantidad por precio efectivo; null si hay un problema. */
   subtotal: number | null
+  /** Unidades físicas del renglón; 0 si hay un problema. */
+  unidades: number
   /** Qué está mal en el renglón; null si está bien. */
   problema: string | null
 }
@@ -52,6 +55,8 @@ export interface RenglonCalculado {
 export interface BorradorCalculado {
   renglones: RenglonCalculado[]
   total: number
+  /** Unidades físicas de todos los renglones válidos. */
+  unidades: number
   /** Problemas de la venta y de sus renglones, en lenguaje claro. */
   problemas: string[]
   puedeRegistrar: boolean
@@ -123,7 +128,7 @@ export function quitarRenglon(borrador: BorradorVenta, clave: string): BorradorV
 
 /** Calcula un renglón; los errores del dominio se vuelven un problema legible. */
 function calcularRenglon(renglon: RenglonBorrador, catalogo: CatalogoVendible): RenglonCalculado {
-  const vacio = { clave: renglon.clave, precioLista: null, subtotal: null }
+  const vacio = { clave: renglon.clave, precioLista: null, subtotal: null, unidades: 0 }
   if (renglon.productoId === null) return { ...vacio, problema: 'Elige un producto' }
   const producto = catalogo.get(renglon.productoId)
   if (producto === undefined) return { ...vacio, problema: 'El producto elegido no existe' }
@@ -135,7 +140,8 @@ function calcularRenglon(renglon: RenglonBorrador, catalogo: CatalogoVendible): 
       cantidad: renglon.cantidad,
       precioCobrado: renglon.precioCobrado,
     })
-    return { clave: renglon.clave, precioLista, subtotal, problema: null }
+    const unidades = aUnidades(producto, renglon.presentacion, renglon.cantidad)
+    return { clave: renglon.clave, precioLista, subtotal, unidades, problema: null }
   } catch (causa) {
     return { ...vacio, problema: causa instanceof Error ? causa.message : String(causa) }
   }
@@ -162,7 +168,8 @@ export function calcularBorrador(borrador: BorradorVenta, catalogo: CatalogoVend
   const hayAlgo = borrador.renglones.some((r, i) => renglones[i].problema === null && r.cantidad > 0)
   if (!hayAlgo && problemas.length === 0) problemas.push('No hay nada que vender: agrega un renglón con cantidad')
   const total = renglones.reduce((suma, r) => suma + (r.subtotal ?? 0), 0)
-  return { renglones, total, problemas, puedeRegistrar: problemas.length === 0 }
+  const unidades = renglones.reduce((suma, r) => suma + r.unidades, 0)
+  return { renglones, total, unidades, problemas, puedeRegistrar: problemas.length === 0 }
 }
 
 /**

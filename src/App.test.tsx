@@ -59,4 +59,17 @@ describe('App', () => {
     expect(await screen.findByText(/está en construcción/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Deudas' }).getAttribute('aria-current')).toBe('page')
   })
+
+  it('la ruta #/vender abre la nueva venta y #/mas/ventas el listado de ventas', async () => {
+    window.location.hash = '#/vender'
+    const { unmount } = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Nueva venta' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Vender' }).getAttribute('aria-current')).toBe('page')
+    unmount()
+    window.location.hash = '#/mas/ventas'
+    render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Ventas' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Más' }).getAttribute('aria-current')).toBe('page')
+    window.location.hash = ''
+  })
 })

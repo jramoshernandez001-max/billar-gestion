@@ -18,15 +18,38 @@ import { NavegacionInferior } from './interfaz/componentes/NavegacionInferior'
 import { fechaLocalIso } from './interfaz/formato'
 import { Inicio } from './interfaz/pantallas/Inicio'
 import { Proximamente } from './interfaz/pantallas/Proximamente'
+import { Vender, type ServiciosVender } from './interfaz/pantallas/Vender'
+import { Ventas, type ServiciosVentas } from './interfaz/pantallas/Ventas'
 import { pestanaDe } from './interfaz/ruta'
 import { useRuta } from './interfaz/useRuta'
 
 /** Servicios de datos que usan las pantallas (crece con cada pantalla). */
-export type ServiciosApp = ServiciosInicio
+export type ServiciosApp = ServiciosInicio & ServiciosVender & ServiciosVentas
 
 interface Propiedades {
   servicio: ServicioAcceso
   servicios: ServiciosApp
+}
+
+/**
+ * Elige la pantalla de una ruta.
+ *
+ * Qué hace: devuelve la pantalla que corresponde; las que aún no están
+ * listas muestran "en construcción".
+ * Cómo lo hace: un `switch` sobre el texto de la ruta.
+ * Por qué: un solo lugar donde se ve qué rutas existen.
+ */
+function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
+  switch (ruta) {
+    case 'inicio':
+      return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
+    case 'vender':
+      return <Vender servicios={servicios} hoy={hoy} alIr={ir} />
+    case 'mas/ventas':
+      return <Ventas servicios={servicios} hoy={hoy} alIr={ir} />
+    default:
+      return <Proximamente ruta={ruta} />
+  }
 }
 
 /** Contenido de la app para un usuario autorizado: pantalla + navegación. */
@@ -35,11 +58,7 @@ function Contenido({ nombre, servicios }: { nombre?: string; servicios: Servicio
   const [hoy] = useState(() => fechaLocalIso(new Date()))
   return (
     <>
-      {ruta === 'inicio' ? (
-        <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
-      ) : (
-        <Proximamente ruta={ruta} />
-      )}
+      {pantalla(ruta, servicios, nombre, hoy, ir)}
       <NavegacionInferior activa={pestanaDe(ruta)} alIr={ir} />
     </>
   )

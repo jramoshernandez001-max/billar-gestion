@@ -493,3 +493,380 @@ button {
   text-align: center;
   color: var(--suave);
 }
+
+/* ---- Cabecera interna (con flecha para volver) ---- */
+.cabecera__volver {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--texto);
+  cursor: pointer;
+}
+
+/* ---- Campos y entradas ---- */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.campo__etiqueta {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.entrada {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.entrada:focus-within {
+  border-color: var(--primario);
+}
+
+.entrada__control {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  color: var(--texto);
+}
+
+.entrada__control::placeholder {
+  color: var(--suave);
+}
+
+.entrada__icono {
+  flex-shrink: 0;
+  color: var(--suave);
+}
+
+.entrada__texto {
+  flex: 1;
+}
+
+/* El campo de fecha nativo cubre todo el recuadro, invisible, para abrir el calendario. */
+.entrada__fecha-nativa {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.entrada--texto {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+  font: inherit;
+  color: var(--texto);
+}
+
+/* ---- Selector de opciones ---- */
+.opciones {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #e9eeeb;
+}
+
+.opcion {
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 12px;
+  color: var(--suave);
+  cursor: pointer;
+}
+
+.opcion--activa {
+  background: var(--superficie);
+  font-weight: 600;
+  color: var(--primario);
+}
+
+.opcion--no-disponible {
+  color: #a6b0aa;
+  text-decoration: line-through;
+  cursor: default;
+}
+
+/* ---- Botones y textos extra ---- */
+.boton {
+  gap: 8px;
+}
+
+.boton--primario {
+  border-color: var(--primario);
+  background: var(--primario);
+  color: #fff;
+}
+
+.boton--peligro {
+  border-color: var(--peligro);
+  background: var(--peligro);
+  color: #fff;
+}
+
+.boton--peligro-texto {
+  color: #b54438;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.texto-error {
+  font-size: 12px;
+  color: var(--peligro);
+}
+
+/* ---- Renglón de venta ---- */
+.renglon__producto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.renglon__elegir {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--suave);
+  cursor: pointer;
+}
+
+.renglon__datos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.renglon__nombre {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.renglon__detalle {
+  font-size: 12px;
+  color: var(--suave);
+}
+
+.renglon__quitar {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--peligro);
+  cursor: pointer;
+}
+
+.renglon__medidas {
+  display: flex;
+  gap: 12px;
+}
+
+.campo--cantidad {
+  width: 128px;
+  flex-shrink: 0;
+}
+
+.campo--precio {
+  flex: 1;
+  min-width: 0;
+}
+
+.cantidad {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+}
+
+.cantidad__boton {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primario);
+  cursor: pointer;
+}
+
+.cantidad__valor {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dato__subtotal,
+.dato__total {
+  font-size: 21px;
+  white-space: nowrap;
+}
+
+/* ---- Selector de producto ---- */
+.producto {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.producto + .producto {
+  padding-top: 16px;
+  border-top: 1px solid var(--borde);
+}
+
+.producto__simbolo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--fondo);
+  color: var(--suave);
+}
+
+.producto__simbolo--activo {
+  background: var(--tinte);
+  color: var(--primario);
+}
+
+.producto__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.producto__nombre {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.producto__detalle,
+.producto__stock {
+  font-size: 12px;
+  color: var(--suave);
+}
+
+.producto__stock--cero {
+  color: var(--aviso-texto);
+}
+
+.producto__stock--negativo {
+  color: #b54438;
+}
+
+.producto__seleccion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.producto__precio {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.producto__marca {
+  color: var(--borde);
+}
+
+.producto__marca--activa {
+  color: var(--primario);
+}
+
+/* ---- Tarjeta de venta ---- */
+.tarjeta__cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.tarjeta__identificacion {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.estado-etiqueta {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.estado-etiqueta--vigente {
+  background: var(--tinte);
+  color: var(--primario);
+}
+
+.estado-etiqueta--anulada {
+  background: var(--fondo);
+  color: var(--suave);
+}
+
+.renglones {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.renglones__descripcion {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Se oculta la "x" nativa del buscador; el diseño no la tiene. */
+.entrada__control::-webkit-search-cancel-button {
+  display: none;
+}
