@@ -16,7 +16,7 @@ import type { ServiciosInicio } from '../../aplicacion/cargarInicio'
 
 afterEach(cleanup)
 
-const producto = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const producto = { categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 
 function servicios(sobre: Partial<ServiciosInicio> = {}): ServiciosInicio {
   return {
@@ -33,7 +33,7 @@ function servicios(sobre: Partial<ServiciosInicio> = {}): ServiciosInicio {
       listarAbonos: async () => [],
     },
     inventario: {
-      listarProductos: async () => [{ id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
+      listarProductos: async () => [{ id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
       obtenerStock: async () => new Map([['p1', { bodega: 10, nevera: -2, total: 8 }]]),
     },
     cierres: {

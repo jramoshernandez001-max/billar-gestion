@@ -11,6 +11,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { resumirProductos } from '../../aplicacion/resumenProductos'
+import type { FiltroCategoria } from '../../domain/inventario/categorias'
+import { FiltroDeCategoria } from '../componentes/FiltroDeCategoria'
 import type { RepositorioInventario } from '../../datos/inventario'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
@@ -31,7 +33,8 @@ export function Productos({ servicios, alIr }: Propiedades) {
   const cargar = useCallback(() => servicios.inventario.listarProductos(), [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)
   const [busqueda, setBusqueda] = useState('')
-  const filas = useMemo(() => (datos === null ? null : resumirProductos(datos, busqueda)), [datos, busqueda])
+  const [categoria, setCategoria] = useState<FiltroCategoria>('todas')
+  const filas = useMemo(() => (datos === null ? null : resumirProductos(datos, busqueda, categoria)), [datos, busqueda, categoria])
 
   const cabecera = <CabeceraInterna titulo="Productos" subtitulo="Catálogo y precios" alVolver={() => alIr('mas')} />
   if (filas === null) {
@@ -64,19 +67,23 @@ export function Productos({ servicios, alIr }: Propiedades) {
           />
         </label>
 
-        {filas.length === 0 && <p className="estado">{datos?.length === 0 ? 'Todavía no hay productos.' : 'No hay productos con ese nombre.'}</p>}
+        <FiltroDeCategoria valor={categoria} alCambiar={setCategoria} />
+
+        {filas.length === 0 && <p className="estado">{datos?.length === 0 ? 'Todavía no hay productos.' : 'No hay productos con ese nombre o categoría.'}</p>}
         {filas.map((f) => (
           <article key={f.id} className="tarjeta" aria-label={f.nombre}>
             <p className="renglones__descripcion">{f.nombre}</p>
             <p className="texto-suave">{f.detalle}</p>
             <div className="dato">
-              <span className="dato__etiqueta">Unidad</span>
+              <span className="dato__etiqueta">{f.categoria === 'licor' ? 'Botella' : 'Unidad'}</span>
               <span className="dato__valor">{formatoPesos(f.precioUnidad)}</span>
             </div>
-            <div className="dato">
-              <span className="dato__etiqueta">Caja</span>
-              <span className="dato__valor">{formatoPesos(f.precioCaja)}</span>
-            </div>
+            {f.categoria !== 'licor' && (
+              <div className="dato">
+                <span className="dato__etiqueta">Caja</span>
+                <span className="dato__valor">{formatoPesos(f.precioCaja)}</span>
+              </div>
+            )}
             <button type="button" className="boton" onClick={() => alIr(`mas/productos/editar/${f.id}`)}>Editar</button>
           </article>
         ))}

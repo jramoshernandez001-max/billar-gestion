@@ -13,6 +13,24 @@ import { calcularCompra, calcularCorreccionCosto } from './calculoCompra'
 const cerveza = { unidadesPorCaja: 24, manejaSixpack: true }
 const agua = { unidadesPorCaja: 12, manejaSixpack: false }
 
+describe('calcularCompra de licor', () => {
+  const licor = { unidadesPorCaja: 1, manejaSixpack: false, categoria: 'licor' as const }
+
+  it('se compra por botella', () => {
+    expect(calcularCompra({ producto: licor, presentacion: 'unidad', cantidad: 3, costoTotal: 90000 })).toMatchObject({
+      unidades: 3, costoPorUnidad: 30000, puedeRegistrar: true, detalle: '3 unidades',
+    })
+  })
+
+  it('no admite caja ni sixpack', () => {
+    for (const presentacion of ['caja', 'sixpack'] as const) {
+      const r = calcularCompra({ producto: licor, presentacion, cantidad: 1, costoTotal: 1000 })
+      expect(r.puedeRegistrar).toBe(false)
+      expect(r.problema).toMatch(/botella/i)
+    }
+  })
+})
+
 describe('calcularCompra', () => {
   it('calcula unidades y costo por unidad', () => {
     expect(calcularCompra({ producto: cerveza, presentacion: 'caja', cantidad: 2, costoTotal: 96000 })).toEqual({

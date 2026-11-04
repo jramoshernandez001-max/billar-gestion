@@ -22,7 +22,7 @@ function servicios(anularCompra = vi.fn(async () => undefined)): ServiciosCompra
   return {
     inventario: {
       listarCompras: async () => [compra('c1', '2026-11-02', 'vigente'), compra('c2', '2026-10-31', 'anulada'), compra('c0', '2026-08-01', 'vigente')],
-      listarProductos: async () => [{ id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
+      listarProductos: async () => [{ id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
       anularCompra,
     },
     bitacora: {

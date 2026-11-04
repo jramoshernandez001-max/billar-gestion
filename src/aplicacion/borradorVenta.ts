@@ -14,6 +14,7 @@
 import type { Presentacion } from '../domain/inventario/conversiones'
 import { validarFecha } from '../domain/compartido/validaciones'
 import { aUnidades } from '../domain/inventario/conversiones'
+import { presentacionPermitida } from '../domain/inventario/categorias'
 import { precioDeLista, valorItem, type ProductoVendible } from '../domain/ventas/valorVenta'
 import type { DatosVenta } from '../datos/ventas'
 
@@ -111,9 +112,13 @@ export function cambiarRenglon(
       if (cambios.presentacion !== undefined && cambios.presentacion !== anterior.presentacion && cambios.precioCobrado === undefined) {
         delete nuevo.precioCobrado
       }
-      if (cambios.productoId !== undefined && catalogo !== undefined && nuevo.presentacion === 'sixpack') {
+      if (cambios.productoId !== undefined && catalogo !== undefined) {
         const producto = nuevo.productoId === null ? undefined : catalogo.get(nuevo.productoId)
-        if (producto !== undefined && !producto.manejaSixpack) nuevo.presentacion = 'unidad'
+        // Si el producto nuevo no admite la presentación elegida (sixpack sin
+        // sixpack, o caja/sixpack en un licor), vuelve a unidad.
+        if (producto !== undefined && !presentacionPermitida(producto.categoria ?? 'cerveza', nuevo.presentacion, producto.manejaSixpack)) {
+          nuevo.presentacion = 'unidad'
+        }
       }
       return nuevo
     }),

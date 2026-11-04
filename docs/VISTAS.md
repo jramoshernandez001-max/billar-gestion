@@ -50,9 +50,11 @@ Reglas comunes a todas las vistas:
 - Acciones por producto: **Trasladar**, **Ajustar (conteo físico)**, **Comprar**, **Editar producto**.
 
 ## 5. Productos (catálogo)
-- Lista: nombre, unidades por caja, ¿maneja sixpack?, precio de unidad, precio de caja.
+- Lista: nombre, categoría (cerveza, licor, otros), unidades por caja, ¿maneja sixpack?, precio de unidad, precio de caja. Filtro por categoría.
+- El licor se vende por botella entera: sin unidades por caja, sixpack ni precio de caja (solo el precio de la botella).
 - Formulario crear/editar:
   - Nombre (obligatorio; no se repite, sin importar mayúsculas ni espacios).
+  - Categoría (cerveza, licor u otros).
   - Unidades por caja (entero mayor a cero).
   - ¿Maneja sixpack? (sí/no). Un sixpack siempre son 6 unidades.
   - Precio de la unidad y precio de la caja (pesos enteros; la caja se edita aparte).

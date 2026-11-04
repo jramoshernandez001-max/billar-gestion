@@ -15,7 +15,7 @@ import { AjustarStock, type ServiciosAjustar } from './AjustarStock'
 
 afterEach(cleanup)
 
-const base = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const base = { categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 
 function armar(opciones: { registrarAjuste?: ServiciosAjustar['inventario']['registrarAjuste'] } = {}) {
   const registrarAjuste = vi.fn(opciones.registrarAjuste ?? (async () => 'm'))

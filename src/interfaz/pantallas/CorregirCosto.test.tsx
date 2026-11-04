@@ -22,7 +22,7 @@ function servicios(estado: 'vigente' | 'anulada' = 'vigente', corregir = vi.fn(a
   return {
     inventario: {
       listarCompras: async () => [compra(estado)],
-      listarProductos: async () => [{ id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
+      listarProductos: async () => [{ id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
       corregirCostoCompra: corregir,
     },
   }

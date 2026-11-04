@@ -16,7 +16,7 @@ import type { EntradaBitacora } from '../../datos/bitacora'
 
 afterEach(cleanup)
 
-const producto = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const producto = { categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 const hora = (h: number, m: number) => new Date(2026, 10, 3, h, m).toISOString()
 const venta = (id: string, creadoEn: string, estado: 'vigente' | 'anulada', cantidad: number): VentaRegistrada => ({
   id, fecha: '2026-11-03', estado, creadoEn,

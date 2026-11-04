@@ -15,6 +15,7 @@
  */
 import type { Presentacion } from '../domain/inventario/conversiones'
 import type { Compra } from '../domain/inventario/compras'
+import { CATEGORIAS, esCategoria, type CategoriaProducto } from '../domain/inventario/categorias'
 import type { Stock, Ubicacion } from '../domain/inventario/stock'
 import { validarFecha, validarMonto } from '../domain/compartido/validaciones'
 import { leerFilas, llamarFuncion, type ClienteDatos } from './clienteDatos'
@@ -39,6 +40,8 @@ const UBICACIONES: readonly Ubicacion[] = ['bodega', 'nevera']
 export interface Producto {
   id: string
   nombre: string
+  /** Cerveza, licor u otro: el licor se vende por botella entera. */
+  categoria: CategoriaProducto
   unidadesPorCaja: number
   manejaSixpack: boolean
   /** Precio de lista de una unidad, en pesos. */
@@ -111,6 +114,7 @@ function parametrosProducto(datos: DatosProducto): Record<string, unknown> {
     p_maneja_sixpack: datos.manejaSixpack === true,
     p_precio_unidad: datos.precioUnidad,
     p_precio_caja: datos.precioCaja,
+    p_categoria: exigirUnoDe('La categoría', datos.categoria, CATEGORIAS),
   }
 }
 
@@ -128,6 +132,7 @@ function filaAProducto(fila: unknown): Producto {
     !esObjeto(fila) ||
     typeof fila.id !== 'string' ||
     typeof fila.nombre !== 'string' ||
+    !esCategoria(fila.categoria) ||
     !esEntero(fila.unidades_por_caja) ||
     typeof fila.maneja_sixpack !== 'boolean' ||
     !esEntero(fila.precio_unidad) ||
@@ -138,6 +143,7 @@ function filaAProducto(fila: unknown): Producto {
   return {
     id: fila.id,
     nombre: fila.nombre,
+    categoria: fila.categoria,
     unidadesPorCaja: fila.unidades_por_caja,
     manejaSixpack: fila.maneja_sixpack,
     precioUnidad: fila.precio_unidad,
@@ -159,7 +165,7 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
       const filas = await leerFilas(
         cliente,
         'productos',
-        'id, nombre, unidades_por_caja, maneja_sixpack, precio_unidad, precio_caja',
+        'id, nombre, categoria, unidades_por_caja, maneja_sixpack, precio_unidad, precio_caja',
       )
       return filas.map(filaAProducto)
     },

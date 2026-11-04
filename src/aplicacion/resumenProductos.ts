@@ -7,11 +7,13 @@
  * Por qué: la pantalla no calcula; así la búsqueda se prueba aparte.
  */
 import type { Producto } from '../datos/inventario'
+import { filtrarPorCategoria, type CategoriaProducto, type FiltroCategoria } from '../domain/inventario/categorias'
 
 export interface FilaProducto {
   id: string
   nombre: string
-  /** "24 unidades por caja · Con sixpack". */
+  categoria: CategoriaProducto
+  /** "24 unidades por caja · Con sixpack", o "Botella entera" si es licor. */
   detalle: string
   precioUnidad: number
   precioCaja: number
@@ -22,15 +24,23 @@ function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
 
-export function resumirProductos(productos: readonly Producto[], busqueda: string): FilaProducto[] {
+export function resumirProductos(
+  productos: readonly Producto[],
+  busqueda: string,
+  categoria: FiltroCategoria = 'todas',
+): FilaProducto[] {
   const buscado = normalizar(busqueda)
-  return [...productos]
+  return filtrarPorCategoria(productos, categoria)
     .filter((p) => buscado === '' || normalizar(p.nombre).includes(buscado))
     .sort((a, b) => normalizar(a.nombre).localeCompare(normalizar(b.nombre)))
     .map((p) => ({
       id: p.id,
       nombre: p.nombre,
-      detalle: `${p.unidadesPorCaja} unidades por caja · ${p.manejaSixpack ? 'Con sixpack' : 'Sin sixpack'}`,
+      categoria: p.categoria,
+      detalle:
+        p.categoria === 'licor'
+          ? 'Botella entera'
+          : `${p.unidadesPorCaja} unidades por caja · ${p.manejaSixpack ? 'Con sixpack' : 'Sin sixpack'}`,
       precioUnidad: p.precioUnidad,
       precioCaja: p.precioCaja,
     }))

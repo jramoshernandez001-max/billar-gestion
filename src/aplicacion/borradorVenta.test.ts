@@ -20,6 +20,7 @@ import {
 
 const catalogo = new Map([
   ['cerveza', { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }],
+  ['aguardiente', { unidadesPorCaja: 1, manejaSixpack: false, categoria: 'licor' as const, precioUnidad: 50000, precioCaja: 50000 }],
   ['gaseosa', { unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 2000, precioCaja: 22000 }],
 ])
 
@@ -62,6 +63,15 @@ describe('edición del borrador', () => {
 
   it('conserva la fecha al cambiar un renglón', () => {
     expect(cambiarRenglon(base(), 'r1', {}).fecha).toBe('2026-11-03')
+  })
+})
+
+describe('presentación del licor', () => {
+  it('al elegir un licor, una caja o sixpack pasa a botella (unidad)', () => {
+    let b = base()
+    b = cambiarRenglon(b, 'r1', { presentacion: 'caja' })
+    b = cambiarRenglon(b, 'r1', { productoId: 'aguardiente' }, catalogo)
+    expect(b.renglones[0].presentacion).toBe('unidad')
   })
 })
 

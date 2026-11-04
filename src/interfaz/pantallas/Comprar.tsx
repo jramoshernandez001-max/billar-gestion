@@ -15,6 +15,7 @@ import { useCallback, useState } from 'react'
 import { Minus, Plus, Info } from 'lucide-react'
 import { calcularCompra } from '../../aplicacion/calculoCompra'
 import type { RepositorioInventario } from '../../datos/inventario'
+import { opcionesDePresentacion, presentacionPermitida } from '../../domain/inventario/categorias'
 import type { Presentacion } from '../../domain/inventario/conversiones'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
@@ -48,7 +49,7 @@ export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
   const cargar = useCallback(() => servicios.inventario.listarProductos(), [servicios])
   const { estado, datos: productos, error, recargar } = useCarga(cargar)
   const [fecha, setFecha] = useState(hoy)
-  const [presentacion, setPresentacion] = useState<Presentacion>('caja')
+  const [elegida, setPresentacion] = useState<Presentacion>('caja')
   const [cantidad, setCantidad] = useState(1)
   const [costoTexto, setCostoTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -68,6 +69,9 @@ export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
 
   const producto = productos.find((p) => p.id === productoId) ?? null
   const costoTotal = costoTexto === '' ? null : Number(costoTexto)
+  // Si el producto no admite la presentación elegida (licor: solo botella), se usa unidad.
+  const presentacion: Presentacion =
+    producto !== null && !presentacionPermitida(producto.categoria, elegida, producto.manejaSixpack) ? 'unidad' : elegida
   const resultado = calcularCompra({ producto, presentacion, cantidad, costoTotal })
   const puedeRegistrar = resultado.puedeRegistrar && !enviando
 
@@ -101,18 +105,14 @@ export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
           <span className="campo__etiqueta">Presentación</span>
           <Opciones
             nombre="Presentación"
-            opciones={[
-              { valor: 'unidad', etiqueta: 'Unidad' },
-              { valor: 'sixpack', etiqueta: 'Sixpack', noDisponible: producto !== null && !producto.manejaSixpack },
-              { valor: 'caja', etiqueta: 'Caja' },
-            ]}
+            opciones={opcionesDePresentacion(producto?.categoria ?? 'cerveza', producto === null || producto.manejaSixpack)}
             valor={presentacion}
             alCambiar={setPresentacion}
           />
         </div>
 
         <div className="campo">
-          <span className="campo__etiqueta">{ETIQUETA_CANTIDAD[presentacion]}</span>
+          <span className="campo__etiqueta">{producto?.categoria === 'licor' ? 'Cantidad de botellas' : ETIQUETA_CANTIDAD[presentacion]}</span>
           <div className="cantidad">
             <button type="button" className="cantidad__boton" aria-label="Menos cantidad" onClick={() => setCantidad((c) => Math.max(1, c - 1))}>
               <Minus size={20} strokeWidth={1.5} aria-hidden="true" />
