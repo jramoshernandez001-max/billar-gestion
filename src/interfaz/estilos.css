@@ -1011,3 +1011,27 @@ button {
   font-size: 13px;
   color: var(--suave);
 }
+
+/* Fila del menú "Más": ícono, texto y flecha. */
+.fila-menu {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.fila-menu__texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Franja de "sin conexión", fija sobre la navegación inferior. */
+.aviso--sin-conexion {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-radius: 0;
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}

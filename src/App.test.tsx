@@ -56,7 +56,7 @@ describe('App', () => {
     render(<App servicio={autorizado} servicios={serviciosVacios()} />)
     await screen.findByText('Hola, Ana')
     fireEvent.click(screen.getByRole('button', { name: 'Más' }))
-    expect(await screen.findByText(/está en construcción/)).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Más' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Más' }).getAttribute('aria-current')).toBe('page')
   })
 
@@ -127,6 +127,16 @@ describe('App', () => {
 
   it('las rutas de cierres abren cerrar día, cerrar semana, historial y detalle', async () => {
     for (const [hash, titulo] of [['#/cierres/diario', 'Cerrar día'], ['#/cierres/semanal', 'Cerrar semana'], ['#/mas/cierres', 'Cierres'], ['#/mas/cierres/abc', 'Cierre']]) {
+      window.location.hash = hash
+      const r = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+      expect(await screen.findByRole('heading', { name: titulo })).toBeTruthy()
+      r.unmount()
+    }
+    window.location.hash = ''
+  })
+
+  it('las rutas de Más abren el menú, la bitácora, su detalle y resúmenes', async () => {
+    for (const [hash, titulo] of [['#/mas', 'Más'], ['#/mas/bitacora', 'Bitácora'], ['#/mas/bitacora/abc', 'Detalle'], ['#/mas/resumenes', 'Resúmenes']]) {
       window.location.hash = hash
       const r = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
       expect(await screen.findByRole('heading', { name: titulo })).toBeTruthy()

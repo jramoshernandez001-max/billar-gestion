@@ -20,6 +20,11 @@ import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/Ajusta
 import { Comprar, type ServiciosComprar } from './interfaz/pantallas/Comprar'
 import { Compras, type ServiciosCompras } from './interfaz/pantallas/Compras'
 import { CorregirCosto, type ServiciosCorregirCosto } from './interfaz/pantallas/CorregirCosto'
+import { AvisoSinConexion } from './interfaz/componentes/AvisoSinConexion'
+import { ResumenesProximamente } from './interfaz/pantallas/ResumenesProximamente'
+import { Bitacora, type ServiciosBitacora } from './interfaz/pantallas/Bitacora'
+import { DetalleBitacora } from './interfaz/pantallas/DetalleBitacora'
+import { Mas } from './interfaz/pantallas/Mas'
 import { Cerrar, type ServiciosCerrar } from './interfaz/pantallas/Cerrar'
 import { Cierres, type ServiciosCierresPantalla } from './interfaz/pantallas/Cierres'
 import { DetalleCierre, type ServiciosDetalleCierre } from './interfaz/pantallas/DetalleCierre'
@@ -56,11 +61,22 @@ export type ServiciosApp = ServiciosInicio &
   ServiciosDetalleDeuda &
   ServiciosCerrar &
   ServiciosCierresPantalla &
-  ServiciosDetalleCierre
+  ServiciosDetalleCierre &
+  ServiciosBitacora
 
 interface Propiedades {
   servicio: ServicioAcceso
   servicios: ServiciosApp
+}
+
+/** Lo que las pantallas necesitan de la app: servicios, persona y navegación. */
+interface ContextoPantalla {
+  servicios: ServiciosApp
+  nombre: string | undefined
+  correo: string
+  cerrarSesion: () => void
+  hoy: string
+  ir: (ruta: string) => void
 }
 
 /**
@@ -71,7 +87,10 @@ interface Propiedades {
  * Cómo lo hace: un `switch` sobre el texto de la ruta.
  * Por qué: un solo lugar donde se ve qué rutas existen.
  */
-function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
+function pantalla(
+  ruta: string,
+  { servicios, nombre, correo, cerrarSesion, hoy, ir }: ContextoPantalla,
+) {
   // Tramos de la ruta: sección/acción/tercero/cuarto (ids o subacciones).
   const [seccion, accion, tercero, cuarto] = segmentosDeRuta(ruta)
   if (seccion === 'cierres' && (accion === 'diario' || accion === 'semanal')) {
@@ -79,6 +98,9 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
   }
   if (seccion === 'mas' && accion === 'cierres' && tercero !== undefined) {
     return <DetalleCierre servicios={servicios} cierreId={tercero} alIr={ir} />
+  }
+  if (seccion === 'mas' && accion === 'bitacora' && tercero !== undefined) {
+    return <DetalleBitacora servicios={servicios} entradaId={tercero} alIr={ir} />
   }
   if (seccion === 'deudas' && accion === 'nueva') return <NuevaDeuda servicios={servicios} hoy={hoy} alIr={ir} />
   if (seccion === 'deudas' && accion === 'abonar') return <Abonar servicios={servicios} deudaId={tercero} hoy={hoy} alIr={ir} />
@@ -111,6 +133,12 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
       return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
     case 'vender':
       return <Vender servicios={servicios} hoy={hoy} alIr={ir} />
+    case 'mas':
+      return <Mas correo={correo} alIr={ir} cerrarSesion={cerrarSesion} />
+    case 'mas/resumenes':
+      return <ResumenesProximamente alIr={ir} />
+    case 'mas/bitacora':
+      return <Bitacora servicios={servicios} alIr={ir} />
     case 'mas/cierres':
       return <Cierres servicios={servicios} alIr={ir} />
     case 'deudas':
@@ -127,12 +155,13 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
 }
 
 /** Contenido de la app para un usuario autorizado: pantalla + navegación. */
-function Contenido({ nombre, servicios }: { nombre?: string; servicios: ServiciosApp }) {
+function Contenido({ nombre, correo, cerrarSesion, servicios }: { nombre?: string; correo: string; cerrarSesion: () => void; servicios: ServiciosApp }) {
   const { ruta, ir } = useRuta()
   const [hoy] = useState(() => fechaLocalIso(new Date()))
   return (
     <>
-      {pantalla(ruta, servicios, nombre, hoy, ir)}
+      <AvisoSinConexion />
+      {pantalla(ruta, { servicios, nombre, correo, cerrarSesion, hoy, ir })}
       <NavegacionInferior activa={pestanaDe(ruta)} alIr={ir} />
     </>
   )
@@ -142,7 +171,7 @@ function App({ servicio, servicios }: Propiedades) {
   return (
     <div className="marco">
       <ControlDeAcceso servicio={servicio} redirigirA={window.location.origin}>
-        {({ nombre }) => <Contenido nombre={nombre} servicios={servicios} />}
+        {({ nombre, correo, cerrarSesion }) => <Contenido nombre={nombre} correo={correo} cerrarSesion={() => void cerrarSesion()} servicios={servicios} />}
       </ControlDeAcceso>
     </div>
   )
