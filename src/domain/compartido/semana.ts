@@ -90,3 +90,17 @@ export function validarSemana(desde: string, hasta: string): void {
     throw new Error('La semana de cierre debe terminar el domingo siguiente al lunes de inicio')
   }
 }
+
+/**
+ * Devuelve el lunes de la semana de una fecha.
+ *
+ * Qué hace: la fecha misma si es lunes; si no, el lunes anterior.
+ * Cómo lo hace: resta (día de la semana - 1) días con sumarDias.
+ * Por qué: el cierre semanal empieza siempre en lunes; con esto la pantalla
+ * ofrece la semana que contiene el día elegido.
+ *
+ * @throws Error si la fecha es inválida.
+ */
+export function lunesDe(fecha: string): string {
+  return sumarDias(fecha, -(diaDeLaSemana(fecha) - 1))
+}
