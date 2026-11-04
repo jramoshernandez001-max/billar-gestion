@@ -16,17 +16,20 @@ import { Vender, type ServiciosVender } from './Vender'
 
 afterEach(cleanup)
 
-const aguila = { id: 'p1', nombre: 'Cerveza Águila', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
-const agua = { id: 'p2', nombre: 'Agua Cristal', unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 2000, precioCaja: 22000 }
+const aguila = { id: 'p1', nombre: 'Cerveza Águila', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const agua = { id: 'p2', nombre: 'Agua Cristal', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 2000, precioCaja: 22000 }
+
+const aguardiente = { id: 'p3', nombre: 'Ron Ejemplo', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false, precioUnidad: 50000, precioCaja: 50000 }
 
 function armar(sobre: { registrarVenta?: ServiciosVender['ventas']['registrarVenta'] } = {}) {
   const registrarVenta = vi.fn(sobre.registrarVenta ?? (async () => 'venta-nueva'))
   const servicios: ServiciosVender = {
     inventario: {
-      listarProductos: async () => [aguila, agua],
+      listarProductos: async () => [aguila, agua, aguardiente],
       obtenerStock: async () => new Map([
         ['p1', { bodega: 10, nevera: 4, total: 14 }],
         ['p2', { bodega: 0, nevera: 12, total: 12 }],
+        ['p3', { bodega: 2, nevera: 3, total: 5 }],
       ]),
     },
     ventas: { registrarVenta },
@@ -154,5 +157,15 @@ describe('Vender', () => {
     render(<Vender servicios={servicios} hoy="2026-11-03" alIr={() => {}} />)
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin red/)
     expect(within(document.body).getByRole('button', { name: 'Reintentar' })).toBeTruthy()
+  })
+
+  it('un licor se vende por botella: solo esa opción y sin unidades por caja', async () => {
+    const { registrarVenta } = armar()
+    await elegir(/Ron/)
+    expect(screen.getByText('Botella · 3 en nevera')).toBeTruthy()
+    expect(screen.getAllByRole('radio', { name: /^(Botella|Unidad|Sixpack|Caja)$/ }).map((r) => r.textContent)).toEqual(['Botella'])
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar' }))
+    await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
+    expect(registrarVenta.mock.calls[0][0].renglones[0]).toMatchObject({ productoId: 'p3', presentacion: 'unidad', cantidad: 1 })
   })
 })

@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest'
 import { cargarInicio } from './cargarInicio'
 import type { ServiciosInicio } from './cargarInicio'
 
-const producto = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const producto = { categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 
 function serviciosFalsos(): ServiciosInicio {
   return {
@@ -30,8 +30,8 @@ function serviciosFalsos(): ServiciosInicio {
     },
     inventario: {
       listarProductos: async () => [
-        { id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
-        { id: 'p2', nombre: 'Gaseosa Ejemplo', unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 2000, precioCaja: 22000 },
+        { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
+        { id: 'p2', nombre: 'Gaseosa Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 2000, precioCaja: 22000 },
       ],
       obtenerStock: async () => new Map([['p1', { bodega: 10, nevera: -2, total: 8 }], ['p2', { bodega: 5, nevera: 5, total: 10 }]]),
     },

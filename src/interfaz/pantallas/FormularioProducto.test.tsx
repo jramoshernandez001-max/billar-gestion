@@ -13,7 +13,7 @@ import { FormularioProducto, type ServiciosFormularioProducto } from './Formular
 
 afterEach(cleanup)
 
-const existente = { id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const existente = { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 
 function servicios(sobre: Partial<ServiciosFormularioProducto['inventario']> = {}): ServiciosFormularioProducto {
   return {
@@ -43,7 +43,7 @@ describe('FormularioProducto', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Sí' }))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar producto' }))
     await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/productos'))
-    expect(s.inventario.crearProducto).toHaveBeenCalledWith({ nombre: 'Águila', unidadesPorCaja: 30, manejaSixpack: true, precioUnidad: 3500, precioCaja: 90000 })
+    expect(s.inventario.crearProducto).toHaveBeenCalledWith({ nombre: 'Águila', categoria: 'cerveza' as const, unidadesPorCaja: 30, manejaSixpack: true, precioUnidad: 3500, precioCaja: 90000 })
   })
 
   it('no deja guardar con errores y los muestra junto al campo', async () => {
@@ -64,7 +64,7 @@ describe('FormularioProducto', () => {
     expect(screen.getByText(/no altera las ventas pasadas/i)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Guardar producto' }))
     await waitFor(() => expect(alIr).toHaveBeenCalledWith('inventario'))
-    expect(s.inventario.editarProducto).toHaveBeenCalledWith('p1', { nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3200, precioCaja: 60000 })
+    expect(s.inventario.editarProducto).toHaveBeenCalledWith('p1', { nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3200, precioCaja: 60000 })
   })
 
   it('un producto que no existe avisa', async () => {
@@ -80,5 +80,23 @@ describe('FormularioProducto', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar producto' }))
     expect((await screen.findByRole('alert')).textContent).toMatch(/nombre repetido/)
     expect(alIr).not.toHaveBeenCalled()
+  })
+
+  it('un licor no pide unidades por caja, sixpack ni precio de caja, y se guarda por botella', async () => {
+    const s = servicios()
+    const alIr = vi.fn()
+    render(<FormularioProducto servicios={s} alIr={alIr} />)
+    await screen.findByRole('heading', { name: 'Nuevo producto' })
+    fireEvent.click(screen.getByRole('radio', { name: 'Licor' }))
+    expect(screen.queryByLabelText('Unidades por caja')).toBeNull()
+    expect(screen.queryByLabelText('Precio de la caja')).toBeNull()
+    expect(screen.queryByText('¿Maneja sixpack?')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Aguardiente Ejemplo' } })
+    fireEvent.change(screen.getByLabelText('Precio de la botella'), { target: { value: '50000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar producto' }))
+    await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/productos'))
+    expect(s.inventario.crearProducto).toHaveBeenCalledWith({
+      nombre: 'Aguardiente Ejemplo', categoria: 'licor', unidadesPorCaja: 1, manejaSixpack: false, precioUnidad: 50000, precioCaja: 50000,
+    })
   })
 })

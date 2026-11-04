@@ -15,8 +15,9 @@ afterEach(cleanup)
 const servicios: ServiciosProductos = {
   inventario: {
     listarProductos: async () => [
-      { id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
-      { id: 'p2', nombre: 'Agua Ejemplo', unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 },
+      { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
+      { id: 'p2', nombre: 'Agua Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 },
+      { id: 'p3', nombre: 'Aguardiente Ejemplo', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false, precioUnidad: 50000, precioCaja: 50000 },
     ],
   },
 }
@@ -42,7 +43,7 @@ describe('Productos', () => {
     render(<Productos servicios={servicios} alIr={alIr} />)
     await screen.findByText('Cerveza Ejemplo')
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo producto' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[1])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[2])
     expect(alIr.mock.calls.map((c) => c[0])).toEqual(['mas/productos/nuevo', 'mas/productos/editar/p1'])
   })
 
@@ -52,5 +53,16 @@ describe('Productos', () => {
     cleanup()
     render(<Productos servicios={{ inventario: { listarProductos: async () => { throw new Error('sin red') } } }} alIr={vi.fn()} />)
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin red/)
+  })
+
+  it('el licor se muestra por botella, sin caja, y se puede filtrar por categoría', async () => {
+    render(<Productos servicios={servicios} alIr={vi.fn()} />)
+    await screen.findByText('Cerveza Ejemplo')
+    fireEvent.click(screen.getByRole('radio', { name: 'Licor' }))
+    expect(screen.queryByText('Cerveza Ejemplo')).toBeNull()
+    const tarjeta = screen.getByRole('article', { name: 'Aguardiente Ejemplo' })
+    expect(tarjeta.textContent).toMatch(/Botella entera/)
+    expect(tarjeta.textContent).not.toMatch(/Caja/)
+    expect(tarjeta.textContent).toMatch(/\$ 50\.000/)
   })
 })

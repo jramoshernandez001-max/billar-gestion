@@ -11,12 +11,12 @@
 import { describe, it, expect } from 'vitest'
 import { validarProducto, nombreNormalizado, type EntradaProducto } from './formularioProducto'
 
-const valida: EntradaProducto = { nombre: ' Cerveza  Ejemplo ', unidadesPorCaja: '24', manejaSixpack: true, precioUnidad: '3000', precioCaja: '60000' }
+const valida: EntradaProducto = { nombre: ' Cerveza  Ejemplo ', categoria: 'cerveza', unidadesPorCaja: '24', manejaSixpack: true, precioUnidad: '3000', precioCaja: '60000' }
 
 describe('validarProducto', () => {
   it('convierte una entrada válida a datos limpios', () => {
     expect(validarProducto(valida, [])).toEqual({
-      datos: { nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
+      datos: { nombre: 'Cerveza Ejemplo', categoria: 'cerveza', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
       errores: {},
       puedeGuardar: true,
     })
@@ -55,5 +55,27 @@ describe('validarProducto', () => {
 describe('nombreNormalizado', () => {
   it('pasa a minúsculas y junta espacios', () => {
     expect(nombreNormalizado('  Agua   CRISTAL ')).toBe('agua cristal')
+  })
+
+  describe('licor', () => {
+    const licor: EntradaProducto = { nombre: 'Aguardiente Ejemplo', categoria: 'licor', unidadesPorCaja: '', manejaSixpack: true, precioUnidad: '50000', precioCaja: '' }
+
+    it('se vende por botella: 1 por caja, sin sixpack y caja al mismo precio', () => {
+      expect(validarProducto(licor, [])).toEqual({
+        datos: { nombre: 'Aguardiente Ejemplo', categoria: 'licor', unidadesPorCaja: 1, manejaSixpack: false, precioUnidad: 50000, precioCaja: 50000 },
+        errores: {},
+        puedeGuardar: true,
+      })
+    })
+
+    it('no pide unidades por caja ni precio de caja, pero sí nombre y precio de la botella', () => {
+      const r = validarProducto({ ...licor, nombre: '', precioUnidad: '' }, [])
+      expect(Object.keys(r.errores).sort()).toEqual(['nombre', 'precioUnidad'])
+    })
+  })
+
+  it('otro se valida como la cerveza', () => {
+    const r = validarProducto({ ...valida, categoria: 'otro', unidadesPorCaja: '' }, [])
+    expect(r.errores.unidadesPorCaja).toBeDefined()
   })
 })

@@ -16,7 +16,7 @@ import { Inventario, type ServiciosInventario } from './Inventario'
 
 afterEach(cleanup)
 
-const base = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const base = { categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 const productos = [
   { id: 'p1', nombre: 'Cerveza Águila', ...base },
   { id: 'p2', nombre: 'Cerveza Poker', ...base },
@@ -88,7 +88,7 @@ describe('Inventario', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar' }), { target: { value: 'aguila' } })
     expect(screen.getAllByRole('article')).toHaveLength(1)
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar' }), { target: { value: 'zzz' } })
-    expect(screen.getByText('No hay productos con ese nombre.')).toBeTruthy()
+    expect(screen.getByText('No hay productos con ese nombre o categoría.')).toBeTruthy()
   })
 
   it('las acciones abren la pantalla del producto elegido', async () => {
@@ -114,5 +114,22 @@ describe('Inventario', () => {
     armar({ listarProductos: async () => { throw new Error('sin red') } })
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin red/)
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy()
+  })
+
+  it('filtra por categoría y el licor no muestra equivalente en cajas', async () => {
+    const licor = { id: 'p4', nombre: 'Aguardiente Ejemplo', ...base, categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false }
+    armar({
+      listarProductos: async () => [...productos, licor],
+      obtenerStock: async () => new Map([...stock, ['p4', { bodega: 6, nevera: 3, total: 9 }]]),
+    })
+    await screen.findAllByRole('article')
+    expect(screen.getAllByRole('article')).toHaveLength(4)
+    fireEvent.click(screen.getByRole('radio', { name: 'Licor' }))
+    expect(screen.getAllByRole('article').map((t) => t.getAttribute('aria-label'))).toEqual(['Aguardiente Ejemplo'])
+    expect(within(tarjeta('Aguardiente Ejemplo')).queryByText(/caja/i)).toBeNull()
+    fireEvent.click(screen.getByRole('radio', { name: 'Otros' }))
+    expect(screen.getByText('No hay productos con ese nombre o categoría.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: 'Todas' }))
+    expect(screen.getAllByRole('article')).toHaveLength(4)
   })
 })

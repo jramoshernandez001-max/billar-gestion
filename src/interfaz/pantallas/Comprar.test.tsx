@@ -14,8 +14,8 @@ import { Comprar, type ServiciosComprar } from './Comprar'
 afterEach(cleanup)
 
 const productos = [
-  { id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
-  { id: 'p2', nombre: 'Agua Ejemplo', unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 },
+  { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
+  { id: 'p2', nombre: 'Agua Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 },
 ]
 
 function servicios(sobre: Partial<ServiciosComprar['inventario']> = {}): ServiciosComprar {
@@ -87,5 +87,18 @@ describe('Comprar', () => {
     await screen.findByText('Nueva compra')
     fireEvent.click(screen.getByRole('button', { name: 'Ver historial de compras' }))
     expect(alIr).toHaveBeenCalledWith('mas/compras')
+  })
+
+  it('un licor se compra por botella: solo esa opción y se registra como unidad', async () => {
+    const licor = { id: 'p3', nombre: 'Aguardiente Ejemplo', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false, precioUnidad: 50000, precioCaja: 50000 }
+    const s = servicios({ listarProductos: async () => [...productos, licor] })
+    dibujar(s, 'p3')
+    await screen.findByText('Nueva compra')
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['Botella'])
+    expect(screen.getByText('Cantidad de botellas')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Costo total'), { target: { value: '30000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }))
+    await waitFor(() => expect(s.inventario.registrarCompra).toHaveBeenCalled())
+    expect(s.inventario.registrarCompra).toHaveBeenCalledWith(expect.objectContaining({ productoId: 'p3', presentacion: 'unidad', cantidad: 1, costoTotal: 30000 }))
   })
 })

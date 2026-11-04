@@ -12,6 +12,8 @@
  */
 
 /** Formas en que se puede vender o comprar un producto. */
+import type { CategoriaProducto } from './categorias'
+
 export type Presentacion = 'unidad' | 'sixpack' | 'caja'
 
 /** Datos del producto que necesitan las conversiones. */
@@ -20,6 +22,8 @@ export interface ProductoConversion {
   unidadesPorCaja: number
   /** Si el producto se vende por sixpack (ej.: Coronita sí, Costeñita no). */
   manejaSixpack: boolean
+  /** Cerveza, licor u otro; si falta se trata como cerveza. El licor es por botella. */
+  categoria?: CategoriaProducto
 }
 
 /** Un sixpack siempre son seis unidades, sin importar la cerveza. */

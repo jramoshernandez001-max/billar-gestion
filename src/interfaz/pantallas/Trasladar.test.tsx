@@ -15,7 +15,7 @@ import { Trasladar, type ServiciosTrasladar } from './Trasladar'
 
 afterEach(cleanup)
 
-const base = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const base = { categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 const productos = [
   { id: 'p1', nombre: 'Cerveza Águila', ...base },
   { id: 'p2', nombre: 'Agua Cristal', ...base },

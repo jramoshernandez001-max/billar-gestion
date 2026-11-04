@@ -36,6 +36,10 @@ function detalleUnidades(producto: ProductoConversion, presentacion: Presentacio
 /** Valida y calcula una compra en edición. */
 export function calcularCompra(e: EntradaCompra): ResultadoCompra {
   if (e.producto === null) return { unidades: 0, costoPorUnidad: null, problema: 'Elige un producto', puedeRegistrar: false, detalle: '' }
+  const categoria = e.producto.categoria ?? 'cerveza'
+  if (categoria === 'licor' && e.presentacion !== 'unidad') {
+    return { unidades: 0, costoPorUnidad: null, problema: 'El licor se compra por botella', puedeRegistrar: false, detalle: '' }
+  }
   if (e.presentacion === 'sixpack' && !e.producto.manejaSixpack) {
     return { unidades: 0, costoPorUnidad: null, problema: 'Este producto no se maneja por sixpack', puedeRegistrar: false, detalle: '' }
   }

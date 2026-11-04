@@ -11,11 +11,13 @@
  * (una compra o un traslado sin cargar) que hay que corregir.
  */
 import type { Stock } from '../domain/inventario/stock'
+import type { CategoriaProducto } from '../domain/inventario/categorias'
 
 /** Datos del producto que necesita el resumen. */
 export interface ProductoResumen {
   id: string
   nombre: string
+  categoria: CategoriaProducto
   unidadesPorCaja: number
   manejaSixpack: boolean
 }
@@ -31,10 +33,11 @@ export interface Equivalente {
 export interface FilaInventario {
   productoId: string
   nombre: string
+  categoria: CategoriaProducto
   bodega: number
   nevera: number
   total: number
-  /** Total en cajas, sixpacks y sueltas; null si hay stock negativo. */
+  /** Total en cajas, sixpacks y sueltas; null si hay stock negativo o es licor (botellas). */
   equivalente: Equivalente | null
   /** Verdadero si alguna ubicación quedó por debajo de cero. */
   negativo: boolean
@@ -64,10 +67,11 @@ export function resumirInventario(
       return {
         productoId: producto.id,
         nombre: producto.nombre,
+        categoria: producto.categoria,
         bodega: s.bodega,
         nevera: s.nevera,
         total: s.total,
-        equivalente: negativo ? null : aEquivalente(s.total, producto),
+        equivalente: negativo || producto.categoria === 'licor' ? null : aEquivalente(s.total, producto),
         negativo,
       }
     })

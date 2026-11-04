@@ -25,12 +25,12 @@ import {
   type CatalogoVendible,
   type RenglonBorrador,
 } from '../../aplicacion/borradorVenta'
-import type { Presentacion } from '../../domain/inventario/conversiones'
+import { opcionesDePresentacion } from '../../domain/inventario/categorias'
 import type { RepositorioInventario } from '../../datos/inventario'
 import type { RepositorioVentas } from '../../datos/ventas'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
-import { Opciones, type OpcionDeSelector } from '../componentes/Opciones'
+import { Opciones } from '../componentes/Opciones'
 import { formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
 import { SelectorProducto, type OpcionProducto } from './SelectorProducto'
@@ -51,15 +51,6 @@ interface Propiedades {
 /** Singular o plural: "1 unidad", "3 unidades". */
 function unidadesTexto(n: number): string {
   return `${n} ${n === 1 ? 'unidad' : 'unidades'}`
-}
-
-/** Opciones de presentación; el sixpack se tacha si el producto no lo maneja. */
-function opcionesPresentacion(manejaSixpack: boolean): OpcionDeSelector<Presentacion>[] {
-  return [
-    { valor: 'unidad', etiqueta: 'Unidad' },
-    { valor: 'sixpack', etiqueta: 'Sixpack', noDisponible: !manejaSixpack },
-    { valor: 'caja', etiqueta: 'Caja' },
-  ]
 }
 
 export function Vender({ servicios, hoy, alIr }: Propiedades) {
@@ -163,7 +154,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
               <span className="renglon__detalle">
                 {producto === undefined
                   ? 'Toca para buscar'
-                  : `${producto.unidadesPorCaja} unid/caja · ${enNevera(producto.id)} en nevera`}
+                  : `${producto.categoria === 'licor' ? 'Botella' : `${producto.unidadesPorCaja} unid/caja`} · ${enNevera(producto.id)} en nevera`}
               </span>
             </span>
             <ChevronDown size={18} strokeWidth={1.5} aria-hidden="true" />
@@ -177,7 +168,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
           <span className="campo__etiqueta">Presentación</span>
           <Opciones
             nombre="Presentación"
-            opciones={opcionesPresentacion(producto?.manejaSixpack ?? true)}
+            opciones={opcionesDePresentacion(producto?.categoria ?? 'cerveza', producto?.manejaSixpack ?? true)}
             valor={renglon.presentacion}
             alCambiar={(presentacion) => cambiar(renglon.clave, { presentacion })}
           />

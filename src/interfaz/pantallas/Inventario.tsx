@@ -16,6 +16,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { CircleAlert, Search } from 'lucide-react'
 import { resumirInventario, type FilaInventario } from '../../aplicacion/resumenInventario'
 import type { RepositorioInventario } from '../../datos/inventario'
+import { filtrarPorCategoria, type FiltroCategoria } from '../../domain/inventario/categorias'
+import { FiltroDeCategoria } from '../componentes/FiltroDeCategoria'
 import { NOMBRE_NEGOCIO } from '../../configuracion/negocio'
 import { Cabecera } from '../componentes/Cabecera'
 import { describirEquivalente, horaLocal } from '../formato'
@@ -90,6 +92,7 @@ export function Inventario({ servicios, alIr }: Propiedades) {
   }, [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)
   const [busqueda, setBusqueda] = useState('')
+  const [categoria, setCategoria] = useState<FiltroCategoria>('todas')
 
   const filas = useMemo(
     () => (datos === null ? [] : resumirInventario(datos.productos, datos.stock)),
@@ -120,7 +123,7 @@ export function Inventario({ servicios, alIr }: Propiedades) {
   }
 
   const buscado = normalizar(busqueda)
-  const visibles = filas.filter((f) => normalizar(f.nombre).includes(buscado))
+  const visibles = filtrarPorCategoria(filas, categoria).filter((f) => normalizar(f.nombre).includes(buscado))
   const negativos = filas.filter((f) => f.negativo).length
 
   return (
@@ -146,6 +149,8 @@ export function Inventario({ servicios, alIr }: Propiedades) {
           </div>
         </div>
 
+        <FiltroDeCategoria valor={categoria} alCambiar={setCategoria} />
+
         {negativos > 0 && (
           <div className="aviso">
             <CircleAlert size={18} strokeWidth={1.5} aria-hidden="true" />
@@ -158,7 +163,7 @@ export function Inventario({ servicios, alIr }: Propiedades) {
           </div>
         )}
 
-        {visibles.length === 0 && <p className="estado">No hay productos con ese nombre.</p>}
+        {visibles.length === 0 && <p className="estado">No hay productos con ese nombre o categoría.</p>}
         {visibles.map((fila) => <Tarjeta key={fila.productoId} fila={fila} alIr={alIr} />)}
 
         <p className="texto-suave texto-pie">Actualizado hoy a las {horaLocal(datos.cargadoEn)}</p>

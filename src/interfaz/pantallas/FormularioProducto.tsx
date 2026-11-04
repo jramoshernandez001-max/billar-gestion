@@ -14,6 +14,7 @@ import { validarProducto, type EntradaProducto } from '../../aplicacion/formular
 import type { RepositorioInventario } from '../../datos/inventario'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
+import { CATEGORIAS, etiquetaCategoria } from '../../domain/inventario/categorias'
 import { Opciones } from '../componentes/Opciones'
 import { useCarga } from '../useCarga'
 
@@ -31,7 +32,7 @@ interface Propiedades {
   alIr: (ruta: string) => void
 }
 
-const VACIA: EntradaProducto = { nombre: '', unidadesPorCaja: '', manejaSixpack: false, precioUnidad: '', precioCaja: '' }
+const VACIA: EntradaProducto = { nombre: '', categoria: 'cerveza', unidadesPorCaja: '', manejaSixpack: false, precioUnidad: '', precioCaja: '' }
 
 /** Solo dígitos: los montos y cantidades son enteros. */
 const soloDigitos = (texto: string) => texto.replace(/\D/g, '')
@@ -79,6 +80,7 @@ export function FormularioProducto({ servicios, productoId, volverA = 'mas/produ
     ? VACIA
     : {
         nombre: actual.nombre,
+        categoria: actual.categoria,
         unidadesPorCaja: String(actual.unidadesPorCaja),
         manejaSixpack: actual.manejaSixpack,
         precioUnidad: String(actual.precioUnidad),
@@ -88,6 +90,7 @@ export function FormularioProducto({ servicios, productoId, volverA = 'mas/produ
   const cambiar = (parcial: Partial<EntradaProducto>) => setCambios((c) => ({ ...c, ...parcial }))
   const otros = productos.filter((p) => p.id !== productoId).map((p) => p.nombre)
   const resultado = validarProducto(entrada, otros)
+  const esLicor = entrada.categoria === 'licor'
   // Los errores se muestran solo en campos que ya se tocaron o llenaron.
   const visible = (campo: keyof EntradaProducto) => (entrada[campo] !== '' || cambios[campo] !== undefined) ? resultado.errores[campo as keyof typeof resultado.errores] : undefined
 
@@ -127,19 +130,31 @@ export function FormularioProducto({ servicios, productoId, volverA = 'mas/produ
       {cabecera}
       <div className="marco__contenido">
         {campoTexto('nombre-producto', 'Nombre', 'nombre', false)}
-        {campoTexto('unidades-caja', 'Unidades por caja', 'unidadesPorCaja', true)}
         <div className="campo">
-          <span className="campo__etiqueta">¿Maneja sixpack?</span>
+          <span className="campo__etiqueta">Categoría</span>
           <Opciones
-            nombre="Maneja sixpack"
-            opciones={[{ valor: 'si', etiqueta: 'Sí' }, { valor: 'no', etiqueta: 'No' }]}
-            valor={entrada.manejaSixpack ? 'si' : 'no'}
-            alCambiar={(v) => cambiar({ manejaSixpack: v === 'si' })}
+            nombre="Categoría"
+            opciones={CATEGORIAS.map((c) => ({ valor: c, etiqueta: etiquetaCategoria(c) }))}
+            valor={entrada.categoria}
+            alCambiar={(categoria) => cambiar({ categoria })}
           />
-          <p className="texto-suave">Un sixpack siempre son 6 unidades.</p>
+          {esLicor && <p className="texto-suave">El licor se vende por botella entera: sin sixpack ni caja.</p>}
         </div>
-        {campoTexto('precio-unidad', 'Precio de la unidad', 'precioUnidad', true)}
-        {campoTexto('precio-caja', 'Precio de la caja', 'precioCaja', true)}
+        {!esLicor && campoTexto('unidades-caja', 'Unidades por caja', 'unidadesPorCaja', true)}
+        {!esLicor && (
+          <div className="campo">
+            <span className="campo__etiqueta">¿Maneja sixpack?</span>
+            <Opciones
+              nombre="Maneja sixpack"
+              opciones={[{ valor: 'si', etiqueta: 'Sí' }, { valor: 'no', etiqueta: 'No' }]}
+              valor={entrada.manejaSixpack ? 'si' : 'no'}
+              alCambiar={(v) => cambiar({ manejaSixpack: v === 'si' })}
+            />
+            <p className="texto-suave">Un sixpack siempre son 6 unidades.</p>
+          </div>
+        )}
+        {campoTexto('precio-unidad', esLicor ? 'Precio de la botella' : 'Precio de la unidad', 'precioUnidad', true)}
+        {!esLicor && campoTexto('precio-caja', 'Precio de la caja', 'precioCaja', true)}
 
         {editando && <p className="texto-suave">Cambiar un precio no altera las ventas pasadas.</p>}
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}

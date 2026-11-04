@@ -7,15 +7,20 @@
  * Cómo lo hace: limpia espacios, convierte los textos a números enteros y
  * compara el nombre (sin mayúsculas ni espacios repetidos) con los otros
  * productos.
+ * Un licor se vende por botella entera: no se piden unidades por caja,
+ * sixpack ni precio de la caja; se guardan como 1 por caja, sin sixpack y con
+ * la caja al precio de la botella (la base exige esa forma).
  * Por qué: la base rechaza nombres repetidos y montos inválidos; avisarlo
  * junto al campo evita un error genérico al guardar. La regla de la base
  * sigue siendo la que manda.
  */
 import type { DatosProducto } from '../datos/inventario'
+import type { CategoriaProducto } from '../domain/inventario/categorias'
 
 /** Lo que hay escrito en el formulario (todo texto, como en los campos). */
 export interface EntradaProducto {
   nombre: string
+  categoria: CategoriaProducto
   unidadesPorCaja: string
   manejaSixpack: boolean
   precioUnidad: string
@@ -54,21 +59,32 @@ export function validarProducto(entrada: EntradaProducto, otrosNombres: readonly
   else if (otrosNombres.some((o) => nombreNormalizado(o) === nombreNormalizado(nombre))) {
     errores.nombre = 'Ya existe un producto con ese nombre'
   }
-  const unidadesPorCaja = enteroPositivo(entrada.unidadesPorCaja)
-  if (unidadesPorCaja === null) errores.unidadesPorCaja = 'Escribe un número entero mayor a cero'
+  const esLicor = entrada.categoria === 'licor'
   const precioUnidad = enteroPositivo(entrada.precioUnidad)
   if (precioUnidad === null) errores.precioUnidad = 'Escribe el precio en pesos, mayor a cero'
-  const precioCaja = enteroPositivo(entrada.precioCaja)
-  if (precioCaja === null) errores.precioCaja = 'Escribe el precio en pesos, mayor a cero'
-  else if (precioUnidad !== null && precioCaja < precioUnidad) {
-    errores.precioCaja = 'El precio de la caja no puede ser menor al de una unidad'
+  // El licor es por botella: sus unidades por caja y su caja se fijan solas.
+  const unidadesPorCaja = esLicor ? 1 : enteroPositivo(entrada.unidadesPorCaja)
+  if (unidadesPorCaja === null) errores.unidadesPorCaja = 'Escribe un número entero mayor a cero'
+  const precioCaja = esLicor ? precioUnidad : enteroPositivo(entrada.precioCaja)
+  if (!esLicor) {
+    if (precioCaja === null) errores.precioCaja = 'Escribe el precio en pesos, mayor a cero'
+    else if (precioUnidad !== null && precioCaja < precioUnidad) {
+      errores.precioCaja = 'El precio de la caja no puede ser menor al de una unidad'
+    }
   }
 
   if (Object.keys(errores).length > 0 || unidadesPorCaja === null || precioUnidad === null || precioCaja === null) {
     return { datos: null, errores, puedeGuardar: false }
   }
   return {
-    datos: { nombre, unidadesPorCaja, manejaSixpack: entrada.manejaSixpack, precioUnidad, precioCaja },
+    datos: {
+      nombre,
+      categoria: entrada.categoria,
+      unidadesPorCaja,
+      manejaSixpack: esLicor ? false : entrada.manejaSixpack,
+      precioUnidad,
+      precioCaja,
+    },
     errores: {},
     puedeGuardar: true,
   }

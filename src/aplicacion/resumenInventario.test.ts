@@ -12,9 +12,9 @@ import { describe, it, expect } from 'vitest'
 import { resumirInventario } from './resumenInventario'
 
 const productos = [
-  { id: 'p1', nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true },
-  { id: 'p2', nombre: 'Gaseosa Ejemplo', unidadesPorCaja: 12, manejaSixpack: false },
-  { id: 'p3', nombre: 'Agua Ejemplo', unidadesPorCaja: 20, manejaSixpack: false },
+  { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true },
+  { id: 'p2', nombre: 'Gaseosa Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false },
+  { id: 'p3', nombre: 'Agua Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 20, manejaSixpack: false },
 ]
 
 /** Busca la fila de un producto (el resultado va ordenado por nombre). */
@@ -62,5 +62,11 @@ describe('resumirInventario', () => {
   it('ordena por nombre sin importar mayúsculas', () => {
     const lista = resumirInventario([...productos].reverse(), new Map())
     expect(lista.map((f) => f.nombre)).toEqual(['Agua Ejemplo', 'Cerveza Ejemplo', 'Gaseosa Ejemplo'])
+  })
+
+  it('un licor no se expresa en cajas: sin equivalente y con su categoría', () => {
+    const licor = { id: 'l', nombre: 'Aguardiente Ejemplo', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false }
+    const filas = resumirInventario([licor], new Map([['l', { bodega: 5, nevera: 2, total: 7 }]]))
+    expect(filas[0]).toMatchObject({ categoria: 'licor', total: 7, equivalente: null })
   })
 })

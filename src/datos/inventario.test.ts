@@ -23,6 +23,7 @@ const clienteFalso = (respuesta: { data?: unknown; error?: string } = { data: ID
 
 const producto = {
   nombre: 'Cerveza Ejemplo',
+  categoria: 'cerveza' as const,
   unidadesPorCaja: 24,
   manejaSixpack: true,
   precioUnidad: 3000,
@@ -36,7 +37,7 @@ describe('crearProducto y editarProducto', () => {
     const [nombre, argumentos] = rpc.mock.calls[0]
     expect(nombre).toBe('crear_producto')
     expect(Object.keys(argumentos).sort()).toEqual(parametrosSql('crear_producto').sort())
-    expect(argumentos).toMatchObject({ p_nombre: 'Cerveza Ejemplo', p_unidades_por_caja: 24, p_maneja_sixpack: true })
+    expect(argumentos).toMatchObject({ p_nombre: 'Cerveza Ejemplo', p_unidades_por_caja: 24, p_maneja_sixpack: true, p_categoria: 'cerveza' })
   })
 
   it('llama a editar_producto con los parámetros de la función SQL', async () => {
@@ -56,6 +57,7 @@ describe('crearProducto y editarProducto', () => {
     await expect(repo.crearProducto({ ...producto, unidadesPorCaja: 2.5 })).rejects.toThrow(/unidades por caja/i)
     await expect(repo.crearProducto({ ...producto, precioUnidad: -1 })).rejects.toThrow(/precio/i)
     await expect(repo.crearProducto({ ...producto, precioCaja: 1.5 })).rejects.toThrow(/precio/i)
+    await expect(repo.crearProducto({ ...producto, categoria: 'ron' as never })).rejects.toThrow(/categor/i)
     expect(rpc).not.toHaveBeenCalled()
   })
 })
@@ -179,6 +181,16 @@ describe('errores de la base de datos', () => {
   })
 })
 
+describe('productos de licor', () => {
+  it('lee la categoría licor y rechaza una categoría desconocida', async () => {
+    const fila = { id: ID, nombre: 'Aguardiente Ejemplo', categoria: 'licor', unidades_por_caja: 1, maneja_sixpack: false, precio_unidad: 50000, precio_caja: 50000 }
+    const bueno = clienteFalso({}, { productos: [fila] })
+    expect((await crearRepositorioInventario(bueno.cliente).listarProductos())[0].categoria).toBe('licor')
+    const malo = clienteFalso({}, { productos: [{ ...fila, categoria: 'ron' }] })
+    await expect(crearRepositorioInventario(malo.cliente).listarProductos()).rejects.toThrow()
+  })
+})
+
 describe('lecturas', () => {
   it('listarProductos convierte las filas a productos de la app', async () => {
     const { cliente } = clienteFalso(
@@ -188,6 +200,7 @@ describe('lecturas', () => {
           {
             id: ID,
             nombre: 'Cerveza Ejemplo',
+            categoria: 'cerveza',
             unidades_por_caja: 24,
             maneja_sixpack: true,
             precio_unidad: 3000,
@@ -197,7 +210,7 @@ describe('lecturas', () => {
       },
     )
     expect(await crearRepositorioInventario(cliente).listarProductos()).toEqual([
-      { id: ID, nombre: 'Cerveza Ejemplo', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
+      { id: ID, nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
     ])
   })
 

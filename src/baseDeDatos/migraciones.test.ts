@@ -63,7 +63,7 @@ const funciones = [...new Map(todasLasFunciones.map((f) => [f.nombre, f])).value
 const tablas = [...sql.matchAll(/create table public\.(\w+)/gi)].map((m) => m[1])
 
 describe('migraciones de la base de datos', () => {
-  it('existen las seis migraciones, en orden', () => {
+  it('existen las siete migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -71,6 +71,7 @@ describe('migraciones de la base de datos', () => {
       '0004_operaciones_atomicas.sql',
       '0005_compras_numero_y_motivo.sql',
       '0006_operaciones_pendientes.sql',
+      '0007_categoria_producto.sql',
     ])
   })
 
@@ -334,6 +335,15 @@ describe('migraciones de la base de datos', () => {
       expect(texto).toMatch(/pg_advisory_xact_lock/i)
       expect(texto).toMatch(/from public\.operaciones_aplicadas where clave = p_clave/i)
       expect(texto).toMatch(/no se puede hacer sin conexión/i)
+    })
+
+    it('los productos tienen categoría y el licor siempre es por botella', () => {
+      expect(sql).toMatch(/add column categoria text not null default 'cerveza'\s+check \(categoria in \('cerveza', 'licor', 'otro'\)\)/i)
+      expect(sql).toMatch(/check \(categoria <> 'licor' or \(unidades_por_caja = 1 and not maneja_sixpack\)\)/i)
+      for (const nombre of ['crear_producto', 'editar_producto']) {
+        const texto = definer.find((f) => f.nombre === nombre)?.texto ?? ''
+        expect(texto, nombre).toMatch(/p_categoria text/i)
+      }
     })
 
     it('registrar_venta ignora los renglones de cantidad cero', () => {
