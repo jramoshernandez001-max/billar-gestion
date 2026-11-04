@@ -124,7 +124,7 @@ export function DetalleDeuda({ servicios, deudaId, hoy, alIr }: Propiedades) {
                 <button type="button" className="boton boton--peligro-texto" onClick={() => setAnulando({ tipo: 'abono', id: a.id })}>Anular abono</button>
               )}
               {anulando?.tipo === 'abono' && anulando.id === a.id && (
-                <FormularioAnulacion alConfirmar={(m) => anularAbono(a.id, m)} alCancelar={() => setAnulando(null)} />
+                <FormularioAnulacion titulo="Anular abono" alConfirmar={(m) => anularAbono(a.id, m)} alCancelar={() => setAnulando(null)} />
               )}
             </article>
           )
@@ -134,7 +134,7 @@ export function DetalleDeuda({ servicios, deudaId, hoy, alIr }: Propiedades) {
         {detalle.puedeAnular && anulando?.tipo !== 'deuda' && (
           <button type="button" className="boton boton--peligro-texto" onClick={() => setAnulando({ tipo: 'deuda' })}>Anular deuda</button>
         )}
-        {anulando?.tipo === 'deuda' && <FormularioAnulacion alConfirmar={anularDeuda} alCancelar={() => setAnulando(null)} />}
+        {anulando?.tipo === 'deuda' && <FormularioAnulacion titulo="Anular deuda" alConfirmar={anularDeuda} alCancelar={() => setAnulando(null)} />}
         {!detalle.puedeAnular && detalle.estado !== 'anulada' && detalle.abonos.some((a) => a.estado === 'vigente') && (
           <p className="texto-suave">Para anular la deuda primero anula sus abonos.</p>
         )}

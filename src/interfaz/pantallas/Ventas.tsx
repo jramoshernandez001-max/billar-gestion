@@ -90,7 +90,7 @@ function Tarjeta({
       {vigente && !anulando && (
         <button type="button" className="boton boton--peligro-texto" onClick={alAnular}>Anular</button>
       )}
-      {vigente && anulando && <FormularioAnulacion alConfirmar={alConfirmar} alCancelar={alCancelar} />}
+      {vigente && anulando && <FormularioAnulacion titulo="Anular venta" alConfirmar={alConfirmar} alCancelar={alCancelar} />}
       {tarjeta.anulacion !== null && (
         <p className="texto-suave">Motivo: {tarjeta.anulacion.motivo} · {fechaCompleta(tarjeta.anulacion.fecha)}</p>
       )}

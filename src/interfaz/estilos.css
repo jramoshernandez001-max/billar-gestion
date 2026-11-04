@@ -1035,3 +1035,60 @@ button {
   background: var(--peligro-fondo);
   color: var(--peligro);
 }
+
+/* ---- Ventana emergente (modal) ---- */
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(25, 44, 38, 0.45);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 390px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px 16px 24px;
+  border-radius: 16px 16px 0 0;
+  background: var(--superficie);
+}
+
+.modal__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal__titulo {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal__cerrar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (min-width: 600px) {
+  .modal-fondo {
+    align-items: center;
+  }
+
+  .modal {
+    border-radius: 16px;
+  }
+}
