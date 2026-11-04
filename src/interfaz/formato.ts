@@ -122,3 +122,14 @@ export function describirEquivalente(equivalente: { cajas: number; sixpacks: num
 export function textoUnidades(n: number): string {
   return `${n < 0 ? '−' : ''}${pluralizar(Math.abs(n), 'unidad', 'unidades')}`
 }
+
+/**
+ * Fecha y hora local de un instante ISO, como "03/11 · 14:05".
+ *
+ * Qué hace: junta la fecha corta y la hora local.
+ * Cómo lo hace: usa fechaLocalIso, fechaCorta y horaLocal.
+ * Por qué: la bitácora y su detalle muestran el momento igual en ambas.
+ */
+export function momentoLocal(instanteIso: string): string {
+  return `${fechaCorta(fechaLocalIso(new Date(instanteIso)))} · ${horaLocal(instanteIso)}`
+}
