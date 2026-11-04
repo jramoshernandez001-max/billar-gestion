@@ -19,6 +19,8 @@ export function serviciosVacios(): ServiciosApp {
       registrarTraslado: async () => ({ trasladoId: 'traslado', suficiente: true, faltan: 0 }),
       registrarAjuste: async () => 'ajuste',
       listarCompras: async () => [],
+      crearProducto: async () => 'producto',
+      editarProducto: async () => undefined,
       registrarCompra: async () => 'compra',
       corregirCostoCompra: async () => undefined,
       anularCompra: async () => undefined,

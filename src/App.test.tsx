@@ -103,4 +103,14 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Corregir costo' })).toBeTruthy()
     window.location.hash = ''
   })
+
+  it('las rutas de productos abren lista, nuevo y editar (también desde inventario)', async () => {
+    for (const [hash, titulo] of [['#/mas/productos', 'Productos'], ['#/mas/productos/nuevo', 'Nuevo producto'], ['#/mas/productos/editar/abc', 'Editar producto'], ['#/inventario/editar/abc', 'Editar producto']]) {
+      window.location.hash = hash
+      const r = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+      expect(await screen.findByRole('heading', { name: titulo })).toBeTruthy()
+      r.unmount()
+    }
+    window.location.hash = ''
+  })
 })

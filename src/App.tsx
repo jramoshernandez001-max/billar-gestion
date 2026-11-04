@@ -20,6 +20,8 @@ import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/Ajusta
 import { Comprar, type ServiciosComprar } from './interfaz/pantallas/Comprar'
 import { Compras, type ServiciosCompras } from './interfaz/pantallas/Compras'
 import { CorregirCosto, type ServiciosCorregirCosto } from './interfaz/pantallas/CorregirCosto'
+import { FormularioProducto, type ServiciosFormularioProducto } from './interfaz/pantallas/FormularioProducto'
+import { Productos, type ServiciosProductos } from './interfaz/pantallas/Productos'
 import { Inicio } from './interfaz/pantallas/Inicio'
 import { Inventario, type ServiciosInventario } from './interfaz/pantallas/Inventario'
 import { Trasladar, type ServiciosTrasladar } from './interfaz/pantallas/Trasladar'
@@ -38,7 +40,9 @@ export type ServiciosApp = ServiciosInicio &
   ServiciosAjustar &
   ServiciosComprar &
   ServiciosCompras &
-  ServiciosCorregirCosto
+  ServiciosCorregirCosto &
+  ServiciosProductos &
+  ServiciosFormularioProducto
 
 interface Propiedades {
   servicio: ServicioAcceso
@@ -54,18 +58,28 @@ interface Propiedades {
  * Por qué: un solo lugar donde se ve qué rutas existen.
  */
 function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
-  const [seccion, accion, productoId, compraId] = segmentosDeRuta(ruta)
-  if (seccion === 'inventario' && accion === 'comprar') {
-    return <Comprar servicios={servicios} productoId={productoId} hoy={hoy} alIr={ir} />
+  // Tramos de la ruta: sección/acción/tercero/cuarto (ids o subacciones).
+  const [seccion, accion, tercero, cuarto] = segmentosDeRuta(ruta)
+  if (seccion === 'inventario' && accion === 'editar') {
+    return <FormularioProducto servicios={servicios} productoId={tercero} volverA="inventario" alIr={ir} />
   }
-  if (seccion === 'mas' && accion === 'compras' && productoId === 'corregir') {
-    return <CorregirCosto servicios={servicios} compraId={compraId} alIr={ir} />
+  if (seccion === 'mas' && accion === 'productos' && tercero === 'nuevo') {
+    return <FormularioProducto servicios={servicios} alIr={ir} />
+  }
+  if (seccion === 'mas' && accion === 'productos' && tercero === 'editar') {
+    return <FormularioProducto servicios={servicios} productoId={cuarto} alIr={ir} />
+  }
+  if (seccion === 'inventario' && accion === 'comprar') {
+    return <Comprar servicios={servicios} productoId={tercero} hoy={hoy} alIr={ir} />
+  }
+  if (seccion === 'mas' && accion === 'compras' && tercero === 'corregir') {
+    return <CorregirCosto servicios={servicios} compraId={cuarto} alIr={ir} />
   }
   if (seccion === 'inventario' && accion === 'trasladar') {
-    return <Trasladar servicios={servicios} productoId={productoId} alIr={ir} />
+    return <Trasladar servicios={servicios} productoId={tercero} alIr={ir} />
   }
   if (seccion === 'inventario' && accion === 'ajustar') {
-    return <AjustarStock servicios={servicios} productoId={productoId} alIr={ir} />
+    return <AjustarStock servicios={servicios} productoId={tercero} alIr={ir} />
   }
   switch (ruta) {
     case 'inventario':
@@ -74,6 +88,8 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
       return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
     case 'vender':
       return <Vender servicios={servicios} hoy={hoy} alIr={ir} />
+    case 'mas/productos':
+      return <Productos servicios={servicios} alIr={ir} />
     case 'mas/compras':
       return <Compras servicios={servicios} hoy={hoy} alIr={ir} />
     case 'mas/ventas':
