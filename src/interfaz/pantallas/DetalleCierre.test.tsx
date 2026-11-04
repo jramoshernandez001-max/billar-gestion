@@ -19,12 +19,23 @@ const cierre = {
   resultado: { dineroTotal: 55000, diferencia: -5000, cuadra: false, faltante: 5000, sobrante: 0 },
 }
 
+const cerveza = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const productos = [
+  { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, ...cerveza },
+]
+const ventas = [
+  { id: 'v1', fecha: '2026-11-01', estado: 'vigente' as const, creadoEn: '2026-11-01T20:00:00.000Z', renglones: [{ productoId: 'p1', producto: cerveza, presentacion: 'unidad' as const, cantidad: 5 }] },
+  { id: 'v2', fecha: '2026-11-01', estado: 'anulada' as const, creadoEn: '2026-11-01T21:00:00.000Z', renglones: [{ productoId: 'p1', producto: cerveza, presentacion: 'caja' as const, cantidad: 1 }] },
+  { id: 'v3', fecha: '2026-10-31', estado: 'vigente' as const, creadoEn: '2026-10-31T21:00:00.000Z', renglones: [{ productoId: 'p1', producto: cerveza, presentacion: 'unidad' as const, cantidad: 9 }] },
+]
+
 function servicios(sobre: { recalcular?: ServiciosDetalleCierre['servicioCierres']['recalcularCierre']; corregir?: ServiciosDetalleCierre['cierres']['corregirDineroCierre']; desactualizado?: boolean } = {}): ServiciosDetalleCierre {
   return {
     cierres: { listarCierres: async () => [cierre], corregirDineroCierre: sobre.corregir ?? (async () => undefined) },
     desactualizados: { idsDesactualizados: async () => (sobre.desactualizado ? ['c1'] : []) },
     servicioCierres: { recalcularCierre: sobre.recalcular ?? (async () => undefined) },
-    inventario: { listarProductos: async () => [] },
+    inventario: { listarProductos: async () => productos },
+    ventas: { listarVentas: async () => ventas },
   }
 }
 
@@ -65,5 +76,14 @@ describe('DetalleCierre', () => {
     await screen.findByText('Faltante de $ 5.000')
     fireEvent.click(screen.getByRole('button', { name: 'Recalcular cierre' }))
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin permisos/)
+  })
+
+  it('muestra los productos vendidos del día del cierre (sin anuladas ni de otros días)', async () => {
+    dibujar(servicios())
+    const bloque = await screen.findByRole('region', { name: 'Productos vendidos' })
+    expect(bloque.textContent).toMatch(/Cerveza Ejemplo/)
+    expect(bloque.textContent).toMatch(/5 unidades/)
+    expect(bloque.textContent).toMatch(/\$ 15\.000/)
+    expect(bloque.textContent).toMatch(/1 venta/)
   })
 })
