@@ -1,0 +1,118 @@
+// @vitest-environment jsdom
+/**
+ * Pruebas de la pantalla "Inventario".
+ *
+ * Qué hace: verifica la lista de productos con bodega, nevera y total, el
+ * aviso de existencias negativas, la búsqueda y las acciones de cada
+ * producto (trasladar, ajustar, comprar, editar).
+ * Cómo lo hace: servicios falsos con productos inventados y una función espía
+ * para la navegación.
+ * Por qué: es donde se ve si el stock cuadra; un negativo debe notarse y cada
+ * acción debe abrir la pantalla del producto correcto.
+ */
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { Inventario, type ServiciosInventario } from './Inventario'
+
+afterEach(cleanup)
+
+const base = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+const productos = [
+  { id: 'p1', nombre: 'Cerveza Águila', ...base },
+  { id: 'p2', nombre: 'Cerveza Poker', ...base },
+  { id: 'p3', nombre: 'Agua Cristal', ...base, unidadesPorCaja: 12, manejaSixpack: false },
+]
+const stock = new Map([
+  ['p1', { bodega: 18, nevera: 4, total: 22 }],
+  ['p2', { bodega: 0, nevera: -2, total: -2 }],
+  ['p3', { bodega: 24, nevera: 12, total: 36 }],
+])
+
+function armar(sobre: Partial<ServiciosInventario['inventario']> = {}) {
+  const servicios: ServiciosInventario = {
+    inventario: { listarProductos: async () => productos, obtenerStock: async () => stock, ...sobre },
+  }
+  const alIr = vi.fn()
+  render(<Inventario servicios={servicios} alIr={alIr} />)
+  return { alIr }
+}
+
+const tarjeta = (nombre: string) => screen.getByRole('article', { name: nombre })
+
+describe('Inventario', () => {
+  it('muestra el título, la cuenta de productos y una tarjeta por producto ordenada por nombre', async () => {
+    armar()
+    expect(await screen.findByRole('heading', { name: 'Inventario' })).toBeTruthy()
+    expect(screen.getByText('3 productos · Stock en unidades')).toBeTruthy()
+    expect(screen.getAllByRole('article').map((t) => t.getAttribute('aria-label'))).toEqual([
+      'Agua Cristal', 'Cerveza Águila', 'Cerveza Poker',
+    ])
+  })
+
+  it('cada tarjeta muestra bodega, nevera y total, y su equivalente en presentaciones', async () => {
+    armar()
+    await screen.findAllByRole('article')
+    const aguila = within(tarjeta('Cerveza Águila'))
+    expect(aguila.getByText('Bodega').nextElementSibling?.textContent).toBe('18')
+    expect(aguila.getByText('Nevera').nextElementSibling?.textContent).toBe('4')
+    expect(aguila.getByText('Total').nextElementSibling?.textContent).toBe('22')
+    expect(aguila.getByText('3 sixpacks · 4 sueltas')).toBeTruthy()
+  })
+
+  it('un producto con stock negativo lleva la etiqueta "Negativo" y el aviso lo cuenta', async () => {
+    armar()
+    await screen.findAllByRole('article')
+    expect(within(tarjeta('Cerveza Poker')).getByText('Negativo')).toBeTruthy()
+    // Nevera y total quedan en -2, en rojo.
+    expect(within(tarjeta('Cerveza Poker')).getAllByText('-2', { selector: '.existencia__valor--negativo' })).toHaveLength(2)
+    expect(screen.getByText('1 producto necesita atención')).toBeTruthy()
+    expect(screen.getByText('Revisa las existencias negativas.')).toBeTruthy()
+    expect(within(tarjeta('Agua Cristal')).queryByText('Negativo')).toBeNull()
+  })
+
+  it('sin negativos no muestra el aviso', async () => {
+    armar({ obtenerStock: async () => new Map([['p1', { bodega: 1, nevera: 1, total: 2 }]]) })
+    await screen.findAllByRole('article')
+    expect(screen.queryByText(/necesita/)).toBeNull()
+  })
+
+  it('un producto sin movimientos aparece en cero', async () => {
+    armar({ obtenerStock: async () => new Map() })
+    await screen.findAllByRole('article')
+    expect(within(tarjeta('Agua Cristal')).getByText('Sin existencias')).toBeTruthy()
+  })
+
+  it('busca por nombre sin importar mayúsculas ni tildes', async () => {
+    armar()
+    await screen.findAllByRole('article')
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar' }), { target: { value: 'aguila' } })
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar' }), { target: { value: 'zzz' } })
+    expect(screen.getByText('No hay productos con ese nombre.')).toBeTruthy()
+  })
+
+  it('las acciones abren la pantalla del producto elegido', async () => {
+    const { alIr } = armar()
+    await screen.findAllByRole('article')
+    const poker = within(tarjeta('Cerveza Poker'))
+    fireEvent.click(poker.getByRole('button', { name: 'Trasladar' }))
+    fireEvent.click(poker.getByRole('button', { name: 'Ajustar' }))
+    fireEvent.click(poker.getByRole('button', { name: 'Comprar' }))
+    fireEvent.click(poker.getByRole('button', { name: 'Editar' }))
+    expect(alIr.mock.calls.map((c) => c[0])).toEqual([
+      'inventario/trasladar/p2', 'inventario/ajustar/p2', 'inventario/comprar/p2', 'inventario/editar/p2',
+    ])
+  })
+
+  it('dice cuándo se actualizó', async () => {
+    armar()
+    await screen.findAllByRole('article')
+    expect(screen.getByText(/Actualizado hoy a las \d\d:\d\d/)).toBeTruthy()
+  })
+
+  it('si falla la carga lo dice y deja reintentar', async () => {
+    armar({ listarProductos: async () => { throw new Error('sin red') } })
+    expect((await screen.findByRole('alert')).textContent).toMatch(/sin red/)
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy()
+  })
+})

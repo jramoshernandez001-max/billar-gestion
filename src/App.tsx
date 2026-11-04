@@ -16,15 +16,23 @@ import type { ServicioAcceso } from './autenticacion/servicioAcceso'
 import type { ServiciosInicio } from './aplicacion/cargarInicio'
 import { NavegacionInferior } from './interfaz/componentes/NavegacionInferior'
 import { fechaLocalIso } from './interfaz/formato'
+import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/AjustarStock'
 import { Inicio } from './interfaz/pantallas/Inicio'
+import { Inventario, type ServiciosInventario } from './interfaz/pantallas/Inventario'
+import { Trasladar, type ServiciosTrasladar } from './interfaz/pantallas/Trasladar'
 import { Proximamente } from './interfaz/pantallas/Proximamente'
 import { Vender, type ServiciosVender } from './interfaz/pantallas/Vender'
 import { Ventas, type ServiciosVentas } from './interfaz/pantallas/Ventas'
-import { pestanaDe } from './interfaz/ruta'
+import { pestanaDe, segmentosDeRuta } from './interfaz/ruta'
 import { useRuta } from './interfaz/useRuta'
 
 /** Servicios de datos que usan las pantallas (crece con cada pantalla). */
-export type ServiciosApp = ServiciosInicio & ServiciosVender & ServiciosVentas
+export type ServiciosApp = ServiciosInicio &
+  ServiciosVender &
+  ServiciosVentas &
+  ServiciosInventario &
+  ServiciosTrasladar &
+  ServiciosAjustar
 
 interface Propiedades {
   servicio: ServicioAcceso
@@ -40,7 +48,16 @@ interface Propiedades {
  * Por qué: un solo lugar donde se ve qué rutas existen.
  */
 function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
+  const [seccion, accion, productoId] = segmentosDeRuta(ruta)
+  if (seccion === 'inventario' && accion === 'trasladar') {
+    return <Trasladar servicios={servicios} productoId={productoId} alIr={ir} />
+  }
+  if (seccion === 'inventario' && accion === 'ajustar') {
+    return <AjustarStock servicios={servicios} productoId={productoId} alIr={ir} />
+  }
   switch (ruta) {
+    case 'inventario':
+      return <Inventario servicios={servicios} alIr={ir} />
     case 'inicio':
       return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
     case 'vender':

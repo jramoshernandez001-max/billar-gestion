@@ -13,7 +13,12 @@ export function serviciosVacios(): ServiciosApp {
   return {
     ventas: { listarVentas: async () => [], registrarVenta: async () => 'venta', anularVenta: async () => undefined },
     deudas: { listarDeudas: async () => [], listarAbonos: async () => [] },
-    inventario: { listarProductos: async () => [], obtenerStock: async () => new Map() },
+    inventario: {
+      listarProductos: async () => [],
+      obtenerStock: async () => new Map(),
+      registrarTraslado: async () => ({ trasladoId: 'traslado', suficiente: true, faltan: 0 }),
+      registrarAjuste: async () => 'ajuste',
+    },
     bitacora: { listarBitacora: async () => [] },
     cierres: { listarCierres: async () => [] },
     desactualizados: { idsDesactualizados: async () => [] },

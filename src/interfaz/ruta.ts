@@ -29,3 +29,27 @@ export function pestanaDe(ruta: string): Pestana | null {
   const primero = ruta.split('/')[0]
   return PESTANAS.find((p) => p === primero) ?? null
 }
+
+/**
+ * Parte una ruta en tramos ("inventario/trasladar/abc" → 3 tramos).
+ *
+ * Qué hace: devuelve los tramos sin vacíos y con los identificadores
+ * decodificados.
+ * Cómo lee: separa por "/" y decodifica cada tramo; si la codificación está
+ * rota deja el tramo como vino.
+ * Por qué: las pantallas internas llevan el producto en la ruta
+ * (`inventario/trasladar/<id>`); así se recarga la pantalla y el botón
+ * "atrás" funciona sin guardar estado aparte.
+ */
+export function segmentosDeRuta(ruta: string): string[] {
+  return ruta
+    .split('/')
+    .filter((tramo) => tramo !== '')
+    .map((tramo) => {
+      try {
+        return decodeURIComponent(tramo)
+      } catch {
+        return tramo
+      }
+    })
+}
