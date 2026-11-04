@@ -88,4 +88,19 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Ajustar stock' })).toBeTruthy()
     window.location.hash = ''
   })
+
+  it('las rutas de compras abren nueva compra, historial y corregir costo', async () => {
+    window.location.hash = '#/inventario/comprar/abc'
+    const a = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Nueva compra' })).toBeTruthy()
+    a.unmount()
+    window.location.hash = '#/mas/compras'
+    const b = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Compras' })).toBeTruthy()
+    b.unmount()
+    window.location.hash = '#/mas/compras/corregir/abc'
+    render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Corregir costo' })).toBeTruthy()
+    window.location.hash = ''
+  })
 })

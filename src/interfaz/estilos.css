@@ -199,6 +199,11 @@ button {
   color: var(--aviso-texto);
 }
 
+.aviso--neutro {
+  background: var(--opciones-fondo, #e9eeeb);
+  color: var(--suave);
+}
+
 .aviso--error {
   background: var(--peligro-fondo);
   color: var(--peligro);
