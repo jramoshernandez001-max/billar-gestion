@@ -8,7 +8,7 @@
  * la configuración regional del navegador ni de la zona horaria.
  */
 import { describe, it, expect } from 'vitest'
-import { diaSemanaCorto, fechaCompleta, fechaCorta, fechaLarga, fechaLocalIso, formatoPesos, horaLocal, rangoCorto } from './formato'
+import { diaSemanaCorto, fechaCompleta, fechaCorta, fechaLarga, describirEquivalente, fechaLocalIso, formatoPesos, horaLocal, rangoCorto, textoUnidades } from './formato'
 
 describe('formatoPesos', () => {
   it('agrupa los miles con punto y antepone el signo', () => {
@@ -68,5 +68,29 @@ describe('fechaCompleta', () => {
 
   it('rechaza una fecha inválida', () => {
     expect(() => fechaCompleta('2026-13-40')).toThrow()
+  })
+})
+
+describe('describirEquivalente', () => {
+  it('dice cajas, sixpacks y sueltas, en singular o plural', () => {
+    expect(describirEquivalente({ cajas: 1, sixpacks: 2, sueltas: 3 })).toBe('1 caja · 2 sixpacks · 3 sueltas')
+    expect(describirEquivalente({ cajas: 2, sixpacks: 1, sueltas: 1 })).toBe('2 cajas · 1 sixpack · 1 suelta')
+  })
+  it('omite lo que está en cero', () => {
+    expect(describirEquivalente({ cajas: 0, sixpacks: 0, sueltas: 5 })).toBe('5 sueltas')
+    expect(describirEquivalente({ cajas: 3, sixpacks: 0, sueltas: 0 })).toBe('3 cajas')
+  })
+  it('sin nada dice "Sin existencias"', () => {
+    expect(describirEquivalente({ cajas: 0, sixpacks: 0, sueltas: 0 })).toBe('Sin existencias')
+  })
+})
+
+describe('textoUnidades', () => {
+  it('singular, plural y signo menos tipográfico', () => {
+    expect(textoUnidades(1)).toBe('1 unidad')
+    expect(textoUnidades(18)).toBe('18 unidades')
+    expect(textoUnidades(0)).toBe('0 unidades')
+    expect(textoUnidades(-2)).toBe('−2 unidades')
+    expect(textoUnidades(-1)).toBe('−1 unidad')
   })
 })

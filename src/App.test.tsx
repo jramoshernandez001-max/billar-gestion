@@ -72,4 +72,20 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Más' }).getAttribute('aria-current')).toBe('page')
     window.location.hash = ''
   })
+
+  it('las rutas de inventario abren la lista, trasladar y ajustar con el producto de la ruta', async () => {
+    window.location.hash = '#/inventario'
+    const primera = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Inventario' })).toBeTruthy()
+    primera.unmount()
+    window.location.hash = '#/inventario/trasladar/abc'
+    const segunda = render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Trasladar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Inventario' }).getAttribute('aria-current')).toBe('page')
+    segunda.unmount()
+    window.location.hash = '#/inventario/ajustar/abc'
+    render(<App servicio={autorizado} servicios={serviciosVacios()} />)
+    expect(await screen.findByRole('heading', { name: 'Ajustar stock' })).toBeTruthy()
+    window.location.hash = ''
+  })
 })

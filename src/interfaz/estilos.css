@@ -870,3 +870,123 @@ button {
 .entrada__control::-webkit-search-cancel-button {
   display: none;
 }
+
+/* ---- Inventario ---- */
+.producto-fila {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.producto-fila__identificacion {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.producto-fila__nombre {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.estado-etiqueta--negativo {
+  background: #fcf0ed;
+  color: #b54438;
+}
+
+.existencias {
+  display: flex;
+  gap: 12px;
+}
+
+.existencia {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.existencia__etiqueta {
+  font-size: 11px;
+  color: var(--suave);
+}
+
+.existencia__valor {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.existencia__valor--negativo,
+.dato__valor--negativo {
+  color: #b54438;
+}
+
+.acciones-producto {
+  display: flex;
+  justify-content: space-between;
+}
+
+.texto-pie {
+  font-size: 11px;
+}
+
+/* ---- Lista desplegable ---- */
+.entrada__control--lista {
+  appearance: none;
+  cursor: pointer;
+}
+
+/* ---- Trasladar ---- */
+.recorrido {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recorrido__lado {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.recorrido__valor {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.recorrido__flecha {
+  flex-shrink: 0;
+  color: var(--primario);
+}
+
+.confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boton--primario:disabled {
+  border-color: #e9eeeb;
+  background: #e9eeeb;
+  color: var(--suave);
+  opacity: 1;
+}
+
+/* ---- Ajustar stock ---- */
+.entrada--motivo {
+  min-height: 88px;
+}
+
+.entrada--texto:focus {
+  outline: 0;
+  border-color: var(--primario);
+}

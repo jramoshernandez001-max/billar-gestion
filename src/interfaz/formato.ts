@@ -95,3 +95,30 @@ export function horaLocal(instanteIso: string): string {
   if (Number.isNaN(instante.getTime())) throw new Error(`El instante "${instanteIso}" no es válido`)
   return `${String(instante.getHours()).padStart(2, '0')}:${String(instante.getMinutes()).padStart(2, '0')}`
 }
+
+/** Singular o plural: pluralizar(2, 'caja', 'cajas') → "2 cajas". */
+function pluralizar(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`
+}
+
+/**
+ * Dice un total de unidades como cajas, sixpacks y sueltas.
+ *
+ * Qué hace: "1 caja · 2 sixpacks · 3 sueltas"; omite lo que está en cero.
+ * Cómo lo hace: arma una pieza por cada cantidad mayor a cero y las une.
+ * Por qué: el stock va en unidades, pero se entiende mejor en las
+ * presentaciones con las que se compra y se vende.
+ */
+export function describirEquivalente(equivalente: { cajas: number; sixpacks: number; sueltas: number }): string {
+  const piezas = [
+    equivalente.cajas > 0 ? pluralizar(equivalente.cajas, 'caja', 'cajas') : null,
+    equivalente.sixpacks > 0 ? pluralizar(equivalente.sixpacks, 'sixpack', 'sixpacks') : null,
+    equivalente.sueltas > 0 ? pluralizar(equivalente.sueltas, 'suelta', 'sueltas') : null,
+  ].filter((pieza) => pieza !== null)
+  return piezas.length === 0 ? 'Sin existencias' : piezas.join(' · ')
+}
+
+/** "18 unidades", "1 unidad" o "−2 unidades" (con el signo menos tipográfico). */
+export function textoUnidades(n: number): string {
+  return `${n < 0 ? '−' : ''}${pluralizar(Math.abs(n), 'unidad', 'unidades')}`
+}
