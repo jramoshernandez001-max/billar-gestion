@@ -20,6 +20,8 @@ import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/Ajusta
 import { Comprar, type ServiciosComprar } from './interfaz/pantallas/Comprar'
 import { Compras, type ServiciosCompras } from './interfaz/pantallas/Compras'
 import { CorregirCosto, type ServiciosCorregirCosto } from './interfaz/pantallas/CorregirCosto'
+import { AvisoPendientes } from './interfaz/componentes/AvisoPendientes'
+import type { ServicioSincronizacion } from './sincronizacion/servicioSincronizacion'
 import { AvisoSinConexion } from './interfaz/componentes/AvisoSinConexion'
 import { ResumenesProximamente } from './interfaz/pantallas/ResumenesProximamente'
 import { Bitacora, type ServiciosBitacora } from './interfaz/pantallas/Bitacora'
@@ -67,6 +69,10 @@ export type ServiciosApp = ServiciosInicio &
 interface Propiedades {
   servicio: ServicioAcceso
   servicios: ServiciosApp
+  /** Modo sin conexión: muestra los registros pendientes de enviar. */
+  sincronizacion?: ServicioSincronizacion
+  /** Se llama al cerrar sesión (por ejemplo, para borrar las copias de lectura). */
+  alCerrarSesion?: () => void
 }
 
 /** Lo que las pantallas necesitan de la app: servicios, persona y navegación. */
@@ -155,23 +161,47 @@ function pantalla(
 }
 
 /** Contenido de la app para un usuario autorizado: pantalla + navegación. */
-function Contenido({ nombre, correo, cerrarSesion, servicios }: { nombre?: string; correo: string; cerrarSesion: () => void; servicios: ServiciosApp }) {
+function Contenido({
+  nombre,
+  correo,
+  cerrarSesion,
+  servicios,
+  sincronizacion,
+}: {
+  nombre?: string
+  correo: string
+  cerrarSesion: () => void
+  servicios: ServiciosApp
+  sincronizacion?: ServicioSincronizacion
+}) {
   const { ruta, ir } = useRuta()
   const [hoy] = useState(() => fechaLocalIso(new Date()))
   return (
     <>
       <AvisoSinConexion />
+      {sincronizacion !== undefined && <AvisoPendientes servicio={sincronizacion} />}
       {pantalla(ruta, { servicios, nombre, correo, cerrarSesion, hoy, ir })}
       <NavegacionInferior activa={pestanaDe(ruta)} alIr={ir} />
     </>
   )
 }
 
-function App({ servicio, servicios }: Propiedades) {
+function App({ servicio, servicios, sincronizacion, alCerrarSesion }: Propiedades) {
   return (
     <div className="marco">
       <ControlDeAcceso servicio={servicio} redirigirA={window.location.origin}>
-        {({ nombre, correo, cerrarSesion }) => <Contenido nombre={nombre} correo={correo} cerrarSesion={() => void cerrarSesion()} servicios={servicios} />}
+        {({ nombre, correo, cerrarSesion }) => (
+          <Contenido
+            nombre={nombre}
+            correo={correo}
+            cerrarSesion={() => {
+              alCerrarSesion?.()
+              void cerrarSesion()
+            }}
+            servicios={servicios}
+            sincronizacion={sincronizacion}
+          />
+        )}
       </ControlDeAcceso>
     </div>
   )

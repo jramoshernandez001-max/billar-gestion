@@ -168,3 +168,81 @@ describe('iniciarSesion y cerrarSesion', () => {
     await expect(crearServicioAcceso(cliente).cerrarSesion()).rejects.toThrow(/sin red/)
   })
 })
+
+describe('acceso sin conexión', () => {
+  /** Memoria falsa de "este correo ya fue autorizado en este teléfono". */
+  function memoriaFalsa() {
+    let guardado: { correo: string; en: string } | null = null
+    return {
+      leer: () => guardado,
+      guardar: (correo: string, en: string) => {
+        guardado = { correo, en }
+      },
+      borrar: () => {
+        guardado = null
+      },
+    }
+  }
+  const DIA = 24 * 60 * 60 * 1000
+  const ahoraEn = (ms: number) => () => new Date(ms)
+  const T0 = Date.parse('2026-11-04T10:00:00.000Z')
+
+  it('al autorizarse con la base, recuerda el correo', async () => {
+    const memoria = memoriaFalsa()
+    const { cliente } = clienteFalso({ sesion: ana, autorizado: true })
+    await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).resolverEstado()
+    expect(memoria.leer()).toEqual({ correo: 'ana@ejemplo.com', en: new Date(T0).toISOString() })
+  })
+
+  it('si la verificación falla por falta de red y ya estaba autorizado, entra', async () => {
+    const memoria = memoriaFalsa()
+    memoria.guardar('ana@ejemplo.com', new Date(T0 - 2 * DIA).toISOString())
+    const { cliente } = clienteFalso({ sesion: ana, errorAutorizacion: 'TypeError: Failed to fetch' })
+    const estado = await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).resolverEstado()
+    expect(estado).toEqual({ tipo: 'autorizado', correo: 'ana@ejemplo.com' })
+  })
+
+  it('si pasaron más de 30 días, no entra', async () => {
+    const memoria = memoriaFalsa()
+    memoria.guardar('ana@ejemplo.com', new Date(T0 - 31 * DIA).toISOString())
+    const { cliente } = clienteFalso({ sesion: ana, errorAutorizacion: 'Failed to fetch' })
+    const estado = await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).resolverEstado()
+    expect(estado.tipo).toBe('error')
+  })
+
+  it('si el correo recordado es de otra persona, no entra', async () => {
+    const memoria = memoriaFalsa()
+    memoria.guardar('otra@ejemplo.com', new Date(T0).toISOString())
+    const { cliente } = clienteFalso({ sesion: ana, errorAutorizacion: 'Failed to fetch' })
+    expect((await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).resolverEstado()).tipo).toBe('error')
+  })
+
+  it('un error que no es de red nunca deja entrar, aunque esté recordado', async () => {
+    const memoria = memoriaFalsa()
+    memoria.guardar('ana@ejemplo.com', new Date(T0).toISOString())
+    const { cliente } = clienteFalso({ sesion: ana, errorAutorizacion: 'permiso denegado' })
+    expect((await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).resolverEstado()).tipo).toBe('error')
+  })
+
+  it('si la base dice que no está autorizado, olvida el correo', async () => {
+    const memoria = memoriaFalsa()
+    memoria.guardar('ana@ejemplo.com', new Date(T0).toISOString())
+    const { cliente } = clienteFalso({ sesion: ana, autorizado: false })
+    const estado = await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).resolverEstado()
+    expect(estado.tipo).toBe('no-autorizado')
+    expect(memoria.leer()).toBeNull()
+  })
+
+  it('al cerrar sesión olvida el correo', async () => {
+    const memoria = memoriaFalsa()
+    memoria.guardar('ana@ejemplo.com', new Date(T0).toISOString())
+    const { cliente } = clienteFalso({ sesion: ana })
+    await crearServicioAcceso(cliente, { memoria, ahora: ahoraEn(T0) }).cerrarSesion()
+    expect(memoria.leer()).toBeNull()
+  })
+
+  it('sin memoria configurada todo sigue igual: un fallo niega el acceso', async () => {
+    const { cliente } = clienteFalso({ sesion: ana, errorAutorizacion: 'Failed to fetch' })
+    expect((await crearServicioAcceso(cliente).resolverEstado()).tipo).toBe('error')
+  })
+})

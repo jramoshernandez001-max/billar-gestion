@@ -9,9 +9,10 @@ export default defineConfig({
     react(),
     // PWA: genera el manifiesto y un service worker que guarda solo los
     // archivos de la propia app (HTML, JS, CSS, íconos) para abrirla rápido
-    // y sin conexión. No se guarda ninguna respuesta de la API ni de la
-    // autenticación: los datos del negocio nunca quedan en la caché del
-    // navegador (la sincronización sin conexión se diseña aparte).
+    // y sin conexión. El service worker no guarda ninguna respuesta de la API
+    // ni de la autenticación. Los datos para trabajar sin conexión (cola de
+    // registros pendientes y últimas lecturas) los guarda la propia app en
+    // localStorage (src/sincronizacion) y las copias se borran al cerrar sesión.
     VitePWA({
       registerType: 'autoUpdate',
       manifest: manifiesto,

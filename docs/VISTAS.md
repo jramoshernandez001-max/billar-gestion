@@ -139,7 +139,7 @@ Barra inferior en celular: **Inicio · Vender · Inventario · Deudas · Más** 
 | 13. Historial de cierres | `mas/cierres` | Hecha (recalcular, corregir dinero) |
 | 14. Bitácora | `mas/bitacora[/id]` | Hecha |
 | 15. Resúmenes | `mas/resumenes` | Pantalla "Próximamente" |
-| Sin conexión | (franja global) | Aviso hecho; guardar sin conexión sigue pendiente |
+| Sin conexión | (franjas globales) | Hecha: aviso de sin conexión, pendientes de enviar (Enviar ahora) y rechazadas (Reintentar/Descartar) |
 
 Las pantallas sin diseño en Figma (Corregir costo, Anular, Productos, Deudas,
 Cierres, Bitácora y Más) se hicieron con los patrones existentes y se ajustan

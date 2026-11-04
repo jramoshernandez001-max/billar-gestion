@@ -63,13 +63,14 @@ const funciones = [...new Map(todasLasFunciones.map((f) => [f.nombre, f])).value
 const tablas = [...sql.matchAll(/create table public\.(\w+)/gi)].map((m) => m[1])
 
 describe('migraciones de la base de datos', () => {
-  it('existen las cinco migraciones, en orden', () => {
+  it('existen las seis migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
       '0003_seguridad_rls.sql',
       '0004_operaciones_atomicas.sql',
       '0005_compras_numero_y_motivo.sql',
+      '0006_operaciones_pendientes.sql',
     ])
   })
 
@@ -80,7 +81,7 @@ describe('migraciones de la base de datos', () => {
     expect([...acciones].sort()).toEqual([...ACCIONES_BITACORA].sort())
   })
 
-  it('crea las diez tablas del esquema', () => {
+  it('crea las once tablas del esquema', () => {
     expect([...tablas].sort()).toEqual(
       [
         'usuarios_autorizados',
@@ -93,6 +94,7 @@ describe('migraciones de la base de datos', () => {
         'abonos_deuda',
         'cierres',
         'bitacora',
+        'operaciones_aplicadas',
       ].sort(),
     )
   })
@@ -253,6 +255,7 @@ describe('migraciones de la base de datos', () => {
           'guardar_cierre',
           'recalcular_cierre',
           'corregir_dinero_cierre',
+          'aplicar_operacion_pendiente',
         ].sort(),
       )
     })
@@ -320,6 +323,17 @@ describe('migraciones de la base de datos', () => {
     it('corregir_dinero_cierre no registra una corrección que deja el mismo dinero', () => {
       const texto = definer.find((f) => f.nombre === 'corregir_dinero_cierre')?.texto ?? ''
       expect(texto).toMatch(/efectivo = p_efectivo and v_antes\.transferencias = p_transferencias then\s+return;/i)
+    })
+
+    it('aplicar_operacion_pendiente solo permite funciones que crean registros y no repite una clave', () => {
+      const texto = definer.find((f) => f.nombre === 'aplicar_operacion_pendiente')?.texto ?? ''
+      const permitidas = [...texto.matchAll(/when '(\w+)' then/g)].map((m) => m[1]).sort()
+      expect(permitidas).toEqual(
+        ['registrar_abono', 'registrar_ajuste', 'registrar_compra', 'registrar_deuda', 'registrar_traslado', 'registrar_venta'].sort(),
+      )
+      expect(texto).toMatch(/pg_advisory_xact_lock/i)
+      expect(texto).toMatch(/from public\.operaciones_aplicadas where clave = p_clave/i)
+      expect(texto).toMatch(/no se puede hacer sin conexión/i)
     })
 
     it('registrar_venta ignora los renglones de cantidad cero', () => {
