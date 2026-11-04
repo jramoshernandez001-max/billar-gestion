@@ -84,7 +84,7 @@ export interface RepositorioInventario {
   crearProducto(datos: DatosProducto): Promise<string>
   editarProducto(id: string, datos: DatosProducto): Promise<void>
   registrarCompra(datos: DatosCompra): Promise<string>
-  corregirCostoCompra(compraId: string, costoNuevo: number): Promise<void>
+  corregirCostoCompra(compraId: string, costoNuevo: number, motivo: string): Promise<void>
   anularCompra(compraId: string, motivo: string): Promise<void>
   registrarTraslado(productoId: string, unidades: number): Promise<ResultadoTraslado>
   registrarAjuste(datos: DatosAjusteInventario): Promise<string>
@@ -189,11 +189,12 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
       return exigirIdRespuesta(id)
     },
 
-    async corregirCostoCompra(compraId, costoNuevo) {
+    async corregirCostoCompra(compraId, costoNuevo, motivo) {
       validarMonto('El costo nuevo de la compra', costoNuevo)
       await llamarFuncion(cliente, 'corregir_costo_compra', {
         p_compra_id: exigirId('La compra', compraId),
         p_costo_nuevo: costoNuevo,
+        p_motivo: exigirTexto('El motivo', motivo),
       })
     },
 
@@ -252,7 +253,7 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
 
     async listarCompras() {
       const [compras, productos] = await Promise.all([
-        leerFilas(cliente, 'compras', 'id, producto_id, presentacion, cantidad, costo_total, fecha, estado, creado_en'),
+        leerFilas(cliente, 'compras', 'id, numero, producto_id, presentacion, cantidad, costo_total, fecha, estado, creado_en'),
         leerFilas(cliente, 'productos', COLUMNAS_PRODUCTO),
       ])
       const porProducto = new Map(productos.map((fila) => {
@@ -263,6 +264,7 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
         if (
           !esObjeto(fila) ||
           typeof fila.id !== 'string' ||
+          !esEntero(fila.numero) ||
           typeof fila.producto_id !== 'string' ||
           !PRESENTACIONES.includes(fila.presentacion as Presentacion) ||
           !esEntero(fila.cantidad) ||
@@ -278,6 +280,7 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
         if (producto === undefined) throw new Error(`El producto ${fila.producto_id} de una compra no existe`)
         return {
           id: fila.id,
+          numero: fila.numero,
           productoId: fila.producto_id,
           producto: { unidadesPorCaja: producto.unidadesPorCaja, manejaSixpack: producto.manejaSixpack },
           presentacion: fila.presentacion as Presentacion,

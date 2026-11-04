@@ -20,6 +20,11 @@ import type { Movimiento } from './stock'
 export interface Compra {
   /** Identificador de la compra; sirve para corregirla o anularla después. */
   id: string
+  /**
+   * Número consecutivo que asigna la base al registrar (se muestra "C-042").
+   * Es opcional porque una compra aún no guardada no lo tiene.
+   */
+  numero?: number
   productoId: string
   /** Datos del producto necesarios para pasar la cantidad a unidades. */
   producto: ProductoConversion

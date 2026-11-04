@@ -8,8 +8,8 @@
  * diferencia y si se puede guardar. La compra viaja en la ruta
  * (`mas/compras/corregir/<id>`).
  * Por qué: si era la última compra del producto, la utilidad semanal usa el
- * costo nuevo. Una compra anulada no se corrige. La base no guarda un motivo
- * para esta corrección (solo el antes y el después), por eso no se pide.
+ * costo nuevo. Una compra anulada no se corrige. El motivo es obligatorio y
+ * queda en la bitácora con el costo anterior y el nuevo.
  */
 import { useCallback, useState } from 'react'
 import { calcularCorreccionCosto } from '../../aplicacion/calculoCompra'
@@ -38,6 +38,7 @@ export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
   }, [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)
   const [costoTexto, setCostoTexto] = useState('')
+  const [motivo, setMotivo] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
 
@@ -88,7 +89,7 @@ export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
     setEnviando(true)
     setFallo(null)
     try {
-      await servicios.inventario.corregirCostoCompra(compra.id, costoNuevo)
+      await servicios.inventario.corregirCostoCompra(compra.id, costoNuevo, motivo.trim())
       volver()
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))
@@ -125,6 +126,17 @@ export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
           </div>
         </div>
 
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="motivo-correccion">Motivo de corrección</label>
+          <textarea
+            id="motivo-correccion"
+            className="entrada entrada--texto entrada--motivo"
+            rows={3}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+          />
+        </div>
+
         <div className="tarjeta tarjeta--destacada">
           <div className="dato">
             <span className="dato__etiqueta">Costo por unidad</span>
@@ -141,10 +153,10 @@ export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
         {resultado.problema !== null && <p className="texto-suave">{resultado.problema}</p>}
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
 
-        <button type="button" className="boton boton--primario" disabled={!resultado.puedeGuardar || enviando} onClick={guardar}>
+        <button type="button" className="boton boton--primario" disabled={!resultado.puedeGuardar || motivo.trim() === '' || enviando} onClick={guardar}>
           Guardar corrección
         </button>
-        <p className="texto-suave">La corrección queda en la bitácora con el costo anterior y el nuevo.</p>
+        <p className="texto-suave">La corrección queda en la bitácora con el costo anterior, el nuevo y el motivo.</p>
       </div>
     </>
   )

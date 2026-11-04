@@ -38,34 +38,34 @@ const dibujar = (s: ServiciosCompras, alIr = vi.fn()) => render(<Compras servici
 describe('Compras', () => {
   it('lista las compras de los últimos 7 días con número, costo y estado', async () => {
     dibujar(servicios())
-    expect(await screen.findByText('C-3 · 02/11/2026')).toBeTruthy()
+    expect(await screen.findByText('C-003 · 02/11/2026')).toBeTruthy()
     expect(screen.getAllByText('Cerveza Ejemplo')).toHaveLength(2)
     expect(screen.getAllByText('2 cajas · 48 unidades')).toHaveLength(2)
     expect(screen.getAllByText('$ 2.000 / unidad')).toHaveLength(2)
-    expect(screen.queryByText(/C-1/)).toBeNull()
+    expect(screen.queryByText(/C-001/)).toBeNull()
   })
 
   it('las anuladas muestran el motivo y no ofrecen acciones', async () => {
     dibujar(servicios())
-    await screen.findByText('C-3 · 02/11/2026')
+    await screen.findByText('C-003 · 02/11/2026')
     expect(screen.getByText('Motivo: compra duplicada')).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'Anular' })).toHaveLength(1)
   })
 
   it('filtra por estado y por periodo', async () => {
     dibujar(servicios())
-    await screen.findByText('C-3 · 02/11/2026')
+    await screen.findByText('C-003 · 02/11/2026')
     fireEvent.click(screen.getByRole('radio', { name: 'Anuladas' }))
-    expect(screen.queryByText('C-3 · 02/11/2026')).toBeNull()
+    expect(screen.queryByText('C-003 · 02/11/2026')).toBeNull()
     fireEvent.click(screen.getByRole('radio', { name: 'Todas' }))
     fireEvent.change(screen.getByLabelText('Periodo'), { target: { value: 'todo' } })
-    expect(screen.getByText('C-1 · 01/08/2026')).toBeTruthy()
+    expect(screen.getByText('C-001 · 01/08/2026')).toBeTruthy()
   })
 
   it('anular exige motivo, llama al repositorio y recarga', async () => {
     const anular = vi.fn(async () => undefined)
     dibujar(servicios(anular))
-    await screen.findByText('C-3 · 02/11/2026')
+    await screen.findByText('C-003 · 02/11/2026')
     fireEvent.click(screen.getByRole('button', { name: 'Anular' }))
     const confirmar = screen.getByRole('button', { name: 'Confirmar anulación' }) as HTMLButtonElement
     expect(confirmar.disabled).toBe(true)
@@ -77,7 +77,7 @@ describe('Compras', () => {
   it('corregir costo y nueva compra llevan a su pantalla', async () => {
     const alIr = vi.fn()
     dibujar(servicios(), alIr)
-    await screen.findByText('C-3 · 02/11/2026')
+    await screen.findByText('C-003 · 02/11/2026')
     fireEvent.click(screen.getByRole('button', { name: 'Corregir costo' }))
     fireEvent.click(screen.getByRole('button', { name: 'Nueva compra' }))
     expect(alIr.mock.calls.map((c) => c[0])).toEqual(['mas/compras/corregir/c1', 'inventario/comprar'])

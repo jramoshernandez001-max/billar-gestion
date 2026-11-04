@@ -3,10 +3,11 @@
  *
  * Qué hace: arma las tarjetas del historial: número C-n, producto, cantidad,
  * costo por unidad, total, estado y motivo de anulación.
- * Cómo lo hace: numera por orden de registro, filtra periodo y estado y
+ * Cómo lo hace: usa el número guardado en la base (o, si falta, numera por
+ * orden de registro), filtra periodo y estado y
  * ordena de la más reciente a la más antigua.
- * Por qué: la pantalla solo dibuja; el número no se guarda en la base, se
- * deduce del orden de `registradoEn`.
+ * Por qué: la pantalla solo dibuja; el número lo asigna la base al registrar; el
+ * orden de `registradoEn` solo sirve de respaldo.
  */
 import type { Compra } from '../domain/inventario/compras'
 import { aUnidades } from '../domain/inventario/conversiones'
@@ -58,7 +59,7 @@ export function resumirCompras(e: EntradaResumenCompras): TarjetaCompra[] {
       const unidades = aUnidades(c.producto, c.presentacion, c.cantidad)
       return {
         id: c.id,
-        numero: `C-${numeros.get(c.id)}`,
+        numero: `C-${String(c.numero ?? numeros.get(c.id)).padStart(3, '0')}`,
         fecha: c.fecha,
         estado: c.estado,
         producto: e.nombres.get(c.productoId) ?? 'Producto',

@@ -21,8 +21,10 @@ const sql = Object.values(migraciones).join('\n').replace(/\r\n/g, '\n')
 
 /** Nombres de parámetros de una función SQL, en orden. */
 export function parametrosSql(funcion: string): string[] {
-  const definicion = sql.match(new RegExp(`create function public\\.${funcion}\\(([\\s\\S]*?)\\)\\s*returns`, 'i'))
-  if (definicion === null) throw new Error(`no se encontró la función ${funcion}`)
+  // Una migración posterior puede reemplazar la función: vale la última.
+  const definiciones = [...sql.matchAll(new RegExp(`create function public\\.${funcion}\\(([\\s\\S]*?)\\)\\s*returns`, 'gi'))]
+  const definicion = definiciones.at(-1)
+  if (definicion === undefined) throw new Error(`no se encontró la función ${funcion}`)
   return [...definicion[1].matchAll(/\bp_\w+/g)].map((m) => m[0])
 }
 
