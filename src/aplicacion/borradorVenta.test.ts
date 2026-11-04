@@ -119,6 +119,23 @@ describe('calcularBorrador', () => {
   })
 })
 
+describe('unidades del borrador', () => {
+  it('cuenta las unidades de cada renglón y del total (caja, sixpack y unidad)', () => {
+    let b = cambiarRenglon(base(), 'r1', { productoId: 'cerveza', presentacion: 'caja', cantidad: 1 })
+    b = cambiarRenglon(agregarRenglon(b, 'r2'), 'r2', { productoId: 'cerveza', presentacion: 'sixpack', cantidad: 2 })
+    b = cambiarRenglon(agregarRenglon(b, 'r3'), 'r3', { productoId: 'gaseosa', cantidad: 3 })
+    const c = calcularBorrador(b, catalogo)
+    expect(c.renglones.map((r) => r.unidades)).toEqual([24, 12, 3])
+    expect(c.unidades).toBe(39)
+  })
+
+  it('un renglón con problema no suma unidades', () => {
+    const c = calcularBorrador(base(), catalogo)
+    expect(c.renglones[0].unidades).toBe(0)
+    expect(c.unidades).toBe(0)
+  })
+})
+
 describe('aDatosVenta', () => {
   it('convierte el borrador en los datos del repositorio', () => {
     let b = cambiarRenglon(base(), 'r1', { productoId: 'cerveza', cantidad: 2, precioCobrado: 2800 })

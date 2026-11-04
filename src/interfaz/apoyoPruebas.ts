@@ -6,14 +6,15 @@
  * Por qué: varias pruebas de pantallas necesitan servicios que respondan sin
  * una base de datos.
  */
-import type { ServiciosInicio } from '../aplicacion/cargarInicio'
+import type { ServiciosApp } from '../App'
 
-/** Servicios del inicio sin ventas, deudas, productos ni cierres. */
-export function serviciosVacios(): ServiciosInicio {
+/** Servicios de toda la app sin ventas, deudas, productos, cierres ni bitácora. */
+export function serviciosVacios(): ServiciosApp {
   return {
-    ventas: { listarVentas: async () => [] },
+    ventas: { listarVentas: async () => [], registrarVenta: async () => 'venta', anularVenta: async () => undefined },
     deudas: { listarDeudas: async () => [], listarAbonos: async () => [] },
     inventario: { listarProductos: async () => [], obtenerStock: async () => new Map() },
+    bitacora: { listarBitacora: async () => [] },
     cierres: { listarCierres: async () => [] },
     desactualizados: { idsDesactualizados: async () => [] },
   }
