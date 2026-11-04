@@ -119,3 +119,28 @@ Reglas comunes a todas las vistas:
 
 ## Navegación sugerida
 Barra inferior en celular: **Inicio · Vender · Inventario · Deudas · Más** (Compras, Productos, Cierres, Bitácora dentro de *Más*). Menú lateral en PC.
+
+## Estado de implementación
+
+| Vista | Ruta | Estado |
+| --- | --- | --- |
+| 0. Acceso | (control de acceso) | Hecha |
+| 1. Inicio | `inicio` | Hecha |
+| 2. Nueva venta | `vender` | Hecha |
+| 3. Ventas | `mas/ventas` | Hecha (anular en línea, sin ventana emergente) |
+| 4. Inventario | `inventario` | Hecha (sin "stock bajo": la base no guarda mínimo) |
+| 5. Productos | `mas/productos` | Hecha |
+| 6. Nueva compra | `inventario/comprar[/id]` | Hecha |
+| 7. Compras | `mas/compras` | Hecha, con Corregir costo y Anular |
+| 8. Trasladar | `inventario/trasladar/<id>` | Hecha |
+| 9. Ajuste | `inventario/ajustar/<id>` | Hecha |
+| 10. Deudas | `deudas` | Hecha (lista, nueva, detalle, abonar, anular) |
+| 11-12. Cierres | `cierres/...` | Hecha (diario y semanal, costos faltantes y manual) |
+| 13. Historial de cierres | `mas/cierres` | Hecha (recalcular, corregir dinero) |
+| 14. Bitácora | `mas/bitacora[/id]` | Hecha |
+| 15. Resúmenes | `mas/resumenes` | Pantalla "Próximamente" |
+| Sin conexión | (franja global) | Aviso hecho; guardar sin conexión sigue pendiente |
+
+Las pantallas sin diseño en Figma (Corregir costo, Anular, Productos, Deudas,
+Cierres, Bitácora y Más) se hicieron con los patrones existentes y se ajustan
+cuando el diseño esté disponible.
