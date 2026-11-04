@@ -20,9 +20,17 @@ const cuadre = (dineroTotal: number, vendido: number) => {
   return { dineroTotal, diferencia, cuadra: diferencia >= 0, faltante: diferencia < 0 ? -diferencia : 0, sobrante: diferencia > 0 ? diferencia : 0 }
 }
 
+const agua = { unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 }
+const ventasEjemplo = [
+  { id: 'v1', fecha: '2026-11-04', estado: 'vigente' as const, creadoEn: '2026-11-04T20:00:00.000Z', renglones: [{ productoId: 'p2', producto: agua, presentacion: 'unidad' as const, cantidad: 4 }] },
+  { id: 'v2', fecha: '2026-11-04', estado: 'anulada' as const, creadoEn: '2026-11-04T21:00:00.000Z', renglones: [{ productoId: 'p2', producto: agua, presentacion: 'caja' as const, cantidad: 1 }] },
+  { id: 'v3', fecha: '2026-11-03', estado: 'vigente' as const, creadoEn: '2026-11-03T21:00:00.000Z', renglones: [{ productoId: 'p2', producto: agua, presentacion: 'unidad' as const, cantidad: 9 }] },
+]
+
 function servicios(sobre: Partial<ServiciosCerrar['servicioCierres']> = {}): ServiciosCerrar {
   return {
     inventario: { listarProductos: async () => [{ id: 'p2', nombre: 'Agua Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 }] },
+    ventas: { listarVentas: async () => ventasEjemplo },
     servicioCierres: {
       vistaPreviaCierre: vi.fn(async (d) => ({
         hasta: d.tipo === 'diario' ? d.desde : '2026-11-08',
@@ -47,6 +55,14 @@ describe('Cerrar', () => {
     fireEvent.change(screen.getByLabelText('Transferencias'), { target: { value: '15000' } })
     expect(await screen.findByText('Faltante de $ 5.000')).toBeTruthy()
     expect(s.servicioCierres.vistaPreviaCierre).toHaveBeenLastCalledWith({ tipo: 'diario', desde: '2026-11-04', efectivo: 40000, transferencias: 15000, costosManuales: {} })
+  })
+
+  it('diario: lista los productos vendidos del día, sin anuladas ni otros días', async () => {
+    dibujar(servicios(), 'diario')
+    const bloque = await screen.findByRole('region', { name: 'Productos vendidos' })
+    await waitFor(() => expect(bloque.textContent).toMatch(/Agua Ejemplo/))
+    expect(bloque.textContent).toMatch(/4 unidades/)
+    expect(bloque.textContent).toMatch(/1 venta/)
   })
 
   it('guarda el cierre y va a su detalle', async () => {

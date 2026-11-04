@@ -4,7 +4,8 @@
  * Qué hace: pide el efectivo y las transferencias contados, muestra al
  * instante el resultado (cuadra, faltante o sobrante y, en la semana, la
  * utilidad) y guarda el cierre. En la semana pide el costo por unidad de los
- * productos vendidos sin compras.
+ * productos vendidos sin compras. También lista los productos vendidos del
+ * periodo para revisar qué se vendió antes de confirmar.
  * Cómo lo hace: llama a `vistaPreviaCierre` cada vez que cambian los datos,
  * convierte el resultado con `describirCierre` y lo dibuja con
  * `ResumenCierre`; al confirmar llama a `cerrarPeriodo` y va al detalle.
@@ -14,18 +15,22 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { describirCierre, type VistaCierre } from '../../aplicacion/vistaCierre'
-import type { RepositorioInventario } from '../../datos/inventario'
+import type { RepositorioInventario, Producto } from '../../datos/inventario'
+import type { RepositorioVentas, VentaRegistrada } from '../../datos/ventas'
+import { resumirProductosVendidos } from '../../aplicacion/productosVendidos'
 import type { ServicioCierres } from '../../aplicacion/servicioCierres'
 import { lunesDe } from '../../domain/compartido/semana'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
 import { Opciones } from '../componentes/Opciones'
+import { ProductosVendidos } from '../componentes/ProductosVendidos'
 import { ResumenCierre } from '../componentes/ResumenCierre'
 import { fechaCorta } from '../formato'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCerrar {
   inventario: Pick<RepositorioInventario, 'listarProductos'>
+  ventas: Pick<RepositorioVentas, 'listarVentas'>
   servicioCierres: Pick<ServicioCierres, 'vistaPreviaCierre' | 'cerrarPeriodo'>
 }
 
@@ -49,6 +54,8 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   const [transferencias, setTransferencias] = useState('')
   const [costos, setCostos] = useState<Record<string, string>>({})
   const [nombres, setNombres] = useState<ReadonlyMap<string, string>>(new Map())
+  const [productos, setProductos] = useState<readonly Producto[]>([])
+  const [ventas, setVentas] = useState<readonly VentaRegistrada[]>([])
   const [previa, setPrevia] = useState<Previa | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
@@ -72,7 +79,21 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   useEffect(() => {
     let vigente = true
     servicios.inventario.listarProductos().then(
-      (productos) => { if (vigente) setNombres(new Map(productos.map((p) => [p.id, p.nombre]))) },
+      (lista) => {
+        if (!vigente) return
+        setNombres(new Map(lista.map((p) => [p.id, p.nombre])))
+        setProductos(lista)
+      },
+      () => undefined,
+    )
+    return () => { vigente = false }
+  }, [servicios])
+
+  // Ventas, para listar lo vendido del periodo (si falla, solo se omite el bloque).
+  useEffect(() => {
+    let vigente = true
+    servicios.ventas.listarVentas().then(
+      (lista) => { if (vigente) setVentas(lista) },
       () => undefined,
     )
     return () => { vigente = false }
@@ -99,6 +120,13 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   const vista = actual !== null && 'vista' in actual ? actual.vista : null
   const hasta = actual !== null && 'vista' in actual ? actual.hasta : null
   const errorPrevia = actual !== null && 'error' in actual ? actual.error : null
+
+  // Productos vendidos del periodo que se está cerrando (mismo cálculo del detalle).
+  const vendidos = useMemo(() => {
+    if (hasta === null) return null
+    const catalogo = new Map(productos.map((p) => [p.id, { nombre: p.nombre, categoria: p.categoria }]))
+    return resumirProductosVendidos(ventas, desde, hasta, catalogo)
+  }, [ventas, productos, desde, hasta])
 
   const cerrar = async () => {
     setEnviando(true)
@@ -144,6 +172,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
           </div>
         ))}
         {vista !== null && <ResumenCierre vista={vista} />}
+        {vendidos !== null && <ProductosVendidos datos={vendidos} />}
 
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
         <button type="button" className="boton boton--primario" disabled={vista === null || enviando} onClick={cerrar}>
