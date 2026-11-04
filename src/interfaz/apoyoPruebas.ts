@@ -12,7 +12,14 @@ import type { ServiciosApp } from '../App'
 export function serviciosVacios(): ServiciosApp {
   return {
     ventas: { listarVentas: async () => [], registrarVenta: async () => 'venta', anularVenta: async () => undefined },
-    deudas: { listarDeudas: async () => [], listarAbonos: async () => [] },
+    deudas: {
+      listarDeudas: async () => [],
+      listarAbonos: async () => [],
+      registrarDeuda: async () => 'deuda',
+      anularDeuda: async () => undefined,
+      registrarAbono: async () => 'abono',
+      anularAbono: async () => undefined,
+    },
     inventario: {
       listarProductos: async () => [],
       obtenerStock: async () => new Map(),

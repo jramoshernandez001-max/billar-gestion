@@ -21,6 +21,7 @@ import {
 } from '../../aplicacion/resumenCompras'
 import type { RepositorioBitacora } from '../../datos/bitacora'
 import type { RepositorioInventario } from '../../datos/inventario'
+import { FormularioAnulacion } from '../componentes/FormularioAnulacion'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { ListaDesplegable } from '../componentes/ListaDesplegable'
@@ -52,44 +53,6 @@ const PERIODOS = [
   { valor: '30', etiqueta: 'Últimos 30 días' },
   { valor: 'todo', etiqueta: 'Todo el historial' },
 ] as const
-
-/** Formulario para anular una compra con motivo. */
-function FormularioAnular({ alConfirmar, alCancelar }: { alConfirmar: (motivo: string) => Promise<void>; alCancelar: () => void }) {
-  const [motivo, setMotivo] = useState('')
-  const [enviando, setEnviando] = useState(false)
-  const [fallo, setFallo] = useState<string | null>(null)
-
-  const confirmar = async () => {
-    setEnviando(true)
-    setFallo(null)
-    try {
-      await alConfirmar(motivo.trim())
-    } catch (causa) {
-      setFallo(causa instanceof Error ? causa.message : String(causa))
-      setEnviando(false)
-    }
-  }
-
-  return (
-    <div className="campo">
-      <label className="campo__etiqueta" htmlFor="motivo-anulacion-compra">Motivo de la anulación</label>
-      <textarea
-        id="motivo-anulacion-compra"
-        className="entrada entrada--texto"
-        rows={2}
-        value={motivo}
-        onChange={(e) => setMotivo(e.target.value)}
-      />
-      {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
-      <div className="acciones">
-        <button type="button" className="boton" onClick={alCancelar}>Cancelar</button>
-        <button type="button" className="boton boton--peligro" disabled={motivo.trim() === '' || enviando} onClick={confirmar}>
-          Confirmar anulación
-        </button>
-      </div>
-    </div>
-  )
-}
 
 /** Una compra. */
 function Tarjeta({
@@ -128,7 +91,7 @@ function Tarjeta({
           <button type="button" className="boton boton--peligro-texto" onClick={alAnular}>Anular</button>
         </div>
       )}
-      {vigente && anulando && <FormularioAnular alConfirmar={alConfirmar} alCancelar={alCancelar} />}
+      {vigente && anulando && <FormularioAnulacion alConfirmar={alConfirmar} alCancelar={alCancelar} />}
       {tarjeta.anulacion !== null && <p className="texto-suave">Motivo: {tarjeta.anulacion.motivo}</p>}
     </article>
   )

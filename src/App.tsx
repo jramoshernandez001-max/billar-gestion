@@ -20,6 +20,10 @@ import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/Ajusta
 import { Comprar, type ServiciosComprar } from './interfaz/pantallas/Comprar'
 import { Compras, type ServiciosCompras } from './interfaz/pantallas/Compras'
 import { CorregirCosto, type ServiciosCorregirCosto } from './interfaz/pantallas/CorregirCosto'
+import { Abonar, type ServiciosAbonar } from './interfaz/pantallas/Abonar'
+import { DetalleDeuda, type ServiciosDetalleDeuda } from './interfaz/pantallas/DetalleDeuda'
+import { Deudas, type ServiciosDeudas } from './interfaz/pantallas/Deudas'
+import { NuevaDeuda, type ServiciosNuevaDeuda } from './interfaz/pantallas/NuevaDeuda'
 import { FormularioProducto, type ServiciosFormularioProducto } from './interfaz/pantallas/FormularioProducto'
 import { Productos, type ServiciosProductos } from './interfaz/pantallas/Productos'
 import { Inicio } from './interfaz/pantallas/Inicio'
@@ -42,7 +46,11 @@ export type ServiciosApp = ServiciosInicio &
   ServiciosCompras &
   ServiciosCorregirCosto &
   ServiciosProductos &
-  ServiciosFormularioProducto
+  ServiciosFormularioProducto &
+  ServiciosDeudas &
+  ServiciosNuevaDeuda &
+  ServiciosAbonar &
+  ServiciosDetalleDeuda
 
 interface Propiedades {
   servicio: ServicioAcceso
@@ -60,6 +68,9 @@ interface Propiedades {
 function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
   // Tramos de la ruta: sección/acción/tercero/cuarto (ids o subacciones).
   const [seccion, accion, tercero, cuarto] = segmentosDeRuta(ruta)
+  if (seccion === 'deudas' && accion === 'nueva') return <NuevaDeuda servicios={servicios} hoy={hoy} alIr={ir} />
+  if (seccion === 'deudas' && accion === 'abonar') return <Abonar servicios={servicios} deudaId={tercero} hoy={hoy} alIr={ir} />
+  if (seccion === 'deudas' && accion !== undefined) return <DetalleDeuda servicios={servicios} deudaId={accion} hoy={hoy} alIr={ir} />
   if (seccion === 'inventario' && accion === 'editar') {
     return <FormularioProducto servicios={servicios} productoId={tercero} volverA="inventario" alIr={ir} />
   }
@@ -88,6 +99,8 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
       return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
     case 'vender':
       return <Vender servicios={servicios} hoy={hoy} alIr={ir} />
+    case 'deudas':
+      return <Deudas servicios={servicios} hoy={hoy} alIr={ir} />
     case 'mas/productos':
       return <Productos servicios={servicios} alIr={ir} />
     case 'mas/compras':
