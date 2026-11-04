@@ -67,6 +67,15 @@ describe('resolverEstado', () => {
     })
   })
 
+  it('autorizado conserva el nombre de la sesión cuando existe', async () => {
+    const { cliente } = clienteFalso({ sesion: { ...ana, nombre: 'Ana' }, autorizado: true })
+    expect(await crearServicioAcceso(cliente).resolverEstado()).toEqual({
+      tipo: 'autorizado',
+      correo: 'ana@ejemplo.com',
+      nombre: 'Ana',
+    })
+  })
+
   it('con sesión y no autorizado: no-autorizado', async () => {
     const { cliente } = clienteFalso({ sesion: ana, autorizado: false })
     expect(await crearServicioAcceso(cliente).resolverEstado()).toEqual({

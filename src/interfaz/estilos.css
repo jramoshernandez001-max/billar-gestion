@@ -1,0 +1,495 @@
+/*
+ * Estilos de la interfaz.
+ *
+ * Qué hace: define los colores, la tipografía y los componentes del diseño de
+ * Figma (Billar Gestión): marco de pantalla, cabecera, tarjetas, botones,
+ * navegación inferior, alertas y gráfico de barras.
+ * Cómo lo hace: variables CSS con los valores del diseño y clases por
+ * componente en español. No hay estilos dentro de los componentes.
+ * Por qué: un solo lugar para cambiar el aspecto sin tocar la lógica. El
+ * diseño es móvil (390 px); en pantallas grandes se centra una columna.
+ */
+:root {
+  --fondo: #f6f8f7;
+  --superficie: #ffffff;
+  --texto: #192c26;
+  --suave: #738079;
+  --primario: #176b52;
+  --borde: #e3e9e5;
+  --tinte: #e8f3ed;
+  --aviso-fondo: #fff4df;
+  --aviso-texto: #925c13;
+  --peligro: #b3261e;
+  --peligro-fondo: #fdeceb;
+  --fuente: 'Inter Variable', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--fuente);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---- Marco de pantalla ---- */
+.marco {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--fondo);
+}
+
+.marco__contenido {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+/* ---- Cabecera ---- */
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 0 20px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+}
+
+.cabecera__titulos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cabecera__titulo {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.cabecera__subtitulo {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.insignia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--tinte);
+  color: var(--primario);
+}
+
+/* ---- Texto ---- */
+.texto-suave {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.texto-centrado {
+  text-align: center;
+}
+
+.seccion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.seccion__titulo {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.enlace {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primario);
+  cursor: pointer;
+}
+
+/* ---- Botones ---- */
+.boton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primario);
+  cursor: pointer;
+}
+
+.boton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- Tarjetas ---- */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+}
+
+.tarjeta--destacada {
+  border: 0;
+  background: var(--tinte);
+}
+
+.tarjeta__etiqueta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--suave);
+}
+
+.tarjeta__valor {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* ---- Avisos ---- */
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--aviso-fondo);
+  color: var(--aviso-texto);
+}
+
+.aviso--error {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+.aviso__mensaje {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.aviso__titulo {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- Acceso ---- */
+.bienvenida {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 70px 0 40px;
+}
+
+.bienvenida--restringida {
+  gap: 20px;
+  padding: 72px 0 20px;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--primario);
+  color: #fff;
+}
+
+.bienvenida__titulo {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -1px;
+}
+
+.bienvenida__titulo--chico {
+  font-size: 24px;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.bienvenida__texto {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--suave);
+}
+
+.privacidad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 90px;
+  color: var(--suave);
+}
+
+/* ---- Inicio ---- */
+.periodo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--primario);
+}
+
+.cifra {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 400;
+  letter-spacing: -1px;
+}
+
+.actividad {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--primario);
+}
+
+.atajos {
+  display: flex;
+  gap: 8px;
+}
+
+.atajo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.atajo__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 46px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--primario);
+}
+
+.alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alerta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--texto);
+}
+
+.alerta__icono--aviso {
+  color: var(--aviso-texto);
+}
+
+.alerta__icono--ok {
+  color: var(--primario);
+}
+
+.alerta__detalle {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.alerta__titulo {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alerta__texto {
+  font-size: 12px;
+  color: var(--suave);
+}
+
+.division {
+  height: 1px;
+  background: var(--borde);
+}
+
+.dato {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dato__etiqueta {
+  flex: 1;
+  font-size: 13px;
+  color: var(--suave);
+}
+
+.dato__valor {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.grafico {
+  display: flex;
+  align-items: flex-end;
+  gap: 15px;
+  height: 132px;
+}
+
+.grafico__dia {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.grafico__barra {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--tinte);
+}
+
+.grafico__barra--hoy {
+  background: var(--primario);
+}
+
+.grafico__nombre {
+  font-size: 10px;
+  color: var(--suave);
+}
+
+.grafico__nombre--hoy {
+  color: var(--primario);
+}
+
+/* ---- Navegación inferior ---- */
+.navegacion {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 8px 8px;
+  border-top: 1px solid var(--borde);
+  background: var(--superficie);
+}
+
+.navegacion__destinos {
+  display: flex;
+  width: 100%;
+}
+
+.destino {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 10px;
+  color: var(--suave);
+  cursor: pointer;
+}
+
+.destino__indicador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 27px;
+  border-radius: 20px;
+}
+
+.destino--activo {
+  font-weight: 600;
+  color: var(--primario);
+}
+
+.destino--activo .destino__indicador {
+  background: var(--tinte);
+}
+
+.navegacion__barra {
+  width: 120px;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--texto);
+}
+
+/* ---- Estados ---- */
+.estado {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+  color: var(--suave);
+}

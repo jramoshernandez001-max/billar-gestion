@@ -13,9 +13,13 @@ import { StrictMode } from 'react'
 import { registerSW } from 'virtual:pwa-register'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import '@fontsource-variable/inter'
+import './interfaz/estilos.css'
 import App from './App.tsx'
 import { adaptarClienteSupabase, crearClienteSupabase } from './autenticacion/adaptadorSupabase'
 import { crearServicioAcceso } from './autenticacion/servicioAcceso'
+import { crearServicios } from './aplicacion/composicion'
+import { adaptarClienteDatos } from './datos/adaptadorDatos'
 import { leerConfiguracionSupabase } from './configuracion/supabase'
 
 // Registra el service worker (modo instalable y archivos de la app sin conexión).
@@ -26,10 +30,12 @@ const raiz = createRoot(document.getElementById('root')!)
 
 try {
   const config = leerConfiguracionSupabase(import.meta.env)
-  const servicio = crearServicioAcceso(adaptarClienteSupabase(crearClienteSupabase(config)))
+  const supabase = crearClienteSupabase(config)
+  const servicio = crearServicioAcceso(adaptarClienteSupabase(supabase))
+  const servicios = crearServicios(adaptarClienteDatos(supabase))
   raiz.render(
     <StrictMode>
-      <App servicio={servicio} />
+      <App servicio={servicio} servicios={servicios} />
     </StrictMode>,
   )
 } catch (causa) {

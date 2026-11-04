@@ -21,7 +21,7 @@ import type {
 
 /** Sesión de Supabase: solo importa el correo del usuario. */
 interface SesionSupabase {
-  user: { email?: string }
+  user: { email?: string; user_metadata?: Record<string, unknown> }
 }
 
 /** Lo único que el adaptador usa del cliente de Supabase. */
@@ -45,7 +45,20 @@ export interface ClienteSupabaseMinimo {
 
 /** Convierte una sesión de Supabase en la que usa el servicio. */
 function aSesionUsuario(sesion: SesionSupabase | null): SesionUsuario | null {
-  return sesion === null ? null : { correo: sesion.user.email ?? '' }
+  if (sesion === null) return null
+  const nombre = primerNombre(sesion.user.user_metadata)
+  return { correo: sesion.user.email ?? '', ...(nombre === undefined ? {} : { nombre }) }
+}
+
+/**
+ * Saca el primer nombre de los datos que Google entrega.
+ * Qué hace: devuelve la primera palabra de `full_name` o `name`, o undefined.
+ * Por qué: solo sirve para saludar ("Hola, Andrea"); nunca decide el acceso.
+ */
+function primerNombre(metadatos: Record<string, unknown> | undefined): string | undefined {
+  const completo = metadatos?.full_name ?? metadatos?.name
+  if (typeof completo !== 'string') return undefined
+  return completo.trim().split(/\s+/)[0] || undefined
 }
 
 /**

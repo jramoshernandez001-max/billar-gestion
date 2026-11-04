@@ -14,13 +14,13 @@ import { adaptarClienteSupabase, type ClienteSupabaseMinimo } from './adaptadorS
 
 /** Cliente de Supabase falso, con respuestas configurables. */
 function supabaseFalso(opciones: {
-  sesion?: { user: { email?: string } } | null
+  sesion?: { user: { email?: string; user_metadata?: Record<string, unknown> } } | null
   errorSesion?: string
   rpc?: { data: unknown; error: { message: string } | null }
   errorOAuth?: string
   errorSalir?: string
 } = {}) {
-  let oyente: ((evento: string, sesion: { user: { email?: string } } | null) => void) | null = null
+  let oyente: ((evento: string, sesion: { user: { email?: string; user_metadata?: Record<string, unknown> } } | null) => void) | null = null
   const cancelar = vi.fn()
   const cliente: ClienteSupabaseMinimo = {
     auth: {
@@ -37,7 +37,7 @@ function supabaseFalso(opciones: {
     },
     rpc: vi.fn(async () => opciones.rpc ?? { data: true, error: null }),
   }
-  return { cliente, emitir: (sesion: { user: { email?: string } } | null) => oyente?.('SIGNED_IN', sesion), cancelar }
+  return { cliente, emitir: (sesion: { user: { email?: string; user_metadata?: Record<string, unknown> } } | null) => oyente?.('SIGNED_IN', sesion), cancelar }
 }
 
 describe('adaptarClienteSupabase', () => {
@@ -46,6 +46,15 @@ describe('adaptarClienteSupabase', () => {
     expect(await con.obtenerSesion()).toEqual({ correo: 'ana@ejemplo.com' })
     const sin = adaptarClienteSupabase(supabaseFalso({ sesion: null }).cliente)
     expect(await sin.obtenerSesion()).toBeNull()
+  })
+
+  it('toma el primer nombre de los datos de Google, si vienen', async () => {
+    const con = (metadatos: Record<string, unknown>) =>
+      adaptarClienteSupabase(supabaseFalso({ sesion: { user: { email: 'a@ejemplo.com', user_metadata: metadatos } } }).cliente).obtenerSesion()
+    expect(await con({ full_name: 'Andrea Pérez Gómez' })).toEqual({ correo: 'a@ejemplo.com', nombre: 'Andrea' })
+    expect(await con({ name: '  Luis  ' })).toEqual({ correo: 'a@ejemplo.com', nombre: 'Luis' })
+    expect(await con({ full_name: 42 })).toEqual({ correo: 'a@ejemplo.com' })
+    expect(await con({})).toEqual({ correo: 'a@ejemplo.com' })
   })
 
   it('una sesión sin correo queda con correo vacío (la base de datos no la autoriza)', async () => {
