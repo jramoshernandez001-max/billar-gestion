@@ -30,14 +30,19 @@ describe('resumirCompras', () => {
     expect(resumirCompras(base).map((t) => t.id)).toEqual(['c3', 'c4', 'c2'])
   })
 
-  it('numera por orden de registro entre todas las compras', () => {
-    expect(resumirCompras(base).map((t) => t.numero)).toEqual(['C-4', 'C-3', 'C-2'])
+  it('usa el número guardado en la base, con tres cifras', () => {
+    const conNumero = compras.map((c, i) => ({ ...c, numero: 40 + i }))
+    expect(resumirCompras({ ...base, compras: conNumero }).map((t) => t.numero)).toEqual(['C-042', 'C-043', 'C-041'])
+  })
+
+  it('sin número guardado numera por orden de registro', () => {
+    expect(resumirCompras(base).map((t) => t.numero)).toEqual(['C-004', 'C-003', 'C-002'])
   })
 
   it('arma nombre, cantidad, costo por unidad y total', () => {
     const t = resumirCompras(base)[0]
     expect(t).toMatchObject({
-      numero: 'C-4', fecha: '2026-11-02', estado: 'vigente', producto: 'Cerveza Águila',
+      numero: 'C-004', fecha: '2026-11-02', estado: 'vigente', producto: 'Cerveza Águila',
       cantidadTexto: '2 cajas · 48 unidades', costoPorUnidad: 2000, total: 96000, anulacion: null,
     })
     expect(resumirCompras(base)[1].cantidadTexto).toBe('1 unidad')

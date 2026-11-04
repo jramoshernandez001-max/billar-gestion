@@ -53,15 +53,19 @@ describe('CorregirCosto', () => {
     dibujar(servicios('vigente', corregir), 'c1', alIr)
     await screen.findByText('Cerveza Ejemplo')
     fireEvent.change(screen.getByLabelText('Costo total nuevo'), { target: { value: '90000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar corrección' }))
+    const guardar = screen.getByRole('button', { name: 'Guardar corrección' }) as HTMLButtonElement
+    expect(guardar.disabled).toBe(true) // falta el motivo
+    fireEvent.change(screen.getByLabelText('Motivo de corrección'), { target: { value: ' precio mal digitado ' } })
+    fireEvent.click(guardar)
     await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/compras'))
-    expect(corregir).toHaveBeenCalledWith('c1', 90000)
+    expect(corregir).toHaveBeenCalledWith('c1', 90000, 'precio mal digitado')
   })
 
   it('un costo igual al actual no se puede guardar', async () => {
     dibujar(servicios())
     await screen.findByText('Cerveza Ejemplo')
     fireEvent.change(screen.getByLabelText('Costo total nuevo'), { target: { value: '96000' } })
+    fireEvent.change(screen.getByLabelText('Motivo de corrección'), { target: { value: 'x' } })
     expect((screen.getByRole('button', { name: 'Guardar corrección' }) as HTMLButtonElement).disabled).toBe(true)
   })
 

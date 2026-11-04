@@ -86,10 +86,14 @@ describe('compras', () => {
 
   it('corregirCostoCompra usa los parámetros de corregir_costo_compra', async () => {
     const { cliente, rpc } = clienteFalso({ data: null })
-    await crearRepositorioInventario(cliente).corregirCostoCompra(ID, 110000)
+    const repo = crearRepositorioInventario(cliente)
+    await expect(repo.corregirCostoCompra(ID, 110000, '   ')).rejects.toThrow(/motivo/i)
+    expect(rpc).not.toHaveBeenCalled()
+    await repo.corregirCostoCompra(ID, 110000, '  precio mal digitado ')
     const [nombre, argumentos] = rpc.mock.calls[0]
     expect(nombre).toBe('corregir_costo_compra')
     expect(Object.keys(argumentos).sort()).toEqual(parametrosSql('corregir_costo_compra').sort())
+    expect(argumentos.p_motivo).toBe('precio mal digitado')
   })
 
   it('anularCompra exige un motivo y usa los parámetros de anular_compra', async () => {
@@ -238,12 +242,14 @@ describe('listarCompras', () => {
     fecha: '2026-11-01',
     estado: 'vigente',
     creado_en: '2026-11-01T15:00:00.123456+00:00',
+    numero: 42,
   }
 
   it('convierte las filas al formato del dominio con hora ISO UTC', async () => {
     const { cliente } = clienteFalso({}, { compras: [compraFila], productos: [productoFila] })
     expect(await crearRepositorioInventario(cliente).listarCompras()).toEqual([{
       id: ID,
+      numero: 42,
       productoId: ID2,
       producto: { unidadesPorCaja: 24, manejaSixpack: true },
       presentacion: 'caja',
@@ -261,6 +267,7 @@ describe('listarCompras', () => {
       [{ ...compraFila, creado_en: 'ayer' }],
       [{ ...compraFila, producto_id: 'otro' }],
       [{ ...compraFila, costo_total: 1.5 }],
+      [{ ...compraFila, numero: null }],
     ]) {
       await expect(crearRepositorioInventario(clienteFalso({}, { compras, productos: [productoFila] }).cliente).listarCompras()).rejects.toThrow()
     }

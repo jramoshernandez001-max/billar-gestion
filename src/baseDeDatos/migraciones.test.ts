@@ -49,24 +49,27 @@ const sentencias = sql
   .filter((sentencia) => sentencia.length > 0)
 
 /** Funciones creadas: nombre y texto completo de su definición. */
-const funciones = sql
+const todasLasFunciones = sql
   .split(/create function /i)
   .slice(1)
   .map((parte) => ({
     nombre: parte.match(/^public\.(\w+)/i)?.[1] ?? '',
     texto: parte.split(/\n\$\$;/)[0],
   }))
+// Una migración posterior puede reemplazar una función: vale la última definición.
+const funciones = [...new Map(todasLasFunciones.map((f) => [f.nombre, f])).values()]
 
 /** Nombres de las tablas creadas en el esquema public. */
 const tablas = [...sql.matchAll(/create table public\.(\w+)/gi)].map((m) => m[1])
 
 describe('migraciones de la base de datos', () => {
-  it('existen las cuatro migraciones, en orden', () => {
+  it('existen las cinco migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
       '0003_seguridad_rls.sql',
       '0004_operaciones_atomicas.sql',
+      '0005_compras_numero_y_motivo.sql',
     ])
   })
 
@@ -299,6 +302,19 @@ describe('migraciones de la base de datos', () => {
       const texto = definer.find((f) => f.nombre === 'corregir_costo_compra')?.texto ?? ''
       expect(texto).toMatch(/estado = 'anulada'[\s\S]*raise exception/i)
       expect(texto).toMatch(/costo_total = p_costo_nuevo then\s+return;/i)
+    })
+
+    it('corregir_costo_compra exige motivo y lo guarda en la bitácora', () => {
+      const texto = definer.find((f) => f.nombre === 'corregir_costo_compra')?.texto ?? ''
+      expect(texto).toMatch(/p_motivo text/i)
+      expect(texto).toMatch(/motivo_obligatorio\(p_motivo\)/i)
+      expect(texto).toMatch(/anotar_bitacora\('corregir-costo-compra'.*v_motivo\)/i)
+    })
+
+    it('las compras tienen un número consecutivo que asigna la base', () => {
+      expect(sql).toMatch(/add column numero bigint/i)
+      expect(sql).toMatch(/alter column numero set default nextval\('public\.compras_numero_seq'\)/i)
+      expect(sql).toMatch(/constraint compras_numero_unico unique \(numero\)/i)
     })
 
     it('corregir_dinero_cierre no registra una corrección que deja el mismo dinero', () => {
