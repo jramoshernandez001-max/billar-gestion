@@ -17,6 +17,9 @@ import type { ServiciosInicio } from './aplicacion/cargarInicio'
 import { NavegacionInferior } from './interfaz/componentes/NavegacionInferior'
 import { fechaLocalIso } from './interfaz/formato'
 import { AjustarStock, type ServiciosAjustar } from './interfaz/pantallas/AjustarStock'
+import { Comprar, type ServiciosComprar } from './interfaz/pantallas/Comprar'
+import { Compras, type ServiciosCompras } from './interfaz/pantallas/Compras'
+import { CorregirCosto, type ServiciosCorregirCosto } from './interfaz/pantallas/CorregirCosto'
 import { Inicio } from './interfaz/pantallas/Inicio'
 import { Inventario, type ServiciosInventario } from './interfaz/pantallas/Inventario'
 import { Trasladar, type ServiciosTrasladar } from './interfaz/pantallas/Trasladar'
@@ -32,7 +35,10 @@ export type ServiciosApp = ServiciosInicio &
   ServiciosVentas &
   ServiciosInventario &
   ServiciosTrasladar &
-  ServiciosAjustar
+  ServiciosAjustar &
+  ServiciosComprar &
+  ServiciosCompras &
+  ServiciosCorregirCosto
 
 interface Propiedades {
   servicio: ServicioAcceso
@@ -48,7 +54,13 @@ interface Propiedades {
  * Por qué: un solo lugar donde se ve qué rutas existen.
  */
 function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefined, hoy: string, ir: (ruta: string) => void) {
-  const [seccion, accion, productoId] = segmentosDeRuta(ruta)
+  const [seccion, accion, productoId, compraId] = segmentosDeRuta(ruta)
+  if (seccion === 'inventario' && accion === 'comprar') {
+    return <Comprar servicios={servicios} productoId={productoId} hoy={hoy} alIr={ir} />
+  }
+  if (seccion === 'mas' && accion === 'compras' && productoId === 'corregir') {
+    return <CorregirCosto servicios={servicios} compraId={compraId} alIr={ir} />
+  }
   if (seccion === 'inventario' && accion === 'trasladar') {
     return <Trasladar servicios={servicios} productoId={productoId} alIr={ir} />
   }
@@ -62,6 +74,8 @@ function pantalla(ruta: string, servicios: ServiciosApp, nombre: string | undefi
       return <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
     case 'vender':
       return <Vender servicios={servicios} hoy={hoy} alIr={ir} />
+    case 'mas/compras':
+      return <Compras servicios={servicios} hoy={hoy} alIr={ir} />
     case 'mas/ventas':
       return <Ventas servicios={servicios} hoy={hoy} alIr={ir} />
     default:
