@@ -13,7 +13,7 @@ import type { TipoCierre } from '../domain/cierres/actualizacionCierre'
 import type { RepositorioCierres } from '../datos/cierres'
 import type { RepositorioDeudas } from '../datos/deudas'
 import type { RepositorioInventario } from '../datos/inventario'
-import type { RepositorioVentas } from '../datos/ventas'
+import type { Venta } from '../domain/ventas/venta'
 import type { DetectorDesactualizados } from './cierresDesactualizados'
 import { resumirDeudas } from './resumenDeudas'
 import { resumirInicio, type ResumenInicio } from './resumenInicio'
@@ -21,7 +21,8 @@ import { resumirInventario } from './resumenInventario'
 
 /** Lo que necesita cargarInicio de los servicios. */
 export interface ServiciosInicio {
-  ventas: Pick<RepositorioVentas, 'listarVentas'>
+  /** Solo necesita leer ventas del dominio (no el momento de registro). */
+  ventas: { listarVentas(): Promise<Venta[]> }
   deudas: Pick<RepositorioDeudas, 'listarDeudas' | 'listarAbonos'>
   inventario: Pick<RepositorioInventario, 'listarProductos' | 'obtenerStock'>
   cierres: Pick<RepositorioCierres, 'listarCierres'>

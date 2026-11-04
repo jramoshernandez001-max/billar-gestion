@@ -91,12 +91,12 @@ describe('anularVenta', () => {
 
 describe('listarVentas', () => {
   const productoFila = { id: ID2, unidades_por_caja: 24, maneja_sixpack: true, precio_unidad: 3000, precio_caja: 60000 }
-  const ventaFila = { id: ID, fecha: '2026-11-03', estado: 'vigente' }
+  const ventaFila = { id: ID, fecha: '2026-11-03', estado: 'vigente', creado_en: '2026-11-03T21:20:00.123456+00:00' }
   const itemFila = { venta_id: ID, producto_id: ID2, presentacion: 'caja', cantidad: 1, precio_cobrado: 55000 }
 
   it('arma cada venta con sus renglones, el producto y el precio cobrado', async () => {
     const { cliente } = clienteFalso({}, {
-      ventas: [ventaFila, { id: 'v2', fecha: '2026-11-03', estado: 'anulada' }],
+      ventas: [ventaFila, { ...ventaFila, id: 'v2', estado: 'anulada' }],
       venta_items: [itemFila],
       productos: [productoFila],
     })
@@ -106,6 +106,7 @@ describe('listarVentas', () => {
         id: ID,
         fecha: '2026-11-03',
         estado: 'vigente',
+        creadoEn: '2026-11-03T21:20:00.123Z',
         renglones: [{
           productoId: ID2,
           producto: { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
@@ -114,7 +115,7 @@ describe('listarVentas', () => {
           precioCobrado: 55000,
         }],
       },
-      { id: 'v2', fecha: '2026-11-03', estado: 'anulada', renglones: [] },
+      { id: 'v2', fecha: '2026-11-03', estado: 'anulada', creadoEn: '2026-11-03T21:20:00.123Z', renglones: [] },
     ])
   })
 
@@ -122,6 +123,7 @@ describe('listarVentas', () => {
     const base = { ventas: [ventaFila], venta_items: [itemFila], productos: [productoFila] }
     for (const tablas of [
       { ...base, ventas: [{ ...ventaFila, estado: 'x' }] },
+      { ...base, ventas: [{ ...ventaFila, creado_en: 'ayer' }] },
       { ...base, venta_items: [{ ...itemFila, cantidad: 'dos' }] },
       { ...base, venta_items: [{ ...itemFila, producto_id: 'otro' }] },
       { ...base, productos: [{ id: ID2 }] },

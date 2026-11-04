@@ -75,3 +75,17 @@ export function fechaLocalIso(instante: Date): string {
   const dia = String(instante.getDate()).padStart(2, '0')
   return `${instante.getFullYear()}-${mes}-${dia}`
 }
+
+/**
+ * Hora local de un instante ISO, como "16:20".
+ *
+ * Qué hace: devuelve horas y minutos con dos dígitos.
+ * Cómo lo hace: lee la hora del reloj de quien usa la app (no UTC).
+ * Por qué: la venta de las 4:20 p. m. debe verse a esa hora, no a la de UTC.
+ * @throws Error si el texto no es un instante válido.
+ */
+export function horaLocal(instanteIso: string): string {
+  const instante = new Date(instanteIso)
+  if (Number.isNaN(instante.getTime())) throw new Error(`El instante "${instanteIso}" no es válido`)
+  return `${String(instante.getHours()).padStart(2, '0')}:${String(instante.getMinutes()).padStart(2, '0')}`
+}
