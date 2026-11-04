@@ -4,7 +4,7 @@ Reglas que no estaban definidas en `CLAUDE.md` ni en los datos privados del nego
 
 ## Pendientes
 
-1. **Registros hechos sin conexión** (`src/domain/cierres/actualizacionCierre.ts`). La decisión compara el momento de registro con el momento del cálculo. Si un celular registra algo sin conexión antes de que el otro calcule el cierre, pero lo sincroniza después, su momento de registro queda antes del cálculo y el cierre no se marca como desactualizado, aunque no incluyó ese registro. Propuesta: al construir el modo sin conexión, comparar también el momento en que el registro llegó al servidor (`creado_en` de la base). Se decide al diseñar la sincronización.
+Ninguna por ahora.
 
 ## Resueltas
 
@@ -41,3 +41,4 @@ Reglas que no estaban definidas en `CLAUDE.md` ni en los datos privados del nego
 31. **Abono a una deuda anulada.** Confirmada como regla: se rechaza, porque una deuda anulada ya no debe nada.
 32. **El resultado de un cierre lo calcula la app.** Por ahora la base de datos no lo vuelve a calcular: lo usan solo los dos usuarios autorizados, y repetir el cálculo del dominio en SQL duplicaría las reglas en dos lugares. Se reabre si se agregan más usuarios.
 33. **Escrituras directas desde el editor SQL.** Solo el dueño del proyecto de Supabase entra al panel. Aun así, ni él puede borrar (disparadores en todas las tablas), editar la bitácora ni editar los movimientos de inventario; el resto de las tablas sí se podrían editar a mano desde el editor SQL, sin bitácora. Esa es la contrapartida de que las funciones `SECURITY DEFINER` funcionen con RLS forzada.
+34. **Registros hechos sin conexión.** Se envían al volver internet con una clave única (`aplicar_operacion_pendiente`, migración 0006) para no duplicarlos. El momento de registro (`creado_en`) es el del servidor al sincronizar, así que un cierre calculado antes de sincronizar queda desactualizado y se recalcula a mano. Solo se permiten sin conexión las operaciones que crean registros (venta, compra, traslado, ajuste, deuda, abono); anular, corregir y cerrar exigen conexión. Una operación que la base rechaza al sincronizar queda visible para reintentar o descartar. Contrapartida: una compra hecha sin conexión cuenta como la última registrada al sincronizar, aunque otra compra posterior se haya hecho con internet.

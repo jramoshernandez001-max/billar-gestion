@@ -12,7 +12,29 @@
  * la protección real; esta decisión solo sirve para mostrar la pantalla
  * correcta. Ante cualquier fallo se niega el acceso (nunca "autorizado" por
  * error). Al depender de una interfaz, se prueba sin Supabase real.
+ * Única excepción (modo sin conexión): si la verificación falla por falta de
+ * red y ese mismo correo ya fue autorizado por la base en este teléfono en
+ * los últimos 30 días, se deja ver lo guardado en el teléfono. No abre nada
+ * nuevo: la base sigue validando cada escritura y cada lectura.
  */
+import { esErrorDeRed } from '../sincronizacion/errorDeRed'
+
+/** Días que se recuerda una autorización para entrar sin conexión. */
+const DIAS_DE_MEMORIA = 30
+const MS_POR_DIA = 24 * 60 * 60 * 1000
+
+/** Dónde se recuerda qué correo fue autorizado por la base y cuándo. */
+export interface MemoriaDeAcceso {
+  leer(): { correo: string; en: string } | null
+  guardar(correo: string, en: string): void
+  borrar(): void
+}
+
+/** Dependencias opcionales del modo sin conexión. */
+export interface OpcionesAcceso {
+  memoria: MemoriaDeAcceso
+  ahora: () => Date
+}
 
 /** Lo único que la app necesita saber de una sesión iniciada. */
 export interface SesionUsuario {
@@ -73,7 +95,18 @@ function mensajeDe(causa: unknown): string {
  * Cómo lo hace: cierra sobre el cliente y expone cuatro funciones pequeñas.
  * Por qué: inyectar el cliente separa la decisión de acceso de Supabase.
  */
-export function crearServicioAcceso(cliente: ClienteAutenticacion): ServicioAcceso {
+export function crearServicioAcceso(cliente: ClienteAutenticacion, opciones?: OpcionesAcceso): ServicioAcceso {
+  const memoria = opciones?.memoria
+  const ahora = opciones?.ahora ?? (() => new Date())
+
+  /** Dice si este correo fue autorizado por la base en este teléfono hace poco. */
+  function autorizadoRecientemente(correo: string): boolean {
+    const recuerdo = memoria?.leer() ?? null
+    if (recuerdo === null || recuerdo.correo !== correo) return false
+    const hace = ahora().getTime() - Date.parse(recuerdo.en)
+    return Number.isFinite(hace) && hace >= 0 && hace <= DIAS_DE_MEMORIA * MS_POR_DIA
+  }
+
   /**
    * Calcula el estado actual.
    *
@@ -88,8 +121,13 @@ export function crearServicioAcceso(cliente: ClienteAutenticacion): ServicioAcce
       if (sesion === null) return { tipo: 'sin-sesion' }
       const respuesta = await cliente.consultarUsuarioAutorizado()
       if (respuesta.error !== null) {
+        if (esErrorDeRed({ message: respuesta.error }) && autorizadoRecientemente(sesion.correo)) {
+          return { tipo: 'autorizado', correo: sesion.correo, ...(sesion.nombre === undefined ? {} : { nombre: sesion.nombre }) }
+        }
         return { tipo: 'error', mensaje: `No se pudo verificar el acceso: ${respuesta.error}` }
       }
+      if (respuesta.autorizado) memoria?.guardar(sesion.correo, ahora().toISOString())
+      else memoria?.borrar()
       return respuesta.autorizado
         ? { tipo: 'autorizado', correo: sesion.correo, ...(sesion.nombre === undefined ? {} : { nombre: sesion.nombre }) }
         : { tipo: 'no-autorizado', correo: sesion.correo }
@@ -136,6 +174,7 @@ export function crearServicioAcceso(cliente: ClienteAutenticacion): ServicioAcce
 
   /** Cierra la sesión; lanza un error con el motivo si falla. */
   async function cerrarSesion(): Promise<void> {
+    memoria?.borrar()
     const { error } = await cliente.cerrarSesion()
     if (error !== null) throw new Error(`No se pudo cerrar la sesión: ${error}`)
   }

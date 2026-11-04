@@ -17,10 +17,13 @@ import '@fontsource-variable/inter'
 import './interfaz/estilos.css'
 import App from './App.tsx'
 import { adaptarClienteSupabase, crearClienteSupabase } from './autenticacion/adaptadorSupabase'
+import { crearMemoriaDeAcceso } from './autenticacion/memoriaDeAcceso'
 import { crearServicioAcceso } from './autenticacion/servicioAcceso'
 import { crearServicios } from './aplicacion/composicion'
 import { adaptarClienteDatos } from './datos/adaptadorDatos'
 import { leerConfiguracionSupabase } from './configuracion/supabase'
+import { crearSincronizacion } from './sincronizacion/composicionSincronizacion'
+import { iniciarSincronizacionAutomatica } from './sincronizacion/sincronizacionAutomatica'
 
 // Registra el service worker (modo instalable y archivos de la app sin conexión).
 // Se actualiza solo cuando hay una versión nueva.
@@ -31,11 +34,28 @@ const raiz = createRoot(document.getElementById('root')!)
 try {
   const config = leerConfiguracionSupabase(import.meta.env)
   const supabase = crearClienteSupabase(config)
-  const servicio = crearServicioAcceso(adaptarClienteSupabase(supabase))
-  const servicios = crearServicios(adaptarClienteDatos(supabase))
+  const servicio = crearServicioAcceso(adaptarClienteSupabase(supabase), {
+    memoria: crearMemoriaDeAcceso(window.localStorage),
+    ahora: () => new Date(),
+  })
+  // Modo sin conexión: los repositorios usan un cliente que guarda en cola lo
+  // que se registra sin internet y que usa copias de lectura si no hay red.
+  const sincronizacion = crearSincronizacion({
+    cliente: adaptarClienteDatos(supabase),
+    storage: window.localStorage,
+    ventana: window,
+    estaEnLinea: () => window.navigator.onLine,
+  })
+  iniciarSincronizacionAutomatica(sincronizacion.servicio, window)
+  const servicios = crearServicios(sincronizacion.cliente)
   raiz.render(
     <StrictMode>
-      <App servicio={servicio} servicios={servicios} />
+      <App
+        servicio={servicio}
+        servicios={servicios}
+        sincronizacion={sincronizacion.servicio}
+        alCerrarSesion={sincronizacion.cliente.limpiarCache}
+      />
     </StrictMode>,
   )
 } catch (causa) {

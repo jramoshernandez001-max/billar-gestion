@@ -5,9 +5,9 @@
  * quita cuando vuelve.
  * Cómo lo hace: lee `navigator.onLine` y escucha los eventos `online` y
  * `offline` con `useSyncExternalStore`.
- * Por qué: toda escritura pasa por funciones de la base; sin conexión no se
- * puede guardar. Avisarlo evita que alguien crea que registró una venta que
- * no llegó a guardarse.
+ * Por qué: sin conexión se ven las últimas copias guardadas y solo se pueden
+ * registrar cosas nuevas (se envían después); anular, corregir y cerrar
+ * necesitan internet. Avisarlo evita confusiones.
  */
 import { useSyncExternalStore } from 'react'
 import { WifiOff } from 'lucide-react'
@@ -29,7 +29,7 @@ export function AvisoSinConexion() {
       <WifiOff size={18} strokeWidth={1.5} aria-hidden="true" />
       <div className="aviso__mensaje">
         <span className="aviso__titulo">Sin conexión</span>
-        <span>No se pueden guardar cambios hasta que vuelva internet.</span>
+        <span>Ves los últimos datos guardados. Ventas, compras, traslados, ajustes, deudas y abonos se envían al volver internet; lo demás necesita conexión.</span>
       </div>
     </div>
   )
