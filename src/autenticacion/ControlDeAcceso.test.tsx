@@ -57,7 +57,9 @@ describe('ControlDeAcceso', () => {
   it('no autorizado: dice el correo, no muestra la app y permite cerrar sesión', async () => {
     const servicio = servicioCon({ tipo: 'no-autorizado', correo: 'intruso@ejemplo.com' })
     render(<ControlDeAcceso servicio={servicio} redirigirA="/">{hijos}</ControlDeAcceso>)
-    expect(screen.getByRole('alert').textContent).toMatch(/intruso@ejemplo\.com/)
+    expect(screen.getByText('Esta cuenta no tiene acceso')).toBeTruthy()
+    expect(screen.getByText('intruso@ejemplo.com')).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toMatch(/No autorizado/)
     expect(screen.queryByText(/Contenido de la app/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /cerrar sesión/i }))
     await waitFor(() => expect(servicio.cerrarSesion).toHaveBeenCalled())
@@ -68,6 +70,19 @@ describe('ControlDeAcceso', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/sin red/)
     expect(screen.queryByText(/Contenido de la app/)).toBeNull()
     expect(screen.getByRole('button', { name: /cerrar sesión/i })).toBeTruthy()
+  })
+
+  it('sin sesión: muestra la bienvenida del diseño con el botón de Google', () => {
+    render(<ControlDeAcceso servicio={servicioCon({ tipo: 'sin-sesion' })} redirigirA="/">{hijos}</ControlDeAcceso>)
+    expect(screen.getByText(/Tu negocio,/)).toBeTruthy()
+    expect(screen.getByText('Usa la cuenta autorizada por tu negocio.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Entrar con Google' })).toBeTruthy()
+  })
+
+  it('autorizado: el contenido recibe también el nombre cuando existe', () => {
+    const servicio = servicioCon({ tipo: 'autorizado', correo: 'ana@ejemplo.com', nombre: 'Ana' })
+    render(<ControlDeAcceso servicio={servicio} redirigirA="/">{({ nombre }) => <p>Hola {nombre}</p>}</ControlDeAcceso>)
+    expect(screen.getByText('Hola Ana')).toBeTruthy()
   })
 
   it('autorizado: muestra la app con el correo y la acción de cerrar sesión', async () => {

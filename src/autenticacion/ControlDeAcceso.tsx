@@ -8,16 +8,20 @@
  * contenido (children) es una función que recibe el correo y la acción de
  * cerrar sesión, y solo se llama con un usuario autorizado.
  * Por qué: el contenido de la app no debe ni renderizarse para quien no esté
- * autorizado. El aspecto lo diseña el dueño en Figma: aquí solo hay marcado
- * mínimo y semántico, fácil de reemplazar sin tocar la lógica.
+ * autorizado. El aspecto viene del diseño de Figma (carpeta interfaz): aquí
+ * solo se decide qué pantalla corresponde, sin tocar el diseño.
  */
 import { useState, type ReactNode } from 'react'
+import { Acceso } from '../interfaz/pantallas/Acceso'
+import { AccesoNoAutorizado } from '../interfaz/pantallas/AccesoNoAutorizado'
 import { useEstadoAcceso } from './useEstadoAcceso'
 import type { ServicioAcceso } from './servicioAcceso'
 
 /** Lo que recibe el contenido de la app cuando el usuario está autorizado. */
 export interface ContextoAutorizado {
   correo: string
+  /** Primer nombre de la cuenta de Google, si lo trae. */
+  nombre?: string
   cerrarSesion: () => Promise<void>
 }
 
@@ -45,42 +49,26 @@ export function ControlDeAcceso({ servicio, redirigirA, children }: Propiedades)
 
   switch (estado.tipo) {
     case 'cargando':
-      return <p role="status">Cargando…</p>
+      return <p role="status" className="estado">Cargando…</p>
 
     case 'sin-sesion':
-      return (
-        <main>
-          <h1>Billar Gestión</h1>
-          <button type="button" onClick={() => void ejecutar(() => servicio.iniciarSesion(redirigirA))}>
-            Entrar con Google
-          </button>
-          {errorAccion !== null && <p role="alert">{errorAccion}</p>}
-        </main>
-      )
+      return <Acceso alEntrar={() => void ejecutar(() => servicio.iniciarSesion(redirigirA))} error={errorAccion} />
 
     case 'no-autorizado':
-      return (
-        <main>
-          <p role="alert">La cuenta {estado.correo} no está autorizada para entrar a este sistema.</p>
-          <button type="button" onClick={() => void cerrarSesion()}>
-            Cerrar sesión
-          </button>
-          {errorAccion !== null && <p role="alert">{errorAccion}</p>}
-        </main>
-      )
+      return <AccesoNoAutorizado correo={estado.correo} alCerrarSesion={() => void cerrarSesion()} errorAccion={errorAccion} />
 
     case 'error':
       return (
-        <main>
-          <p role="alert">{estado.mensaje}</p>
-          <button type="button" onClick={() => void cerrarSesion()}>
-            Cerrar sesión
-          </button>
-          {errorAccion !== null && <p role="alert">{errorAccion}</p>}
-        </main>
+        <AccesoNoAutorizado
+          correo={null}
+          titulo="No se pudo verificar el acceso"
+          mensaje={estado.mensaje}
+          alCerrarSesion={() => void cerrarSesion()}
+          errorAccion={errorAccion}
+        />
       )
 
     case 'autorizado':
-      return <>{children({ correo: estado.correo, cerrarSesion })}</>
+      return <>{children({ correo: estado.correo, nombre: estado.nombre, cerrarSesion })}</>
   }
 }

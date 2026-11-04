@@ -17,6 +17,8 @@
 /** Lo único que la app necesita saber de una sesión iniciada. */
 export interface SesionUsuario {
   correo: string
+  /** Primer nombre de la cuenta de Google, si lo trae (solo para saludar). */
+  nombre?: string
 }
 
 /** Respuesta de una operación que puede fallar con un mensaje. */
@@ -48,7 +50,7 @@ export type EstadoAcceso =
   | { tipo: 'cargando' }
   | { tipo: 'sin-sesion' }
   | { tipo: 'no-autorizado'; correo: string }
-  | { tipo: 'autorizado'; correo: string }
+  | { tipo: 'autorizado'; correo: string; nombre?: string }
   | { tipo: 'error'; mensaje: string }
 
 /** Operaciones que ofrece el servicio. */
@@ -89,7 +91,7 @@ export function crearServicioAcceso(cliente: ClienteAutenticacion): ServicioAcce
         return { tipo: 'error', mensaje: `No se pudo verificar el acceso: ${respuesta.error}` }
       }
       return respuesta.autorizado
-        ? { tipo: 'autorizado', correo: sesion.correo }
+        ? { tipo: 'autorizado', correo: sesion.correo, ...(sesion.nombre === undefined ? {} : { nombre: sesion.nombre }) }
         : { tipo: 'no-autorizado', correo: sesion.correo }
     } catch (causa) {
       return { tipo: 'error', mensaje: `No se pudo leer la sesión: ${mensajeDe(causa)}` }

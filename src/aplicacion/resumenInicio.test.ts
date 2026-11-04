@@ -28,7 +28,8 @@ describe('resumirInicio', () => {
 
   it('suma las ventas vigentes de hoy y cuenta cuántas son', () => {
     const r = resumirInicio({ hoy: '2026-11-03', ventas, deudaPendiente: 0, productosNegativos: 0, cierresDesactualizados: 0 })
-    expect(r.hoy).toEqual({ total: 9000, cantidadVentas: 2 })
+    // 2 + 1 unidades vendidas hoy (la venta anulada no cuenta)
+    expect(r.hoy).toEqual({ total: 9000, cantidadVentas: 2, unidades: 3 })
   })
 
   it('arma la serie de 7 días terminando hoy, con ceros en los días sin ventas', () => {
@@ -41,7 +42,13 @@ describe('resumirInicio', () => {
 
   it('un día sin ventas hoy da cero', () => {
     const r = resumirInicio({ hoy: '2026-11-05', ventas, deudaPendiente: 0, productosNegativos: 0, cierresDesactualizados: 0 })
-    expect(r.hoy).toEqual({ total: 0, cantidadVentas: 0 })
+    expect(r.hoy).toEqual({ total: 0, cantidadVentas: 0, unidades: 0 })
+  })
+
+  it('cuenta las unidades según la presentación (caja = unidades por caja)', () => {
+    const conCaja: Venta = { ...venta('z', '2026-11-03', 1), renglones: [{ productoId: 'p', producto, presentacion: 'caja', cantidad: 2, precioCobrado: 60000 }] }
+    const r = resumirInicio({ hoy: '2026-11-03', ventas: [conCaja], deudaPendiente: 0, productosNegativos: 0, cierresDesactualizados: 0 })
+    expect(r.hoy.unidades).toBe(48)
   })
 
   it('cuenta los avisos', () => {

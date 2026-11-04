@@ -1,35 +1,57 @@
 /**
  * Pantalla principal de la app.
  *
- * Qué hace: envuelve el contenido de la app en el control de acceso, de modo
- * que solo un usuario autorizado vea algo.
- * Cómo lo hace: recibe el servicio de acceso ya construido y le pasa
- * ControlDeAcceso. Por ahora el contenido es un marcador: las vistas reales
- * (inventario, ventas, cierres, deudas) las diseña el dueño en Figma y se
- * agregan después.
- * Por qué: recibir el servicio por propiedad evita que App conozca a Supabase
- * y permite probarla con uno falso.
+ * Qué hace: envuelve todo en el control de acceso (solo un usuario autorizado
+ * ve algo) y, dentro, elige la pantalla según la ruta y dibuja la navegación
+ * inferior.
+ * Cómo lo hace: recibe el servicio de acceso y los servicios de datos ya
+ * construidos; lee la ruta con useRuta y muestra la pantalla que le toca (las
+ * que aún no están listas muestran "en construcción").
+ * Por qué: recibir los servicios por propiedad evita que App conozca a
+ * Supabase y permite probarla con servicios falsos.
  */
+import { useState } from 'react'
 import { ControlDeAcceso } from './autenticacion/ControlDeAcceso'
 import type { ServicioAcceso } from './autenticacion/servicioAcceso'
+import type { ServiciosInicio } from './aplicacion/cargarInicio'
+import { NavegacionInferior } from './interfaz/componentes/NavegacionInferior'
+import { fechaLocalIso } from './interfaz/formato'
+import { Inicio } from './interfaz/pantallas/Inicio'
+import { Proximamente } from './interfaz/pantallas/Proximamente'
+import { pestanaDe } from './interfaz/ruta'
+import { useRuta } from './interfaz/useRuta'
+
+/** Servicios de datos que usan las pantallas (crece con cada pantalla). */
+export type ServiciosApp = ServiciosInicio
 
 interface Propiedades {
   servicio: ServicioAcceso
+  servicios: ServiciosApp
 }
 
-function App({ servicio }: Propiedades) {
+/** Contenido de la app para un usuario autorizado: pantalla + navegación. */
+function Contenido({ nombre, servicios }: { nombre?: string; servicios: ServiciosApp }) {
+  const { ruta, ir } = useRuta()
+  const [hoy] = useState(() => fechaLocalIso(new Date()))
   return (
-    <ControlDeAcceso servicio={servicio} redirigirA={window.location.origin}>
-      {({ correo, cerrarSesion }) => (
-        <main>
-          <h1>Billar Gestión</h1>
-          <p>Sesión iniciada como {correo}.</p>
-          <button type="button" onClick={() => void cerrarSesion()}>
-            Cerrar sesión
-          </button>
-        </main>
+    <>
+      {ruta === 'inicio' ? (
+        <Inicio servicios={servicios} nombre={nombre} hoy={hoy} alIr={ir} />
+      ) : (
+        <Proximamente ruta={ruta} />
       )}
-    </ControlDeAcceso>
+      <NavegacionInferior activa={pestanaDe(ruta)} alIr={ir} />
+    </>
+  )
+}
+
+function App({ servicio, servicios }: Propiedades) {
+  return (
+    <div className="marco">
+      <ControlDeAcceso servicio={servicio} redirigirA={window.location.origin}>
+        {({ nombre }) => <Contenido nombre={nombre} servicios={servicios} />}
+      </ControlDeAcceso>
+    </div>
   )
 }
 

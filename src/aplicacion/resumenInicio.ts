@@ -11,6 +11,7 @@
  */
 import { sumarDias } from '../domain/compartido/semana'
 import { validarFecha } from '../domain/compartido/validaciones'
+import { aUnidades } from '../domain/inventario/conversiones'
 import { valorVenta } from '../domain/ventas/valorVenta'
 import { renglonesVigentes, type Venta } from '../domain/ventas/venta'
 
@@ -35,11 +36,13 @@ export interface VentasDelDia {
   fecha: string
   total: number
   cantidadVentas: number
+  /** Unidades vendidas (cajas y sixpacks convertidos a unidades). */
+  unidades: number
 }
 
 /** Lo que muestra el inicio. */
 export interface ResumenInicio {
-  hoy: { total: number; cantidadVentas: number }
+  hoy: { total: number; cantidadVentas: number; unidades: number }
   ultimosDias: VentasDelDia[]
   avisos: { deudaPendiente: number; productosNegativos: number; cierresDesactualizados: number }
 }
@@ -47,7 +50,9 @@ export interface ResumenInicio {
 /** Total y cantidad de las ventas vigentes de un día. */
 function ventasDe(ventas: readonly Venta[], fecha: string): VentasDelDia {
   const vigentes = ventas.filter((v) => v.fecha === fecha && v.estado === 'vigente')
-  return { fecha, total: valorVenta(renglonesVigentes(vigentes)), cantidadVentas: vigentes.length }
+  const renglones = renglonesVigentes(vigentes)
+  const unidades = renglones.reduce((suma, r) => suma + aUnidades(r.producto, r.presentacion, r.cantidad), 0)
+  return { fecha, total: valorVenta(renglones), cantidadVentas: vigentes.length, unidades }
 }
 
 /**
@@ -61,7 +66,7 @@ export function resumirInicio(datos: DatosInicio): ResumenInicio {
   )
   const hoy = ultimosDias[DIAS_DEL_GRAFICO - 1]
   return {
-    hoy: { total: hoy.total, cantidadVentas: hoy.cantidadVentas },
+    hoy: { total: hoy.total, cantidadVentas: hoy.cantidadVentas, unidades: hoy.unidades },
     ultimosDias,
     avisos: {
       deudaPendiente: datos.deudaPendiente,
