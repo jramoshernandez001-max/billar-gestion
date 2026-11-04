@@ -1,0 +1,13 @@
+# Dependabot: abre cada semana un PR con las actualizaciones de dependencias
+# (npm) y de las Actions del CI, para mantenerlas al día y con parches de
+# seguridad. Los PR pasan por el mismo CI antes de revisarse.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
