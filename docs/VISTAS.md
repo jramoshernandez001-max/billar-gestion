@@ -108,6 +108,7 @@ Reglas comunes a todas las vistas:
 - Lista: tipo, periodo, resultado (cuadra / faltante), fecha de cálculo.
 - Etiqueta **Desactualizado** cuando se anuló o corrigió algo que usó, o se corrigió el dinero.
 - Acciones: **Recalcular** (lo pide el usuario, nunca es automático), **Corregir efectivo/transferencias** (queda en bitácora y deja el cierre desactualizado hasta recalcular).
+- Detalle de un cierre: además del resultado, **Productos vendidos** del día (diario) o de la semana (semanal): por producto, el desglose (cajas, sixpacks, unidades o botellas), el valor, y el total de unidades y pesos. Usa las ventas vigentes de hoy; si algo se anuló después, el cierre sale como desactualizado.
 
 ## 14. Bitácora
 - Lista cronológica de todo lo que cambió datos: fecha y hora, usuario (correo), acción, registro afectado, motivo.

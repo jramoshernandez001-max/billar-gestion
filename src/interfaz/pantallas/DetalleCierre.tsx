@@ -1,11 +1,12 @@
 /**
  * Pantalla "Detalle del cierre".
  *
- * Qué hace: muestra un cierre guardado con su resultado, avisa si está
- * desactualizado, y permite recalcularlo o corregir el efectivo y las
- * transferencias contados.
- * Cómo lo hace: carga el cierre, la lista de desactualizados y los productos;
- * `describirCierre` arma el resultado. Recalcular y corregir llaman a los
+ * Qué hace: muestra un cierre guardado con su resultado y los productos que
+ * se vendieron en su día o semana, avisa si está desactualizado, y permite
+ * recalcularlo o corregir el efectivo y las transferencias contados.
+ * Cómo lo hace: carga el cierre, la lista de desactualizados, los productos y
+ * las ventas; `describirCierre` arma el resultado y `resumirProductosVendidos`
+ * la lista de productos vendidos del periodo. Recalcular y corregir llaman a los
  * servicios y recargan.
  * Por qué: recalcular lo pide un usuario, nunca es automático, y tanto
  * recalcular como corregir el dinero quedan en la bitácora. Corregir el
@@ -14,11 +15,14 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { DetectorDesactualizados } from '../../aplicacion/cierresDesactualizados'
 import type { ServicioCierres } from '../../aplicacion/servicioCierres'
+import { resumirProductosVendidos } from '../../aplicacion/productosVendidos'
 import { describirCierre } from '../../aplicacion/vistaCierre'
 import type { RepositorioCierres } from '../../datos/cierres'
 import type { RepositorioInventario } from '../../datos/inventario'
+import type { RepositorioVentas } from '../../datos/ventas'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
+import { ProductosVendidos } from '../componentes/ProductosVendidos'
 import { ResumenCierre } from '../componentes/ResumenCierre'
 import { fechaCorta } from '../formato'
 import { useCarga } from '../useCarga'
@@ -29,6 +33,7 @@ export interface ServiciosDetalleCierre {
   desactualizados: DetectorDesactualizados
   servicioCierres: Pick<ServicioCierres, 'recalcularCierre'>
   inventario: Pick<RepositorioInventario, 'listarProductos'>
+  ventas: Pick<RepositorioVentas, 'listarVentas'>
 }
 
 interface Propiedades {
@@ -39,12 +44,13 @@ interface Propiedades {
 
 export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
-    const [cierres, ids, productos] = await Promise.all([
+    const [cierres, ids, productos, ventas] = await Promise.all([
       servicios.cierres.listarCierres(),
       servicios.desactualizados.idsDesactualizados(),
       servicios.inventario.listarProductos(),
+      servicios.ventas.listarVentas(),
     ])
-    return { cierres, ids, productos }
+    return { cierres, ids, productos, ventas }
   }, [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)
   const [corrigiendo, setCorrigiendo] = useState(false)
@@ -59,6 +65,12 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
     return describirCierre(cierre.tipo, cierre.resultado, { efectivo: cierre.efectivo, transferencias: cierre.transferencias }, new Map(datos.productos.map((p) => [p.id, p.nombre])))
   }, [datos, cierre])
 
+  const vendidos = useMemo(() => {
+    if (datos === null || cierre === undefined) return null
+    const nombres = new Map(datos.productos.map((p) => [p.id, { nombre: p.nombre, categoria: p.categoria }]))
+    return resumirProductosVendidos(datos.ventas, cierre.desde, cierre.hasta, nombres)
+  }, [datos, cierre])
+
   const cabecera = <CabeceraInterna titulo="Cierre" subtitulo="Resultado y correcciones" alVolver={() => alIr('mas/cierres')} />
   if (estado !== 'listo' || datos === null) {
     return (
@@ -70,7 +82,7 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
       </>
     )
   }
-  if (cierre === undefined || vista === null) {
+  if (cierre === undefined || vista === null || vendidos === null) {
     return (
       <>
         {cabecera}
@@ -123,6 +135,8 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
         )}
 
         <ResumenCierre vista={vista} />
+
+        <ProductosVendidos datos={vendidos} />
 
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
         <button type="button" className="boton boton--primario" disabled={enviando} onClick={() => ejecutar(() => servicios.servicioCierres.recalcularCierre(cierre.id))}>
