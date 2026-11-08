@@ -873,6 +873,11 @@ button {
   gap: 4px;
 }
 
+/* Frase de la bitácora: lo que pasó, en una línea que se lee de corrido. */
+.bitacora-frase {
+  line-height: 1.4;
+}
+
 .renglones__descripcion {
   margin: 0;
   font-size: 14px;

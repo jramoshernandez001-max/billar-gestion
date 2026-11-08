@@ -46,8 +46,8 @@ Reglas comunes a todas las vistas:
 - Acción por venta vigente: **Anular** (motivo obligatorio).
 
 ## 4. Inventario (stock)
-- Arriba: **Total de cajas** en bodega, nevera y general (cajas completas y sueltas aparte; sin licor; sigue la búsqueda y la categoría).
-- Tabla por producto: nombre, **bodega**, **nevera**, **total** (en unidades).
+- Arriba: **Total de cajas** en bodega, nevera y general (cajas completas y sueltas aparte; sin licor; sigue la búsqueda y la categoría), con un botón pequeño **Ver detalles** que despliega por producto las cajas y sueltas que quedan (y las botellas de cada licor).
+- Tabla por producto: nombre, **bodega**, **nevera**, **total** (en unidades, cada número con "und").
 - Equivalente en cajas/sixpacks (informativo, opcional).
 - Resaltar negativos y bajos.
 - Acciones por producto: **Trasladar**, **Ajustar (conteo físico)**, **Comprar**, **Editar producto**.
@@ -114,7 +114,7 @@ Reglas comunes a todas las vistas:
 - Detalle de un cierre: además del resultado, **Productos vendidos** del día (diario) o de la semana (semanal): por producto, el desglose (cajas, sixpacks, unidades o botellas), el valor, y el total de unidades y pesos. Usa las ventas vigentes de hoy; si algo se anuló después, el cierre sale como desactualizado.
 
 ## 14. Bitácora
-- Lista cronológica de todo lo que cambió datos: fecha y hora, usuario (correo, o "Nombre (código)"), acción, **dónde** (sección y registro: producto, número de compra, ubicación, cliente, periodo), los primeros cambios como "Campo: antes → después" (y cuántos más hay), motivo.
+- Lista cronológica de todo lo que cambió datos: fecha y hora, usuario (correo, o "Nombre (código)"), acción, una **frase** que cuenta lo que pasó (p. ej. "Se compraron 3 cajas de Águila (90 unidades) por $ 240.000. Compra C-007 del 2026-11-08."), "Registrado por …" y motivo. En el detalle: la frase, dónde fue (sección y registro) y cada campo con antes → después.
 - Detalle: **antes** y **después** del registro.
 - Filtros: acción, usuario, rango de fechas. Solo lectura.
 

@@ -6,7 +6,8 @@
  * usuario, y acceso al detalle de cada entrada.
  * Cómo lo hace: carga la bitácora y los productos (para nombrarlos) y
  * `resumirBitacora` (aplicacion) filtra, ordena, pagina de a 20 y arma el
- * "dónde" y los cambios; la tarjeta muestra los primeros cambios.
+ * "dónde", los cambios y la frase; la tarjeta muestra la frase (qué pasó en
+ * palabras) y, si la acción no tiene frase, el dónde y los primeros cambios.
  * Por qué: los dos usuarios tienen los mismos permisos; la bitácora es la
  * evidencia de quién anuló o corrigió algo y por qué. La app nunca escribe en
  * ella: lo hacen las funciones de la base.
@@ -57,7 +58,7 @@ export function Bitacora({ servicios, alIr }: Propiedades) {
   const [limite, setLimite] = useState(PAGINA)
 
   const resumen = useMemo(
-    () => (datos === null ? null : resumirBitacora({ entradas: datos.entradas, nombres: datos.nombres, grupo, usuario, limite })),
+    () => (datos === null ? null : resumirBitacora({ entradas: datos.entradas, nombres: datos.nombres, productos: datos.productos, grupo, usuario, limite })),
     [datos, grupo, usuario, limite],
   )
 
@@ -92,16 +93,26 @@ export function Bitacora({ servicios, alIr }: Propiedades) {
               <span className="renglones__descripcion">{t.titulo}</span>
               <span className="texto-suave">{momentoLocal(t.momento)}</span>
             </span>
-            {t.donde !== '' && <span>{t.donde}</span>}
-            {t.cambios.slice(0, CAMBIOS_EN_TARJETA).map((c) => (
-              <span key={c.campo} className="texto-suave">
-                {c.campo}: {c.antes} → {c.despues}
-              </span>
-            ))}
-            {t.cambios.length > CAMBIOS_EN_TARJETA && (
-              <span className="texto-suave">y {t.cambios.length - CAMBIOS_EN_TARJETA} cambios más</span>
+            {t.frase !== undefined ? (
+              // La frase ya dice qué, dónde y de cuánto a cuánto; los campos
+              // uno por uno quedan en el detalle.
+              <span className="bitacora-frase">{t.frase}</span>
+            ) : (
+              <>
+                {t.donde !== '' && <span>{t.donde}</span>}
+                {t.cambios.slice(0, CAMBIOS_EN_TARJETA).map((c) => (
+                  <span key={c.campo} className="texto-suave">
+                    {c.campo}: {c.antes} → {c.despues}
+                  </span>
+                ))}
+                {t.cambios.length > CAMBIOS_EN_TARJETA && (
+                  <span className="texto-suave">
+                    y {t.cambios.length - CAMBIOS_EN_TARJETA} {t.cambios.length - CAMBIOS_EN_TARJETA === 1 ? 'cambio' : 'cambios'} más
+                  </span>
+                )}
+              </>
             )}
-            <span className="texto-suave">{t.usuario}</span>
+            <span className="texto-suave">Registrado por {t.usuario}</span>
             {t.motivo !== null && <span className="texto-suave">Motivo: {t.motivo}</span>}
           </button>
         ))}

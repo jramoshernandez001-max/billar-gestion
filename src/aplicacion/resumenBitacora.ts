@@ -13,6 +13,7 @@
 import type { EntradaBitacora } from '../datos/bitacora'
 import type { AccionBitacora } from '../domain/compartido/bitacora'
 import { formatoPesos } from '../interfaz/formato'
+import { fraseDe, type ProductoBitacora } from './frasesBitacora'
 
 export type GrupoBitacora = 'todos' | 'ventas' | 'compras' | 'inventario' | 'deudas' | 'cierres' | 'productos'
 
@@ -83,6 +84,8 @@ export function grupoDe(entrada: EntradaBitacora): GrupoBitacora {
 export interface TarjetaBitacora {
   id: string
   titulo: string
+  /** Lo que pasó contado en una frase; undefined si la acción no tiene frase. */
+  frase: string | undefined
   /** Sección y registro afectado, p. ej. "Compras · Águila · C-007". */
   donde: string
   /** Lo que cambió, campo por campo, con antes y después. */
@@ -100,6 +103,8 @@ export function resumirBitacora(entrada: {
   limite: number
   /** Nombre de cada producto por id, para decir dónde fue el cambio. */
   nombres?: ReadonlyMap<string, string>
+  /** Datos de cada producto por id, para contar en cajas o botellas. */
+  productos?: ReadonlyMap<string, ProductoBitacora>
 }): { tarjetas: TarjetaBitacora[]; total: number; usuarios: string[] } {
   const nombres = entrada.nombres ?? new Map<string, string>()
   const usuarios = [...new Set(entrada.entradas.map((e) => e.usuario))].sort()
@@ -113,6 +118,7 @@ export function resumirBitacora(entrada: {
     tarjetas: filtradas.slice(0, entrada.limite).map((e) => ({
       id: e.id,
       titulo: tituloDe(e),
+      frase: fraseDe(e, entrada.productos),
       donde: dondeDe(e, nombres),
       cambios: comparar(e.antes, e.despues, nombres),
       usuario: e.usuario,

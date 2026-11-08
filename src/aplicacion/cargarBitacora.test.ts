@@ -20,5 +20,6 @@ describe('cargarBitacoraConNombres', () => {
     })
     expect(r.entradas).toEqual([])
     expect(r.nombres.get('p1')).toBe('Cerveza Ejemplo')
+    expect(r.productos.get('p1')).toEqual({ nombre: 'Cerveza Ejemplo', categoria: 'cerveza', unidadesPorCaja: 24 })
   })
 })
