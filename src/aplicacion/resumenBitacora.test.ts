@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { ACCIONES_BITACORA } from '../domain/compartido/bitacora'
-import { comparar, grupoDe, resumirBitacora, tituloDe } from './resumenBitacora'
+import { comparar, dondeDe, grupoDe, resumirBitacora, tituloDe } from './resumenBitacora'
 import type { EntradaBitacora } from '../datos/bitacora'
 
 const entrada = (id: string, momento: string, sobre: Partial<EntradaBitacora> = {}): EntradaBitacora => ({
@@ -80,5 +80,64 @@ describe('comparar', () => {
 
   it('un campo desconocido usa su nombre sin guiones bajos', () => {
     expect(comparar({ tipo_raro: 1 }, { tipo_raro: 2 })).toEqual([{ campo: 'Tipo raro', antes: '1', despues: '2' }])
+  })
+})
+
+describe('comparar: renglones de venta y datos internos', () => {
+  const nombres = new Map([['p1', 'Águila'], ['p2', 'Poker']])
+
+  it('muestra los renglones de una venta como "cantidad × presentación producto"', () => {
+    const renglones = [
+      { producto_id: 'p1', presentacion: 'caja', cantidad: 2 },
+      { producto_id: 'p2', presentacion: 'unidad', cantidad: 3 },
+    ]
+    expect(comparar(null, { fecha: '2026-11-08', renglones }, nombres)).toContainEqual(
+      { campo: 'Renglones', antes: '—', despues: '2 × caja Águila, 3 × unidad Poker' },
+    )
+  })
+
+  it('no muestra los cálculos internos de un cierre (JSON)', () => {
+    const cambios = comparar({ efectivo: 1000, resultado: { a: 1 }, costos_usados: [] }, { efectivo: 2000, resultado: { a: 2 }, costos_usados: [1] })
+    expect(cambios).toEqual([{ campo: 'Efectivo', antes: '$ 1.000', despues: '$ 2.000' }])
+  })
+})
+
+describe('dondeDe', () => {
+  const nombres = new Map([['p1', 'Águila'], ['p2', 'Poker']])
+  const e = (sobre: Partial<EntradaBitacora>) => entrada('x', '2026-11-01T10:00:00.000Z', sobre)
+
+  it('producto: la sección y el nombre del producto', () => {
+    expect(dondeDe(e({ accion: 'editar-producto', tabla: 'productos', despues: { nombre: 'Águila' } }), nombres)).toBe('Productos · Águila')
+  })
+
+  it('compra: el producto y su número', () => {
+    expect(dondeDe(e({ accion: 'registrar-compra', tabla: 'compras', despues: { producto_id: 'p2', numero: 7 } }), nombres)).toBe('Compras · Poker · C-007')
+  })
+
+  it('traslado: el producto y de dónde a dónde', () => {
+    expect(dondeDe(e({ accion: 'registrar-traslado', tabla: 'movimientos_inventario', despues: { producto_id: 'p1', unidades: 30 } }), nombres)).toBe('Inventario · Águila · Bodega → Nevera')
+  })
+
+  it('ajuste: el producto y la ubicación', () => {
+    expect(dondeDe(e({ accion: 'registrar-ajuste', tabla: 'movimientos_inventario', despues: { producto_id: 'p1', ubicacion: 'nevera' } }), nombres)).toBe('Inventario · Águila · Nevera')
+  })
+
+  it('venta: la fecha y los productos vendidos, sin repetir', () => {
+    const despues = { fecha: '2026-11-08', renglones: [{ producto_id: 'p1' }, { producto_id: 'p2' }, { producto_id: 'p1' }] }
+    expect(dondeDe(e({ despues }), nombres)).toBe('Ventas · 2026-11-08 · Águila, Poker')
+  })
+
+  it('deuda: el cliente; abono: la deuda', () => {
+    expect(dondeDe(e({ accion: 'registrar-deuda', tabla: 'deudas', despues: { cliente: 'Pedro' } }), nombres)).toBe('Deudas · Pedro')
+    expect(dondeDe(e({ accion: 'registrar-abono', tabla: 'abonos_deuda', despues: { fecha: '2026-11-08' } }), nombres)).toBe('Deudas · Abono')
+  })
+
+  it('cierre: el tipo y el periodo', () => {
+    expect(dondeDe(e({ accion: 'registrar-cierre-diario', tabla: 'cierres', despues: { tipo: 'diario', desde: '2026-11-08', hasta: '2026-11-08' } }), nombres)).toBe('Cierres · Diario 2026-11-08')
+    expect(dondeDe(e({ accion: 'recalcular-cierre-semanal', tabla: 'cierres', despues: { tipo: 'semanal', desde: '2026-11-02', hasta: '2026-11-08' } }), nombres)).toBe('Cierres · Semanal 2026-11-02 a 2026-11-08')
+  })
+
+  it('un producto que ya no se conoce no rompe: se omite su nombre', () => {
+    expect(dondeDe(e({ accion: 'registrar-compra', tabla: 'compras', despues: { producto_id: 'otro' } }), nombres)).toBe('Compras')
   })
 })

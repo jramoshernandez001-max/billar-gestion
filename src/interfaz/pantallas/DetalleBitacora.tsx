@@ -1,19 +1,20 @@
 /**
  * Pantalla "Detalle de la bitácora".
  *
- * Qué hace: muestra una entrada de la bitácora: qué pasó, quién, cuándo, el
- * motivo y, campo por campo, cómo estaba y cómo quedó el registro.
+ * Qué hace: muestra una entrada de la bitácora: qué pasó, dónde, quién,
+ * cuándo, el motivo y, campo por campo, cómo estaba y cómo quedó el registro.
  * Cómo lo hace: carga la bitácora, busca la entrada por id y `comparar`
  * (aplicacion) arma los cambios con nombres y valores legibles.
  * Por qué: es la evidencia de una corrección o anulación; mostrar solo lo que
  * cambió evita buscar la diferencia a ojo.
  */
 import { useCallback } from 'react'
-import { comparar, tituloDe } from '../../aplicacion/resumenBitacora'
+import { comparar, dondeDe, tituloDe } from '../../aplicacion/resumenBitacora'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { useCarga } from '../useCarga'
 import type { ServiciosBitacora } from './Bitacora'
+import { cargarBitacoraConNombres } from '../../aplicacion/cargarBitacora'
 import { momentoLocal } from '../formato'
 
 interface Propiedades {
@@ -23,7 +24,7 @@ interface Propiedades {
 }
 
 export function DetalleBitacora({ servicios, entradaId, alIr }: Propiedades) {
-  const cargar = useCallback(() => servicios.bitacora.listarBitacora(), [servicios])
+  const cargar = useCallback(() => cargarBitacoraConNombres(servicios), [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)
 
   const cabecera = <CabeceraInterna titulo="Detalle" subtitulo="Antes y después" alVolver={() => alIr('mas/bitacora')} />
@@ -37,7 +38,7 @@ export function DetalleBitacora({ servicios, entradaId, alIr }: Propiedades) {
       </>
     )
   }
-  const entrada = datos.find((e) => e.id === entradaId)
+  const entrada = datos.entradas.find((e) => e.id === entradaId)
   if (entrada === undefined) {
     return (
       <>
@@ -50,13 +51,15 @@ export function DetalleBitacora({ servicios, entradaId, alIr }: Propiedades) {
     )
   }
 
-  const cambios = comparar(entrada.antes, entrada.despues)
+  const cambios = comparar(entrada.antes, entrada.despues, datos.nombres)
+  const donde = dondeDe(entrada, datos.nombres)
   return (
     <>
       {cabecera}
       <div className="marco__contenido">
         <article className="tarjeta">
           <span className="renglones__descripcion">{tituloDe(entrada)}</span>
+          {donde !== '' && <span>{donde}</span>}
           <span className="texto-suave">{momentoLocal(entrada.momento)}</span>
           <span>{entrada.usuario}</span>
           {entrada.motivo !== null && (

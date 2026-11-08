@@ -19,7 +19,7 @@ const entrada: EntradaBitacora = {
   antes: { id: 'c1', costo_total: 96000, estado: 'vigente' }, despues: { id: 'c1', costo_total: 100800, estado: 'vigente' }, motivo: 'precio mal digitado',
 }
 
-const servicios = { bitacora: { listarBitacora: async () => [entrada] } }
+const servicios = { bitacora: { listarBitacora: async () => [entrada] }, inventario: { listarProductos: async () => [] } }
 
 describe('DetalleBitacora', () => {
   it('muestra título, usuario, motivo y solo lo que cambió', async () => {
@@ -31,6 +31,11 @@ describe('DetalleBitacora', () => {
     expect(screen.getByText('$ 96.000')).toBeTruthy()
     expect(screen.getByText('$ 100.800')).toBeTruthy()
     expect(screen.queryByText('Estado')).toBeNull()
+  })
+
+  it('dice dónde fue el cambio', async () => {
+    render(<DetalleBitacora servicios={servicios} entradaId="b1" alIr={vi.fn()} />)
+    expect(await screen.findByText('Compras')).toBeTruthy()
   })
 
   it('una entrada que no existe avisa', async () => {

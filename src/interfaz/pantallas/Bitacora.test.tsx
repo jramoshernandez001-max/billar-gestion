@@ -18,9 +18,34 @@ const entrada = (id: string, dia: number, sobre: Partial<EntradaBitacora> = {}):
   id, momento: new Date(2026, 10, dia, 10, 0).toISOString(), usuario: 'ana@ejemplo.com', accion: 'registrar-venta', tabla: 'ventas', registroId: 'r', antes: null, despues: {}, motivo: null, ...sobre,
 })
 
-const servicios = (entradas: EntradaBitacora[]): ServiciosBitacora => ({ bitacora: { listarBitacora: async () => entradas } })
+const productos = [{ id: 'p1', nombre: 'Cerveza Águila', categoria: 'cerveza' as const, unidadesPorCaja: 30, manejaSixpack: false, precioUnidad: 3500, precioCaja: 105000 }]
+const servicios = (entradas: EntradaBitacora[]): ServiciosBitacora => ({
+  bitacora: { listarBitacora: async () => entradas },
+  inventario: { listarProductos: async () => productos },
+})
 
 describe('Bitacora', () => {
+  it('cada tarjeta dice dónde fue el cambio y cómo estaba antes y cómo quedó', async () => {
+    const corregida = entrada('a', 1, {
+      accion: 'corregir-costo-compra',
+      tabla: 'compras',
+      antes: { producto_id: 'p1', numero: 3, costo_total: 96000 },
+      despues: { producto_id: 'p1', numero: 3, costo_total: 100000 },
+      motivo: 'factura',
+    })
+    render(<Bitacora servicios={servicios([corregida])} alIr={vi.fn()} />)
+    expect(await screen.findByText('Compras · Cerveza Águila · C-003')).toBeTruthy()
+    expect(screen.getByText('Costo total: $ 96.000 → $ 100.000')).toBeTruthy()
+  })
+
+  it('muestra solo los primeros tres cambios y avisa cuántos más hay', async () => {
+    const nueva = entrada('a', 1, { accion: 'registrar-deuda', tabla: 'deudas', despues: { cliente: 'Pedro', fecha: '2026-11-01', monto: 5000, descripcion: 'cervezas', estado: 'vigente' } })
+    render(<Bitacora servicios={servicios([nueva])} alIr={vi.fn()} />)
+    expect(await screen.findByText('Deudas · Pedro')).toBeTruthy()
+    expect(screen.getByText('Cliente: — → Pedro')).toBeTruthy()
+    expect(screen.getByText('y 2 cambios más')).toBeTruthy()
+  })
+
   it('lista las entradas con título, usuario y motivo', async () => {
     render(<Bitacora servicios={servicios([entrada('a', 1), entrada('b', 2, { accion: 'anular-registro', tabla: 'compras', motivo: 'duplicada', usuario: 'beto@ejemplo.com' })])} alIr={vi.fn()} />)
     expect(await screen.findByText('Venta registrada')).toBeTruthy()
@@ -58,7 +83,7 @@ describe('Bitacora', () => {
     render(<Bitacora servicios={servicios([])} alIr={vi.fn()} />)
     expect(await screen.findByText(/no hay movimientos/i)).toBeTruthy()
     cleanup()
-    render(<Bitacora servicios={{ bitacora: { listarBitacora: async () => { throw new Error('sin red') } } }} alIr={vi.fn()} />)
+    render(<Bitacora servicios={{ ...servicios([]), bitacora: { listarBitacora: async () => { throw new Error('sin red') } } }} alIr={vi.fn()} />)
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin red/)
   })
 })
