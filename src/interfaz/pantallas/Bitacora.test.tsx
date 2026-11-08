@@ -25,7 +25,7 @@ const servicios = (entradas: EntradaBitacora[]): ServiciosBitacora => ({
 })
 
 describe('Bitacora', () => {
-  it('cada tarjeta dice dónde fue el cambio y cómo estaba antes y cómo quedó', async () => {
+  it('cada tarjeta cuenta en una frase lo que pasó y quién lo registró', async () => {
     const corregida = entrada('a', 1, {
       accion: 'corregir-costo-compra',
       tabla: 'compras',
@@ -34,16 +34,16 @@ describe('Bitacora', () => {
       motivo: 'factura',
     })
     render(<Bitacora servicios={servicios([corregida])} alIr={vi.fn()} />)
-    expect(await screen.findByText('Compras · Cerveza Águila · C-003')).toBeTruthy()
-    expect(screen.getByText('Costo total: $ 96.000 → $ 100.000')).toBeTruthy()
+    expect(await screen.findByText('Se corrigió el costo de la compra C-003 de Cerveza Águila: pasó de $ 96.000 a $ 100.000.')).toBeTruthy()
+    expect(screen.getByText('Registrado por ana@ejemplo.com')).toBeTruthy()
+    expect(screen.getByText('Motivo: factura')).toBeTruthy()
   })
 
-  it('muestra solo los primeros tres cambios y avisa cuántos más hay', async () => {
-    const nueva = entrada('a', 1, { accion: 'registrar-deuda', tabla: 'deudas', despues: { cliente: 'Pedro', fecha: '2026-11-01', monto: 5000, descripcion: 'cervezas', estado: 'vigente' } })
-    render(<Bitacora servicios={servicios([nueva])} alIr={vi.fn()} />)
-    expect(await screen.findByText('Deudas · Pedro')).toBeTruthy()
-    expect(screen.getByText('Cliente: — → Pedro')).toBeTruthy()
-    expect(screen.getByText('y 2 cambios más')).toBeTruthy()
+  it('una entrada sin frase muestra dónde fue y los primeros tres cambios', async () => {
+    const rara = entrada('a', 1, { accion: 'anular-registro', tabla: 'otra_tabla', despues: { a: 1, b: 2, c: 3, d: 4 } })
+    render(<Bitacora servicios={servicios([rara])} alIr={vi.fn()} />)
+    expect(await screen.findByText('A: — → 1')).toBeTruthy()
+    expect(screen.getByText('y 1 cambio más')).toBeTruthy()
   })
 
   it('lista las entradas con título, usuario y motivo', async () => {
