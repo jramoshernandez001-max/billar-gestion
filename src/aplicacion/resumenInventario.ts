@@ -34,6 +34,8 @@ export interface FilaInventario {
   productoId: string
   nombre: string
   categoria: CategoriaProducto
+  /** Unidades que trae una caja de este producto (para totalizar cajas). */
+  unidadesPorCaja: number
   bodega: number
   nevera: number
   total: number
@@ -68,6 +70,7 @@ export function resumirInventario(
         productoId: producto.id,
         nombre: producto.nombre,
         categoria: producto.categoria,
+        unidadesPorCaja: producto.unidadesPorCaja,
         bodega: s.bodega,
         nevera: s.nevera,
         total: s.total,
@@ -76,4 +79,63 @@ export function resumirInventario(
       }
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
+}
+
+/** Cajas completas y unidades sueltas de una ubicación o del total. */
+export interface CajasYSueltas {
+  cajas: number
+  sueltas: number
+}
+
+/** Totales de cajas que la pantalla de inventario muestra arriba. */
+export interface TotalesCajas {
+  bodega: CajasYSueltas
+  nevera: CajasYSueltas
+  general: CajasYSueltas
+}
+
+/**
+ * Parte unidades de un producto en cajas completas y sueltas.
+ *
+ * Qué hace: devuelve cuántas cajas completas caben y cuántas unidades sobran.
+ * Cómo lo hace: Math.trunc (no floor) para que un negativo dé 0 cajas y las
+ * unidades negativas queden como sueltas.
+ * Por qué: un stock negativo es un registro faltante; no debe restar cajas
+ * enteras que nunca existieron, sino verse tal cual.
+ */
+function partirEnCajas(unidades: number, unidadesPorCaja: number): CajasYSueltas {
+  const cajas = Math.trunc(unidades / unidadesPorCaja)
+  return { cajas, sueltas: unidades - cajas * unidadesPorCaja }
+}
+
+/** Suma dos conteos de cajas y sueltas. */
+function sumar(a: CajasYSueltas, b: CajasYSueltas): CajasYSueltas {
+  return { cajas: a.cajas + b.cajas, sueltas: a.sueltas + b.sueltas }
+}
+
+/**
+ * Totaliza las cajas de bodega, nevera y en general.
+ *
+ * Qué hace: suma, para las filas dadas, las cajas completas y las unidades
+ * sueltas de cada ubicación y del total.
+ * Cómo lo hace: parte cada producto por separado con sus propias unidades por
+ * caja (una caja de Costeñita no trae lo mismo que una de Coronita) y suma
+ * los resultados. El total general se parte desde el total del producto, así
+ * que sueltas de bodega y nevera que juntas forman una caja cuentan como caja.
+ * Deja fuera el licor, que se maneja por botella y no tiene caja.
+ * Por qué: el negocio cuenta la cerveza por cajas; ver arriba "tengo 12 cajas
+ * en bodega y 3 en nevera" ahorra sumar tarjeta por tarjeta.
+ */
+export function totalizarCajas(filas: readonly FilaInventario[]): TotalesCajas {
+  const cero: CajasYSueltas = { cajas: 0, sueltas: 0 }
+  return filas
+    .filter((f) => f.categoria !== 'licor')
+    .reduce<TotalesCajas>(
+      (acumulado, f) => ({
+        bodega: sumar(acumulado.bodega, partirEnCajas(f.bodega, f.unidadesPorCaja)),
+        nevera: sumar(acumulado.nevera, partirEnCajas(f.nevera, f.unidadesPorCaja)),
+        general: sumar(acumulado.general, partirEnCajas(f.total, f.unidadesPorCaja)),
+      }),
+      { bodega: cero, nevera: cero, general: cero },
+    )
 }

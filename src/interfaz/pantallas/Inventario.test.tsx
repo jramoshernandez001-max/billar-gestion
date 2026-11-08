@@ -40,6 +40,27 @@ function armar(sobre: Partial<ServiciosInventario['inventario']> = {}) {
 const tarjeta = (nombre: string) => screen.getByRole('article', { name: nombre })
 
 describe('Inventario', () => {
+  it('muestra arriba el total de cajas en bodega, en nevera y en general, con las sueltas', async () => {
+    armar()
+    const totales = within(await screen.findByRole('region', { name: 'Total de cajas' }))
+    // Agua 24/12/36 (x12) → 2, 1 y 3 cajas; Águila 18/4/22 (x24) → solo sueltas; Poker -2 en nevera.
+    expect(totales.getByText('Bodega').nextElementSibling?.textContent).toBe('2')
+    expect(totales.getByText('Nevera').nextElementSibling?.textContent).toBe('1')
+    expect(totales.getByText('General').nextElementSibling?.textContent).toBe('3')
+    expect(totales.getByText('+ 18 sueltas')).toBeTruthy()
+    expect(totales.getByText('+ 2 sueltas')).toBeTruthy()
+    expect(totales.getByText('+ 20 sueltas')).toBeTruthy()
+  })
+
+  it('los totales de cajas siguen la búsqueda', async () => {
+    armar()
+    await screen.findAllByRole('article')
+    fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: 'agua' } })
+    const totales = within(screen.getByRole('region', { name: 'Total de cajas' }))
+    expect(totales.getByText('General').nextElementSibling?.textContent).toBe('3')
+    expect(totales.queryByText(/sueltas/)).toBeNull()
+  })
+
   it('muestra el título, la cuenta de productos y una tarjeta por producto ordenada por nombre', async () => {
     armar()
     expect(await screen.findByRole('heading', { name: 'Inventario' })).toBeTruthy()
