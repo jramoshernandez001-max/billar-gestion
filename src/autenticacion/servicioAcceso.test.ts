@@ -18,11 +18,13 @@ function clienteFalso(inicial: {
   autorizado?: boolean
   errorAutorizacion?: string | null
   errorSesion?: string | null
+  errorCodigo?: string | null
 }) {
   let sesion = inicial.sesion ?? null
   const oyentes = new Set<(sesion: SesionUsuario | null) => void>()
   const cliente: ClienteAutenticacion = {
     iniciarSesionConGoogle: vi.fn().mockResolvedValue({ error: null }),
+    iniciarSesionConCodigo: vi.fn().mockResolvedValue({ error: inicial.errorCodigo ?? null }),
     cerrarSesion: vi.fn().mockResolvedValue({ error: null }),
     obtenerSesion: vi.fn(async () => {
       if (inicial.errorSesion) throw new Error(inicial.errorSesion)
@@ -244,5 +246,24 @@ describe('acceso sin conexión', () => {
   it('sin memoria configurada todo sigue igual: un fallo niega el acceso', async () => {
     const { cliente } = clienteFalso({ sesion: ana, errorAutorizacion: 'Failed to fetch' })
     expect((await crearServicioAcceso(cliente).resolverEstado()).tipo).toBe('error')
+  })
+})
+
+describe('iniciarSesionConCodigo', () => {
+  it('envía el código sin espacios a los lados', async () => {
+    const { cliente } = clienteFalso({})
+    await crearServicioAcceso(cliente).iniciarSesionConCodigo('  clave-de-ana  ')
+    expect(cliente.iniciarSesionConCodigo).toHaveBeenCalledWith('clave-de-ana')
+  })
+
+  it('un código vacío se rechaza sin llamar al cliente', async () => {
+    const { cliente } = clienteFalso({})
+    await expect(crearServicioAcceso(cliente).iniciarSesionConCodigo('   ')).rejects.toThrow(/escribe el código/i)
+    expect(cliente.iniciarSesionConCodigo).not.toHaveBeenCalled()
+  })
+
+  it('si el cliente falla, lanza el motivo', async () => {
+    const { cliente } = clienteFalso({ errorCodigo: 'El código no es válido' })
+    await expect(crearServicioAcceso(cliente).iniciarSesionConCodigo('otro-codigo')).rejects.toThrow(/no es válido/)
   })
 })

@@ -50,7 +50,7 @@ const sentencias = sql
 
 /** Funciones creadas: nombre y texto completo de su definición. */
 const todasLasFunciones = sql
-  .split(/create function /i)
+  .split(/create (?:or replace )?function /i)
   .slice(1)
   .map((parte) => ({
     nombre: parte.match(/^public\.(\w+)/i)?.[1] ?? '',
@@ -62,8 +62,14 @@ const funciones = [...new Map(todasLasFunciones.map((f) => [f.nombre, f])).value
 /** Nombres de las tablas creadas en el esquema public. */
 const tablas = [...sql.matchAll(/create table public\.(\w+)/gi)].map((m) => m[1])
 
+/** Tablas del acceso con código: nadie de la app las lee (guardan los hashes). */
+const PRIVADAS = ['codigos_acceso', 'sesiones_codigo', 'intentos_codigo']
+
+/** Tablas que la app lee. */
+const legibles = tablas.filter((t) => !PRIVADAS.includes(t))
+
 describe('migraciones de la base de datos', () => {
-  it('existen las siete migraciones, en orden', () => {
+  it('existen las ocho migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -72,6 +78,7 @@ describe('migraciones de la base de datos', () => {
       '0005_compras_numero_y_motivo.sql',
       '0006_operaciones_pendientes.sql',
       '0007_categoria_producto.sql',
+      '0008_acceso_con_codigo.sql',
     ])
   })
 
@@ -82,7 +89,7 @@ describe('migraciones de la base de datos', () => {
     expect([...acciones].sort()).toEqual([...ACCIONES_BITACORA].sort())
   })
 
-  it('crea las once tablas del esquema', () => {
+  it('crea las catorce tablas del esquema', () => {
     expect([...tablas].sort()).toEqual(
       [
         'usuarios_autorizados',
@@ -96,6 +103,9 @@ describe('migraciones de la base de datos', () => {
         'cierres',
         'bitacora',
         'operaciones_aplicadas',
+        'codigos_acceso',
+        'sesiones_codigo',
+        'intentos_codigo',
       ].sort(),
     )
   })
@@ -153,7 +163,7 @@ describe('migraciones de la base de datos', () => {
 
   it('las políticas de authenticated son solo de lectura', () => {
     const deAuthenticated = sentencias.filter((s) => s.startsWith('create policy') && /\bto authenticated\b/.test(s))
-    expect(deAuthenticated.length).toBe(tablas.length)
+    expect(deAuthenticated.length).toBe(legibles.length)
     for (const politica of deAuthenticated) {
       expect(politica).toMatch(/\bfor select to authenticated\b/)
     }
@@ -231,10 +241,62 @@ describe('migraciones de la base de datos', () => {
     )
   })
 
+  describe('acceso con código', () => {
+    it('las tablas del acceso con código no tienen permisos ni políticas para la app', () => {
+      for (const tabla of PRIVADAS) {
+        for (const s of sentencias.filter((x) => x.startsWith('grant') || x.startsWith('create policy'))) {
+          if (s.includes(`on public.${tabla} `) || s.endsWith(`on public.${tabla}`)) {
+            expect(s, tabla).not.toMatch(/\bto authenticated\b/)
+          }
+        }
+        expect(sql, tabla).toMatch(new RegExp(`revoke all on public\\.${tabla} from public, anon, authenticated`, 'i'))
+        expect(sql, tabla).toMatch(new RegExp(`create trigger \\w+ before delete on public\\.${tabla}`, 'i'))
+      }
+    })
+
+    it('el código se guarda con hash (bcrypt) y nunca en claro', () => {
+      expect(sql).toMatch(/codigo_hash text not null/i)
+      expect(sql).not.toMatch(/\bcodigo text/i)
+      const crear = funciones.find((f) => f.nombre === 'crear_codigo_acceso')?.texto ?? ''
+      expect(crear).toMatch(/extensions\.crypt\([^)]*extensions\.gen_salt\('bf'/i)
+      expect(crear).toMatch(/security invoker/i)
+      // Solo se ejecuta desde el editor SQL (postgres): nadie de la app.
+      expect(sentencias).toContain('revoke all on function public.crear_codigo_acceso(text, text) from public, anon, authenticated')
+    })
+
+    it('canjear_codigo_acceso limita intentos, no repite carreras y solo authenticated la ejecuta', () => {
+      const canjear = funciones.find((f) => f.nombre === 'canjear_codigo_acceso')?.texto ?? ''
+      expect(canjear).toMatch(/security definer/i)
+      expect(canjear).toMatch(/pg_advisory_xact_lock/i)
+      expect(canjear).toMatch(/from public\.intentos_codigo/i)
+      expect(canjear).toMatch(/Demasiados intentos/i)
+      expect(canjear).toMatch(/where activo/i)
+      expect(sql).toMatch(/alter function public\.canjear_codigo_acceso\(text\) owner to postgres/i)
+      expect(sql).toMatch(/grant execute on function public\.canjear_codigo_acceso\(text\) to authenticated/i)
+    })
+
+    it('es_usuario_autorizado acepta un correo autorizado o una sesión con un código activo', () => {
+      const funcion = funciones.find((f) => f.nombre === 'es_usuario_autorizado')?.texto ?? ''
+      expect(funcion).toMatch(/from public\.usuarios_autorizados/i)
+      expect(funcion).toMatch(/from public\.sesiones_codigo[\s\S]*c\.activo/i)
+    })
+
+    it('la bitácora anota el nombre del dueño del código cuando no hay correo', () => {
+      const anotar = funciones.find((f) => f.nombre === 'anotar_bitacora')?.texto ?? ''
+      expect(anotar).toMatch(/public\.usuario_actual\(\)/i)
+      const usuario = funciones.find((f) => f.nombre === 'usuario_actual')?.texto ?? ''
+      expect(usuario).toMatch(/correo_del_token\(\)/i)
+      expect(usuario).toMatch(/\(código\)/i)
+    })
+  })
+
   describe('funciones de escritura (SECURITY DEFINER)', () => {
-    /** Las DEFINER, menos es_usuario_autorizado, que es la verificación misma. */
+    /**
+     * Las DEFINER, menos es_usuario_autorizado (la verificación misma) y
+     * canjear_codigo_acceso (la que da la autorización con un código).
+     */
     const definer = funciones.filter(
-      (f) => /security definer/i.test(f.texto) && f.nombre !== 'es_usuario_autorizado',
+      (f) => /security definer/i.test(f.texto) && !['es_usuario_autorizado', 'canjear_codigo_acceso'].includes(f.nombre),
     )
 
     it('existe una función por cada operación de escritura', () => {

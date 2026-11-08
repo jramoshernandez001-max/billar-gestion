@@ -5,7 +5,7 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 ## Stack
 - React + Vite + TypeScript, instalable como PWA.
 - Vitest para pruebas unitarias.
-- Planeado: Supabase (Postgres, login solo con Google y lista de correos autorizados, RLS en todas las tablas) y modo sin conexión con sincronización.
+- Supabase (Postgres, login con Google y lista de correos autorizados o con código de acceso, RLS en todas las tablas) y modo sin conexión con sincronización.
 
 ## Reglas de código
 - Usar principios SOLID y Single Responsibility: cada módulo y función hace una sola cosa.
@@ -30,7 +30,7 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - Cada producto tiene categoría: cerveza, licor u otro. El licor se vende por botella entera (1 unidad por caja, sin sixpack, caja al mismo precio; lo exige la base) y solo ofrece "Botella"; las listas de Productos e Inventario se filtran por categoría (`src/domain/inventario/categorias.ts`).
 - El precio de la caja se guarda aparte y es editable. El precio cobrado en una venta se guarda en la venta, para que cambios futuros no alteren el historial.
 - Las fechas son texto `AAAA-MM-DD`, sin hora.
-- `src/autenticacion/`: login solo con Google. `servicioAcceso.ts` decide el estado de acceso (sin sesión, no autorizado, autorizado, error) sobre una interfaz de cliente; `adaptadorSupabase.ts` es el único archivo que conoce a Supabase; `ControlDeAcceso.tsx` no renderiza la app para quien no esté autorizado. Ante cualquier fallo se niega el acceso, salvo una excepción: sin red, un correo que la base autorizó en ese teléfono en los últimos 30 días puede ver lo guardado (`memoriaDeAcceso.ts`). La autorización real la hace la base de datos (`es_usuario_autorizado()` y RLS).
+- `src/autenticacion/`: login con Google o con un código de acceso único por persona (migración 0008: sesión anónima de Supabase + `canjear_codigo_acceso`, que compara con hashes bcrypt, limita intentos y liga la sesión al código; `es_usuario_autorizado()` acepta un correo autorizado o una sesión con código activo; la bitácora anota "Nombre (código)"). Los códigos se crean a mano en el editor SQL con `crear_codigo_acceso` y nunca van en el repo. `servicioAcceso.ts` decide el estado de acceso (sin sesión, no autorizado, autorizado, error) sobre una interfaz de cliente; `adaptadorSupabase.ts` es el único archivo que conoce a Supabase; `ControlDeAcceso.tsx` no renderiza la app para quien no esté autorizado. Ante cualquier fallo se niega el acceso, salvo una excepción: sin red, un correo que la base autorizó en ese teléfono en los últimos 30 días puede ver lo guardado (`memoriaDeAcceso.ts`). La autorización real la hace la base de datos (`es_usuario_autorizado()` y RLS).
 - `src/datos/`: repositorios (inventario, ventas, deudas, cierres) que llaman a las funciones de la base con parámetros `p_*` por nombre (una prueba los compara con las migraciones) y convierten filas a los tipos del dominio. Dependen de la interfaz `ClienteDatos`, no de Supabase.
 - `src/aplicacion/`: servicios que unen repositorios y dominio (p. ej. `servicioCierres.ts`: carga datos, filtra el periodo, calcula con el dominio y guarda).
 - `src/interfaz/`: pantallas y componentes según el diseño de Figma (estilos solo en `estilos.css`). Las pantallas no calculan nada: usan las funciones de `src/aplicacion/` y reciben los servicios por propiedades. Rutas con `#/ruta` (`ruta.ts`; las pantallas de producto llevan el id en la ruta, p. ej. `inventario/trasladar/<id>`); `App.tsx` elige la pantalla.

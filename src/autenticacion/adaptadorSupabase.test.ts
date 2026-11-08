@@ -14,13 +14,15 @@ import { adaptarClienteSupabase, type ClienteSupabaseMinimo } from './adaptadorS
 
 /** Cliente de Supabase falso, con respuestas configurables. */
 function supabaseFalso(opciones: {
-  sesion?: { user: { email?: string; user_metadata?: Record<string, unknown> } } | null
+  sesion?: { user: { email?: string; is_anonymous?: boolean; user_metadata?: Record<string, unknown> } } | null
   errorSesion?: string
   rpc?: { data: unknown; error: { message: string } | null }
   errorOAuth?: string
   errorSalir?: string
+  errorAnonimo?: string
+  errorActualizar?: string
 } = {}) {
-  let oyente: ((evento: string, sesion: { user: { email?: string; user_metadata?: Record<string, unknown> } } | null) => void) | null = null
+  let oyente: ((evento: string, sesion: { user: { email?: string; is_anonymous?: boolean; user_metadata?: Record<string, unknown> } } | null) => void) | null = null
   const cancelar = vi.fn()
   const cliente: ClienteSupabaseMinimo = {
     auth: {
@@ -30,6 +32,9 @@ function supabaseFalso(opciones: {
         data: { session: opciones.sesion ?? null },
         error: opciones.errorSesion ? { message: opciones.errorSesion } : null,
       })),
+      signInAnonymously: vi.fn(async () => ({ error: opciones.errorAnonimo ? { message: opciones.errorAnonimo } : null })),
+      updateUser: vi.fn(async () => ({ error: opciones.errorActualizar ? { message: opciones.errorActualizar } : null })),
+      refreshSession: vi.fn(async () => ({ error: null })),
       onAuthStateChange: vi.fn((callback) => {
         oyente = callback
         return { data: { subscription: { unsubscribe: cancelar } } }
@@ -37,7 +42,7 @@ function supabaseFalso(opciones: {
     },
     rpc: vi.fn(async () => opciones.rpc ?? { data: true, error: null }),
   }
-  return { cliente, emitir: (sesion: { user: { email?: string; user_metadata?: Record<string, unknown> } } | null) => oyente?.('SIGNED_IN', sesion), cancelar }
+  return { cliente, emitir: (sesion: { user: { email?: string; is_anonymous?: boolean; user_metadata?: Record<string, unknown> } } | null) => oyente?.('SIGNED_IN', sesion), cancelar }
 }
 
 describe('adaptarClienteSupabase', () => {
@@ -121,5 +126,53 @@ describe('adaptarClienteSupabase', () => {
     dejarDeEscuchar()
     expect(cancelar).toHaveBeenCalled()
     vi.useRealTimers()
+  })
+})
+
+describe('iniciarSesionConCodigo', () => {
+  it('sin sesión abre una anónima, canjea el código y guarda el nombre para saludar', async () => {
+    const { cliente } = supabaseFalso({ sesion: null, rpc: { data: 'Ana', error: null } })
+    expect(await adaptarClienteSupabase(cliente).iniciarSesionConCodigo('clave-de-ana')).toEqual({ error: null })
+    expect(cliente.auth.signInAnonymously).toHaveBeenCalled()
+    expect(cliente.rpc).toHaveBeenCalledWith('canjear_codigo_acceso', { p_codigo: 'clave-de-ana' })
+    expect(cliente.auth.updateUser).toHaveBeenCalledWith({ data: { full_name: 'Ana' } })
+    expect(cliente.auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('un código que no coincide cierra la sesión anónima y avisa', async () => {
+    const { cliente } = supabaseFalso({ sesion: null, rpc: { data: null, error: null } })
+    expect(await adaptarClienteSupabase(cliente).iniciarSesionConCodigo('malo-malo')).toEqual({ error: 'El código no es válido' })
+    expect(cliente.auth.signOut).toHaveBeenCalled()
+  })
+
+  it('un error de la base (p. ej. demasiados intentos) cierra la sesión anónima y pasa el mensaje', async () => {
+    const { cliente } = supabaseFalso({ sesion: null, rpc: { data: null, error: { message: 'Demasiados intentos' } } })
+    expect(await adaptarClienteSupabase(cliente).iniciarSesionConCodigo('malo-malo')).toEqual({ error: 'Demasiados intentos' })
+    expect(cliente.auth.signOut).toHaveBeenCalled()
+  })
+
+  it('si no se puede abrir la sesión anónima, avisa sin canjear', async () => {
+    const { cliente } = supabaseFalso({ sesion: null, errorAnonimo: 'Anonymous sign-ins are disabled' })
+    const r = await adaptarClienteSupabase(cliente).iniciarSesionConCodigo('clave-de-ana')
+    expect(r.error).toMatch(/Anonymous sign-ins are disabled/)
+    expect(cliente.rpc).not.toHaveBeenCalled()
+  })
+
+  it('con una sesión ya abierta no crea otra ni la cierra si el código falla', async () => {
+    const { cliente } = supabaseFalso({ sesion: { user: { email: 'a@ejemplo.com' } }, rpc: { data: null, error: null } })
+    await adaptarClienteSupabase(cliente).iniciarSesionConCodigo('malo-malo')
+    expect(cliente.auth.signInAnonymously).not.toHaveBeenCalled()
+    expect(cliente.auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('si no se puede guardar el nombre, renueva la sesión para que la app se entere', async () => {
+    const { cliente } = supabaseFalso({ sesion: null, rpc: { data: 'Ana', error: null }, errorActualizar: 'falló' })
+    expect(await adaptarClienteSupabase(cliente).iniciarSesionConCodigo('clave-de-ana')).toEqual({ error: null })
+    expect(cliente.auth.refreshSession).toHaveBeenCalled()
+  })
+
+  it('una sesión anónima se muestra como "Acceso con código"', async () => {
+    const con = adaptarClienteSupabase(supabaseFalso({ sesion: { user: { is_anonymous: true, user_metadata: { full_name: 'Ana' } } } }).cliente)
+    expect(await con.obtenerSesion()).toEqual({ correo: 'Acceso con código', nombre: 'Ana' })
   })
 })

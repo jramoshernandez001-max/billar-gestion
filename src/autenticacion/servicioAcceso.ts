@@ -3,7 +3,7 @@
  *
  * Qué hace: decide en qué estado está quien abre la app (sin sesión, con
  * sesión pero sin autorización, autorizado, cargando o con error), inicia y
- * cierra la sesión con Google y avisa cuando ese estado cambia.
+ * cierra la sesión con Google o con un código de acceso, y avisa cuando ese estado cambia.
  * Cómo lo hace: recibe un cliente de autenticación (una interfaz pequeña) en
  * vez de usar Supabase directo. Con sesión, le pregunta a la base de datos
  * si el correo está autorizado (es_usuario_autorizado); sin sesión, ni
@@ -58,6 +58,8 @@ export interface ResultadoAutorizacion {
 export interface ClienteAutenticacion {
   /** Redirige a Google; al volver, el usuario queda en redirigirA. */
   iniciarSesionConGoogle(redirigirA: string): Promise<ResultadoOperacion>
+  /** Entra con un código de acceso único (la base decide si es válido). */
+  iniciarSesionConCodigo(codigo: string): Promise<ResultadoOperacion>
   cerrarSesion(): Promise<ResultadoOperacion>
   /** Sesión actual, o null si no hay. Lanza un error si no se puede leer. */
   obtenerSesion(): Promise<SesionUsuario | null>
@@ -80,6 +82,7 @@ export interface ServicioAcceso {
   resolverEstado(): Promise<EstadoAcceso>
   suscribir(alCambiar: (estado: EstadoAcceso) => void): () => void
   iniciarSesion(redirigirA: string): Promise<void>
+  iniciarSesionConCodigo(codigo: string): Promise<void>
   cerrarSesion(): Promise<void>
 }
 
@@ -172,6 +175,22 @@ export function crearServicioAcceso(cliente: ClienteAutenticacion, opciones?: Op
     if (error !== null) throw new Error(`No se pudo iniciar sesión con Google: ${error}`)
   }
 
+  /**
+   * Entra con un código de acceso.
+   *
+   * Qué hace: pide al cliente entrar con el código; lanza el motivo si falla.
+   * Cómo lo hace: quita los espacios de los lados y rechaza un código vacío
+   * sin llamar al cliente.
+   * Por qué: un espacio copiado por error no debe hacer fallar un código
+   * bueno; si entra, el aviso de cambio de sesión actualiza el estado.
+   */
+  async function iniciarSesionConCodigo(codigo: string): Promise<void> {
+    const limpio = codigo.trim()
+    if (limpio === '') throw new Error('Escribe el código de acceso')
+    const { error } = await cliente.iniciarSesionConCodigo(limpio)
+    if (error !== null) throw new Error(error)
+  }
+
   /** Cierra la sesión; lanza un error con el motivo si falla. */
   async function cerrarSesion(): Promise<void> {
     memoria?.borrar()
@@ -179,5 +198,5 @@ export function crearServicioAcceso(cliente: ClienteAutenticacion, opciones?: Op
     if (error !== null) throw new Error(`No se pudo cerrar la sesión: ${error}`)
   }
 
-  return { resolverEstado, suscribir, iniciarSesion, cerrarSesion }
+  return { resolverEstado, suscribir, iniciarSesion, iniciarSesionConCodigo, cerrarSesion }
 }
