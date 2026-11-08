@@ -139,3 +139,40 @@ export function totalizarCajas(filas: readonly FilaInventario[]): TotalesCajas {
       { bodega: cero, nevera: cero, general: cero },
     )
 }
+
+/** Lo que queda de un producto que se cuenta por cajas (cerveza, otros). */
+export interface DetalleEnCajas {
+  productoId: string
+  nombre: string
+  tipo: 'cajas'
+  cajas: number
+  sueltas: number
+}
+
+/** Lo que queda de un licor, que se cuenta por botellas. */
+export interface DetalleEnBotellas {
+  productoId: string
+  nombre: string
+  tipo: 'botellas'
+  botellas: number
+}
+
+export type DetalleExistencia = DetalleEnCajas | DetalleEnBotellas
+
+/**
+ * Detalle de lo que queda de cada producto.
+ *
+ * Qué hace: por cada fila devuelve cuántas cajas completas y cuántos envases
+ * sueltos quedan en total (bodega + nevera); para el licor, cuántas botellas.
+ * Cómo lo hace: parte el total de cada producto con sus propias unidades por
+ * caja (igual que totalizarCajas); el licor va directo en botellas.
+ * Por qué: el total general de cajas mezcla productos; el detalle responde
+ * "¿cuántas cajas de Águila me quedan?" sin sumar a mano.
+ */
+export function detallarExistencias(filas: readonly FilaInventario[]): DetalleExistencia[] {
+  return filas.map((f) =>
+    f.categoria === 'licor'
+      ? { productoId: f.productoId, nombre: f.nombre, tipo: 'botellas', botellas: f.total }
+      : { productoId: f.productoId, nombre: f.nombre, tipo: 'cajas', ...partirEnCajas(f.total, f.unidadesPorCaja) },
+  )
+}

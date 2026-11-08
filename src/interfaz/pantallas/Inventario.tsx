@@ -16,8 +16,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { CircleAlert, Search } from 'lucide-react'
 import {
+  detallarExistencias,
   resumirInventario,
   totalizarCajas,
+  type DetalleExistencia,
   type CajasYSueltas,
   type FilaInventario,
 } from '../../aplicacion/resumenInventario'
@@ -51,13 +53,51 @@ function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
 
-/** Una cantidad de una ubicación; en rojo si es negativa. */
+/**
+ * Una cantidad de una ubicación; en rojo si es negativa.
+ *
+ * El número lleva "und" al lado para que quede claro que son unidades
+ * (envases o botellas) y no cajas.
+ */
 function Existencia({ etiqueta, valor }: { etiqueta: string; valor: number }) {
   return (
     <div className="existencia">
       <span className="existencia__etiqueta">{etiqueta}</span>
-      <span className={`existencia__valor${valor < 0 ? ' existencia__valor--negativo' : ''}`}>{valor}</span>
+      <span className={`existencia__valor${valor < 0 ? ' existencia__valor--negativo' : ''}`}>
+        {valor} <span className="existencia__unidad">und</span>
+      </span>
     </div>
+  )
+}
+
+/** Plural sencillo: 1 caja, 2 cajas. */
+const contar = (n: number, singular: string, plural: string) => `${n} ${Math.abs(n) === 1 ? singular : plural}`
+
+/** Texto de lo que queda de un producto en el detalle. */
+function textoDetalle(d: DetalleExistencia): string {
+  if (d.tipo === 'botellas') return contar(d.botellas, 'botella', 'botellas')
+  const cajas = contar(d.cajas, 'caja', 'cajas')
+  return d.sueltas === 0 ? cajas : `${cajas} · ${contar(d.sueltas, 'suelta', 'sueltas')}`
+}
+
+/**
+ * Detalle por producto del total de cajas.
+ *
+ * Qué hace: lista, por producto, las cajas y sueltas que quedan en total, y
+ * las botellas de cada licor.
+ * Cómo lo hace: recibe el detalle ya calculado (aplicacion) y solo lo dibuja.
+ * Por qué: se abre con "Ver detalles" para no alargar la pantalla siempre.
+ */
+function DetallePorProducto({ detalle }: { detalle: DetalleExistencia[] }) {
+  return (
+    <ul className="detalle-existencias" aria-label="Detalle por producto">
+      {detalle.map((d) => (
+        <li key={d.productoId} className="detalle-existencias__fila">
+          <span>{d.nombre}</span>
+          <span className="texto-suave">{textoDetalle(d)}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -122,6 +162,7 @@ export function Inventario({ servicios, alIr }: Propiedades) {
   const { estado, datos, error, recargar } = useCarga(cargar)
   const [busqueda, setBusqueda] = useState('')
   const [categoria, setCategoria] = useState<FiltroCategoria>('todas')
+  const [verDetalles, setVerDetalles] = useState(false)
 
   const filas = useMemo(
     () => (datos === null ? [] : resumirInventario(datos.productos, datos.stock)),
@@ -172,6 +213,10 @@ export function Inventario({ servicios, alIr }: Propiedades) {
             <TotalDeCajas etiqueta="General" valor={totales.general} />
           </div>
           <span className="texto-suave">Sin contar licor, que va por botella.</span>
+          <button type="button" className="enlace" aria-expanded={verDetalles} onClick={() => setVerDetalles((v) => !v)}>
+            {verDetalles ? 'Ocultar detalles' : 'Ver detalles'}
+          </button>
+          {verDetalles && <DetallePorProducto detalle={detallarExistencias(visibles)} />}
         </section>
 
         <div className="campo">
