@@ -10,6 +10,7 @@
  */
 import { useCallback } from 'react'
 import { comparar, dondeDe, tituloDe } from '../../aplicacion/resumenBitacora'
+import { fraseDe } from '../../aplicacion/frasesBitacora'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { useCarga } from '../useCarga'
@@ -53,13 +54,15 @@ export function DetalleBitacora({ servicios, entradaId, alIr }: Propiedades) {
 
   const cambios = comparar(entrada.antes, entrada.despues, datos.nombres)
   const donde = dondeDe(entrada, datos.nombres)
+  const frase = fraseDe(entrada, datos.productos)
   return (
     <>
       {cabecera}
       <div className="marco__contenido">
         <article className="tarjeta">
           <span className="renglones__descripcion">{tituloDe(entrada)}</span>
-          {donde !== '' && <span>{donde}</span>}
+          {frase !== undefined && <span className="bitacora-frase">{frase}</span>}
+          {donde !== '' && <span className="texto-suave">{donde}</span>}
           <span className="texto-suave">{momentoLocal(entrada.momento)}</span>
           <span>{entrada.usuario}</span>
           {entrada.motivo !== null && (
