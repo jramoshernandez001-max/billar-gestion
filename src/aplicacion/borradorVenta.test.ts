@@ -32,6 +32,11 @@ describe('edición del borrador', () => {
     expect(base().renglones).toEqual([{ clave: 'r1', productoId: null, presentacion: 'unidad', cantidad: 1 }])
   })
 
+  it('el renglón nuevo queda arriba, antes de los que ya había', () => {
+    const b = agregarRenglon(agregarRenglon(base(), 'r2'), 'r3')
+    expect(b.renglones.map((r) => r.clave)).toEqual(['r3', 'r2', 'r1'])
+  })
+
   it('no repite la clave de un renglón', () => {
     expect(() => agregarRenglon(base(), 'r1')).toThrow(/clave/i)
   })
@@ -80,7 +85,7 @@ describe('calcularBorrador', () => {
     let b = cambiarRenglon(base(), 'r1', { productoId: 'cerveza', cantidad: 2 })
     b = cambiarRenglon(agregarRenglon(b, 'r2'), 'r2', { productoId: 'cerveza', presentacion: 'sixpack', cantidad: 1 })
     const c = calcularBorrador(b, catalogo)
-    expect(c.renglones.map((r) => [r.precioLista, r.subtotal])).toEqual([[3000, 6000], [18000, 18000]])
+    expect(c.renglones.map((r) => [r.precioLista, r.subtotal])).toEqual([[18000, 18000], [3000, 6000]])
     expect(c.total).toBe(24000)
     expect(c.problemas).toEqual([])
     expect(c.puedeRegistrar).toBe(true)
@@ -107,12 +112,13 @@ describe('calcularBorrador', () => {
     b = cambiarRenglon(agregarRenglon(b, 'r4'), 'r4', { productoId: 'cerveza', cantidad: 1.5 })
     b = cambiarRenglon(agregarRenglon(b, 'r5'), 'r5', { productoId: 'cerveza', precioCobrado: -1 })
     const c = calcularBorrador(b, catalogo)
+    // El último agregado va de primero: r5, r4, r3, r2, r1.
     expect(c.renglones.map((r) => r.problema)).toEqual([
-      expect.stringMatching(/producto/i),
-      expect.stringMatching(/producto/i),
-      expect.stringMatching(/sixpack/i),
-      expect.stringMatching(/cantidad/i),
       expect.stringMatching(/precio/i),
+      expect.stringMatching(/cantidad/i),
+      expect.stringMatching(/sixpack/i),
+      expect.stringMatching(/producto/i),
+      expect.stringMatching(/producto/i),
     ])
     expect(c.puedeRegistrar).toBe(false)
   })
@@ -135,7 +141,7 @@ describe('unidades del borrador', () => {
     b = cambiarRenglon(agregarRenglon(b, 'r2'), 'r2', { productoId: 'cerveza', presentacion: 'sixpack', cantidad: 2 })
     b = cambiarRenglon(agregarRenglon(b, 'r3'), 'r3', { productoId: 'gaseosa', cantidad: 3 })
     const c = calcularBorrador(b, catalogo)
-    expect(c.renglones.map((r) => r.unidades)).toEqual([24, 12, 3])
+    expect(c.renglones.map((r) => r.unidades)).toEqual([3, 12, 24])
     expect(c.unidades).toBe(39)
   })
 
@@ -153,8 +159,8 @@ describe('aDatosVenta', () => {
     expect(aDatosVenta(b, catalogo)).toEqual({
       fecha: '2026-11-03',
       renglones: [
-        { productoId: 'cerveza', presentacion: 'unidad', cantidad: 2, precioCobrado: 2800 },
         { productoId: 'gaseosa', presentacion: 'unidad', cantidad: 0 },
+        { productoId: 'cerveza', presentacion: 'unidad', cantidad: 2, precioCobrado: 2800 },
       ],
     })
   })

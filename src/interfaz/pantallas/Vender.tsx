@@ -231,8 +231,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
         <CampoFecha valor={borrador.fecha} hoy={hoy} alCambiar={(fecha) => setBorrador((b) => ({ ...b, fecha }))} />
         <p className="texto-suave">Precio por presentación. Si lo dejas vacío, se usa el precio del catálogo.</p>
 
-        {borrador.renglones.map(dibujarRenglon)}
-
+        {/* El botón va arriba porque el renglón nuevo aparece de primero. */}
         <button
           type="button"
           className="boton"
@@ -245,6 +244,9 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
           <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
           <span className="boton__texto">Agregar renglón</span>
         </button>
+
+        {borrador.renglones.map(dibujarRenglon)}
+
 
         <div className="dato">
           <span className="dato__etiqueta">Total · {unidadesTexto(calculado.unidades)}</span>
