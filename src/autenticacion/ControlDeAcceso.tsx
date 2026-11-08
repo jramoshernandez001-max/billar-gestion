@@ -2,7 +2,7 @@
  * Control de acceso de la app.
  *
  * Qué hace: muestra la pantalla que corresponde a quien abre la app: cargando,
- * botón para entrar con Google, aviso de que su correo no está autorizado, un
+ * botón para entrar con Google o con un código de acceso, aviso de que su correo no está autorizado, un
  * error, o la app misma si está autorizado.
  * Cómo lo hace: lee el estado con useEstadoAcceso y dibuja solo ese caso. El
  * contenido (children) es una función que recibe el correo y la acción de
@@ -35,6 +35,10 @@ interface Propiedades {
 export function ControlDeAcceso({ servicio, redirigirA, children }: Propiedades) {
   const estado = useEstadoAcceso(servicio)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
+  // Mientras se verifica un código, la sesión anónima recién abierta todavía
+  // no está autorizada; se muestra "Cargando…" en vez del aviso de no
+  // autorizado, que sería confuso.
+  const [verificandoCodigo, setVerificandoCodigo] = useState(false)
 
   /** Ejecuta una acción del servicio y muestra su error si falla. */
   const ejecutar = async (accion: () => Promise<void>) => {
@@ -46,13 +50,29 @@ export function ControlDeAcceso({ servicio, redirigirA, children }: Propiedades)
     }
   }
   const cerrarSesion = () => ejecutar(() => servicio.cerrarSesion())
+  const entrarConCodigo = async (codigo: string) => {
+    setVerificandoCodigo(true)
+    await ejecutar(() => servicio.iniciarSesionConCodigo(codigo))
+    setVerificandoCodigo(false)
+  }
+
+  if (verificandoCodigo && estado.tipo === 'no-autorizado') {
+    return <p role="status" className="estado">Verificando el código…</p>
+  }
 
   switch (estado.tipo) {
     case 'cargando':
       return <p role="status" className="estado">Cargando…</p>
 
     case 'sin-sesion':
-      return <Acceso alEntrar={() => void ejecutar(() => servicio.iniciarSesion(redirigirA))} error={errorAccion} />
+      return (
+        <Acceso
+          alEntrar={() => void ejecutar(() => servicio.iniciarSesion(redirigirA))}
+          alEntrarConCodigo={(codigo) => void entrarConCodigo(codigo)}
+          verificandoCodigo={verificandoCodigo}
+          error={errorAccion}
+        />
+      )
 
     case 'no-autorizado':
       return <AccesoNoAutorizado correo={estado.correo} alCerrarSesion={() => void cerrarSesion()} errorAccion={errorAccion} />

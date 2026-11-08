@@ -15,7 +15,9 @@ Reglas comunes a todas las vistas:
 - Estados que toda pantalla de datos debe contemplar: **cargando**, **vacío**, **error** y **sin conexión**.
 
 ## 0. Acceso (login)
-- Botón único: **Entrar con Google**.
+- Botón **Entrar con Google**.
+- Separador "o", campo **Código de acceso** (oculto, como contraseña) y botón **Entrar con código** (deshabilitado si el campo está vacío; muestra "Verificando…" mientras se revisa).
+- Mensaje de error si el código no es válido o hubo demasiados intentos.
 - Estados: cargando, sin sesión, **no autorizado** (mensaje: ese correo no tiene permiso; botón *Cerrar sesión*), error.
 - Una vez dentro: correo de la sesión visible en algún lugar y acción **Cerrar sesión**.
 
@@ -33,7 +35,7 @@ Reglas comunes a todas las vistas:
   - Cantidad (entero; 0 se ignora).
   - Precio cobrado (opcional; por defecto el precio de lista, editable, ej. caja a domicilio).
   - Subtotal del renglón (calculado, solo lectura).
-- Botón agregar renglón; quitar renglón.
+- Botón agregar renglón (arriba de la lista: el renglón nuevo aparece de primero); quitar renglón.
 - Total de la venta (calculado).
 - Aviso si la nevera no tiene suficiente (el stock puede quedar negativo; se avisa, no se bloquea).
 - Acción: **Registrar venta**. Error si todos los renglones son cero.
@@ -44,6 +46,7 @@ Reglas comunes a todas las vistas:
 - Acción por venta vigente: **Anular** (motivo obligatorio).
 
 ## 4. Inventario (stock)
+- Arriba: **Total de cajas** en bodega, nevera y general (cajas completas y sueltas aparte; sin licor; sigue la búsqueda y la categoría).
 - Tabla por producto: nombre, **bodega**, **nevera**, **total** (en unidades).
 - Equivalente en cajas/sixpacks (informativo, opcional).
 - Resaltar negativos y bajos.
@@ -111,7 +114,7 @@ Reglas comunes a todas las vistas:
 - Detalle de un cierre: además del resultado, **Productos vendidos** del día (diario) o de la semana (semanal): por producto, el desglose (cajas, sixpacks, unidades o botellas), el valor, y el total de unidades y pesos. Usa las ventas vigentes de hoy; si algo se anuló después, el cierre sale como desactualizado.
 
 ## 14. Bitácora
-- Lista cronológica de todo lo que cambió datos: fecha y hora, usuario (correo), acción, registro afectado, motivo.
+- Lista cronológica de todo lo que cambió datos: fecha y hora, usuario (correo, o "Nombre (código)"), acción, **dónde** (sección y registro: producto, número de compra, ubicación, cliente, periodo), los primeros cambios como "Campo: antes → después" (y cuántos más hay), motivo.
 - Detalle: **antes** y **después** del registro.
 - Filtros: acción, usuario, rango de fechas. Solo lectura.
 

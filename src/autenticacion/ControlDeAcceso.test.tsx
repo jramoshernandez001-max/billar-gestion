@@ -25,6 +25,7 @@ function servicioCon(estado: EstadoAcceso): ServicioAcceso {
       return () => {}
     }),
     iniciarSesion: vi.fn(async () => {}),
+    iniciarSesionConCodigo: vi.fn(async () => {}),
     cerrarSesion: vi.fn(async () => {}),
   }
 }
@@ -32,6 +33,23 @@ function servicioCon(estado: EstadoAcceso): ServicioAcceso {
 const hijos = vi.fn(({ correo }: { correo: string }) => <p>Contenido de la app para {correo}</p>)
 
 describe('ControlDeAcceso', () => {
+  it('sin sesión: permite entrar con un código de acceso', async () => {
+    const servicio = servicioCon({ tipo: 'sin-sesion' })
+    render(<ControlDeAcceso servicio={servicio} redirigirA="/">{hijos}</ControlDeAcceso>)
+    fireEvent.change(screen.getByLabelText('Código de acceso'), { target: { value: 'clave-de-ana' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar con código' }))
+    await waitFor(() => expect(servicio.iniciarSesionConCodigo).toHaveBeenCalledWith('clave-de-ana'))
+  })
+
+  it('si el código no sirve, muestra el motivo', async () => {
+    const servicio = servicioCon({ tipo: 'sin-sesion' })
+    servicio.iniciarSesionConCodigo = vi.fn(async () => { throw new Error('El código no es válido') })
+    render(<ControlDeAcceso servicio={servicio} redirigirA="/">{hijos}</ControlDeAcceso>)
+    fireEvent.change(screen.getByLabelText('Código de acceso'), { target: { value: 'malo-malo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar con código' }))
+    expect((await screen.findByRole('alert')).textContent).toMatch(/no es válido/)
+  })
+
   it('cargando: avisa y no muestra la app', () => {
     render(<ControlDeAcceso servicio={servicioCon({ tipo: 'cargando' })} redirigirA="/">{hijos}</ControlDeAcceso>)
     expect(screen.getByRole('status').textContent).toMatch(/cargando/i)
@@ -75,7 +93,7 @@ describe('ControlDeAcceso', () => {
   it('sin sesión: muestra la bienvenida del diseño con el botón de Google', () => {
     render(<ControlDeAcceso servicio={servicioCon({ tipo: 'sin-sesion' })} redirigirA="/">{hijos}</ControlDeAcceso>)
     expect(screen.getByText(/Tu negocio,/)).toBeTruthy()
-    expect(screen.getByText('Usa la cuenta autorizada por tu negocio.')).toBeTruthy()
+    expect(screen.getByText('Usa la cuenta o el código autorizado por tu negocio.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Entrar con Google' })).toBeTruthy()
   })
 

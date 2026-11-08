@@ -18,6 +18,7 @@ Reglas generales:
 | `0002_vista_stock_actual.sql` | Crea la vista `stock_actual` (suma de movimientos), con `security_invoker` para que respete RLS. |
 | `0003_seguridad_rls.sql` | Define `es_usuario_autorizado()`, activa y fuerza RLS en todas las tablas, deja las tablas solo de lectura para la app, da políticas explícitas al rol dueño, quita todo al rol `anon` e impide borrar y modificar la bitácora. |
 | `0004_operaciones_atomicas.sql` | Crea las funciones de escritura, una por operación. |
+| `0008_acceso_con_codigo.sql` | Acceso con código único: tablas `codigos_acceso` (hash bcrypt), `sesiones_codigo` e `intentos_codigo` (la app no las lee), `crear_codigo_acceso` (solo editor SQL), `canjear_codigo_acceso` (con límite de intentos) y `usuario_actual`; amplía `es_usuario_autorizado` y `anotar_bitacora`. |
 
 ## Esquema
 
@@ -104,6 +105,27 @@ update public.usuarios_autorizados
 ```
 
 La app no puede insertar ni modificar esta tabla.
+
+## Cómo crear o quitar un código de acceso
+
+Requisito (una sola vez): en Authentication → Sign In / Providers, activar **Allow anonymous sign-ins**. La app abre una sesión anónima y la base la autoriza solo si se canjea un código activo.
+
+Desde el editor SQL de Supabase (rol `postgres`). El código nunca se guarda en claro ni va en el repositorio: se escribe solo aquí y se le entrega a la persona.
+
+```sql
+-- Crear (8 caracteres o más; mejor 12 con letras y números al azar).
+select public.crear_codigo_acceso('Nombre de ejemplo', 'codigo-de-ejemplo-123');
+
+-- Quitar el acceso: se desactiva, no se borra. Todas las sesiones que
+-- entraron con ese código pierden el acceso al instante.
+update public.codigos_acceso
+   set activo = false
+ where nombre = 'Nombre de ejemplo';
+```
+
+- Cada código es de una persona: en la bitácora aparece como "Nombre (código)".
+- Límite de intentos: 5 códigos malos por sesión, o 20 entre todas, en 15 minutos; después se rechaza todo intento hasta que pasen los 15 minutos. Quien ya entró no se ve afectado.
+- Después de borrar los datos del navegador hay que volver a escribir el código.
 
 ## Lista de verificación de seguridad (manual)
 

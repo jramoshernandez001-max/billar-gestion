@@ -28,6 +28,7 @@ const servicioCon = (estado: EstadoAcceso): ServicioAcceso => ({
     return () => {}
   }),
   iniciarSesion: vi.fn(async () => {}),
+    iniciarSesionConCodigo: vi.fn(async () => {}),
   cerrarSesion: vi.fn(async () => {}),
 })
 
