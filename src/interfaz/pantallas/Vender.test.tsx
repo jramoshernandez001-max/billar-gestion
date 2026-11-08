@@ -100,16 +100,18 @@ describe('Vender', () => {
     expect(screen.getByText('$ 2.500', { selector: '.dato__total' })).toBeTruthy()
   })
 
-  it('agrega y quita renglones', async () => {
+  it('agrega el renglón nuevo arriba y quita renglones', async () => {
     armar()
     await elegir(/Águila/)
     fireEvent.click(screen.getByRole('button', { name: 'Agregar renglón' }))
     expect(screen.getAllByRole('button', { name: /Producto del renglón/ })).toHaveLength(2)
-    await elegir(/Agua/, 1)
+    // El renglón nuevo es el primero; el de Águila bajó al segundo lugar.
+    expect(screen.getAllByRole('button', { name: /Producto del renglón/ })[1].textContent).toMatch(/Águila/)
+    await elegir(/Agua/, 0)
     expect(screen.getByText('Total · 2 unidades')).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: 'Quitar renglón' })[0])
     expect(screen.getAllByRole('button', { name: /Producto del renglón/ })).toHaveLength(1)
-    expect(screen.getByText('$ 2.000', { selector: '.dato__total' })).toBeTruthy()
+    expect(screen.getByText('$ 3.000', { selector: '.dato__total' })).toBeTruthy()
   })
 
   it('registra la venta con lo que se ve y pasa a la lista de ventas', async () => {

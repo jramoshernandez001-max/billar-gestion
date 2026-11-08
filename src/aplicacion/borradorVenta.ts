@@ -72,7 +72,13 @@ export function borradorVacio(fecha: string): BorradorVenta {
 }
 
 /**
- * Agrega un renglón vacío (sin producto, una unidad).
+ * Agrega un renglón vacío (sin producto, una unidad) arriba de los demás.
+ *
+ * Qué hace: devuelve el borrador con el renglón nuevo de primero.
+ * Cómo lo hace: lo pone al inicio de la lista, antes de los que ya había.
+ * Por qué: en el celular, el renglón nuevo queda a la vista junto al botón
+ * de agregar, sin bajar hasta el final de una venta larga.
+ *
  * @throws Error si ya hay un renglón con esa clave.
  */
 export function agregarRenglon(borrador: BorradorVenta, clave: string): BorradorVenta {
@@ -81,7 +87,7 @@ export function agregarRenglon(borrador: BorradorVenta, clave: string): Borrador
   }
   return {
     ...borrador,
-    renglones: [...borrador.renglones, { clave, productoId: null, presentacion: 'unidad', cantidad: 1 }],
+    renglones: [{ clave, productoId: null, presentacion: 'unidad', cantidad: 1 }, ...borrador.renglones],
   }
 }
 
