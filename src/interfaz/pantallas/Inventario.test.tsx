@@ -52,6 +52,26 @@ describe('Inventario', () => {
     expect(totales.getByText('+ 20 sueltas')).toBeTruthy()
   })
 
+  it('"Ver detalles" muestra las cajas y sueltas de cada producto y las botellas de cada licor', async () => {
+    const licor = { id: 'p4', nombre: 'Aguardiente Ejemplo', ...base, categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false }
+    armar({
+      listarProductos: async () => [...productos, licor],
+      obtenerStock: async () => new Map([...stock, ['p4', { bodega: 6, nevera: 3, total: 9 }]]),
+    })
+    const totales = within(await screen.findByRole('region', { name: 'Total de cajas' }))
+    expect(totales.queryByRole('list', { name: 'Detalle por producto' })).toBeNull()
+    fireEvent.click(totales.getByRole('button', { name: 'Ver detalles' }))
+    const detalle = within(totales.getByRole('list', { name: 'Detalle por producto' }))
+    expect(detalle.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Agua Cristal3 cajas',
+      'Aguardiente Ejemplo9 botellas',
+      'Cerveza Águila0 cajas · 22 sueltas',
+      'Cerveza Poker0 cajas · -2 sueltas',
+    ])
+    fireEvent.click(totales.getByRole('button', { name: 'Ocultar detalles' }))
+    expect(totales.queryByRole('list', { name: 'Detalle por producto' })).toBeNull()
+  })
+
   it('los totales de cajas siguen la búsqueda', async () => {
     armar()
     await screen.findAllByRole('article')
@@ -74,9 +94,10 @@ describe('Inventario', () => {
     armar()
     await screen.findAllByRole('article')
     const aguila = within(tarjeta('Cerveza Águila'))
-    expect(aguila.getByText('Bodega').nextElementSibling?.textContent).toBe('18')
-    expect(aguila.getByText('Nevera').nextElementSibling?.textContent).toBe('4')
-    expect(aguila.getByText('Total').nextElementSibling?.textContent).toBe('22')
+    // Cada número lleva su indicativo de unidades.
+    expect(aguila.getByText('Bodega').nextElementSibling?.textContent).toBe('18 und')
+    expect(aguila.getByText('Nevera').nextElementSibling?.textContent).toBe('4 und')
+    expect(aguila.getByText('Total').nextElementSibling?.textContent).toBe('22 und')
     expect(aguila.getByText('3 sixpacks · 4 sueltas')).toBeTruthy()
   })
 
@@ -85,7 +106,8 @@ describe('Inventario', () => {
     await screen.findAllByRole('article')
     expect(within(tarjeta('Cerveza Poker')).getByText('Negativo')).toBeTruthy()
     // Nevera y total quedan en -2, en rojo.
-    expect(within(tarjeta('Cerveza Poker')).getAllByText('-2', { selector: '.existencia__valor--negativo' })).toHaveLength(2)
+    const negativos = tarjeta('Cerveza Poker').querySelectorAll('.existencia__valor--negativo')
+    expect([...negativos].map((n) => n.textContent)).toEqual(['-2 und', '-2 und'])
     expect(screen.getByText('1 producto necesita atención')).toBeTruthy()
     expect(screen.getByText('Revisa las existencias negativas.')).toBeTruthy()
     expect(within(tarjeta('Agua Cristal')).queryByText('Negativo')).toBeNull()
