@@ -1,7 +1,8 @@
 /**
  * Pantalla "Inventario".
  *
- * Qué hace: lista los productos con lo que hay en bodega, en nevera y en
+ * Qué hace: arriba muestra el total de cajas en bodega, en nevera y en
+ * general; luego lista los productos con lo que hay en bodega, en nevera y en
  * total, marca los de stock negativo y da acceso a trasladar, ajustar,
  * comprar y editar cada producto. Se puede buscar por nombre.
  * Cómo lo hace: carga productos y stock, los combina con `resumirInventario`
@@ -14,7 +15,12 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import { CircleAlert, Search } from 'lucide-react'
-import { resumirInventario, type FilaInventario } from '../../aplicacion/resumenInventario'
+import {
+  resumirInventario,
+  totalizarCajas,
+  type CajasYSueltas,
+  type FilaInventario,
+} from '../../aplicacion/resumenInventario'
 import type { RepositorioInventario } from '../../datos/inventario'
 import { filtrarPorCategoria, type FiltroCategoria } from '../../domain/inventario/categorias'
 import { FiltroDeCategoria } from '../componentes/FiltroDeCategoria'
@@ -51,6 +57,29 @@ function Existencia({ etiqueta, valor }: { etiqueta: string; valor: number }) {
     <div className="existencia">
       <span className="existencia__etiqueta">{etiqueta}</span>
       <span className={`existencia__valor${valor < 0 ? ' existencia__valor--negativo' : ''}`}>{valor}</span>
+    </div>
+  )
+}
+
+/**
+ * Un total de cajas de una ubicación.
+ *
+ * Qué hace: dibuja el número de cajas completas y, debajo, las sueltas si hay.
+ * Cómo lo hace: reutiliza el estilo de "existencia" de las tarjetas; las
+ * sueltas van como texto suave ("+ 5 sueltas").
+ * Por qué: el negocio cuenta por cajas, pero las sueltas también son stock y
+ * no deben perderse de vista.
+ */
+function TotalDeCajas({ etiqueta, valor }: { etiqueta: string; valor: CajasYSueltas }) {
+  return (
+    <div className="existencia">
+      <span className="existencia__etiqueta">{etiqueta}</span>
+      <span className="existencia__valor">{valor.cajas}</span>
+      {valor.sueltas !== 0 && (
+        <span className={valor.sueltas < 0 ? 'texto-error' : 'texto-suave'}>
+          + {valor.sueltas} {Math.abs(valor.sueltas) === 1 ? 'suelta' : 'sueltas'}
+        </span>
+      )}
     </div>
   )
 }
@@ -125,6 +154,8 @@ export function Inventario({ servicios, alIr }: Propiedades) {
   const buscado = normalizar(busqueda)
   const visibles = filtrarPorCategoria(filas, categoria).filter((f) => normalizar(f.nombre).includes(buscado))
   const negativos = filas.filter((f) => f.negativo).length
+  // Los totales siguen lo que se está viendo (búsqueda y categoría).
+  const totales = totalizarCajas(visibles)
 
   return (
     <>
@@ -133,6 +164,16 @@ export function Inventario({ servicios, alIr }: Propiedades) {
         subtitulo={`${filas.length} ${filas.length === 1 ? 'producto' : 'productos'} · Stock en unidades`}
       />
       <div className="marco__contenido">
+        <section className="tarjeta" aria-label="Total de cajas">
+          <span className="campo__etiqueta">Total de cajas</span>
+          <div className="existencias">
+            <TotalDeCajas etiqueta="Bodega" valor={totales.bodega} />
+            <TotalDeCajas etiqueta="Nevera" valor={totales.nevera} />
+            <TotalDeCajas etiqueta="General" valor={totales.general} />
+          </div>
+          <span className="texto-suave">Sin contar licor, que va por botella.</span>
+        </section>
+
         <div className="campo">
           <label className="campo__etiqueta" htmlFor="buscar-inventario">Buscar</label>
           <div className="entrada">

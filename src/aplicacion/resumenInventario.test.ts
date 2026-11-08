@@ -9,7 +9,7 @@
  * (por ejemplo una compra sin cargar) y debe verse.
  */
 import { describe, it, expect } from 'vitest'
-import { resumirInventario } from './resumenInventario'
+import { resumirInventario, totalizarCajas } from './resumenInventario'
 
 const productos = [
   { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true },
@@ -68,5 +68,45 @@ describe('resumirInventario', () => {
     const licor = { id: 'l', nombre: 'Aguardiente Ejemplo', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false }
     const filas = resumirInventario([licor], new Map([['l', { bodega: 5, nevera: 2, total: 7 }]]))
     expect(filas[0]).toMatchObject({ categoria: 'licor', total: 7, equivalente: null })
+  })
+})
+
+describe('totalizarCajas', () => {
+  const catalogo = [
+    { id: 'c1', nombre: 'Cerveza A', categoria: 'cerveza' as const, unidadesPorCaja: 30, manejaSixpack: false },
+    { id: 'c2', nombre: 'Cerveza B', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true },
+    { id: 'l1', nombre: 'Licor A', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false },
+  ]
+
+  it('suma cajas completas y sueltas por ubicación y en general, producto por producto', () => {
+    // c1: bodega 60 (2 cajas), nevera 35 (1 caja + 5), total 95 (3 cajas + 5)
+    // c2: bodega 24 (1 caja), nevera 10 (0 + 10), total 34 (1 caja + 10)
+    const stock = new Map([
+      ['c1', { bodega: 60, nevera: 35, total: 95 }],
+      ['c2', { bodega: 24, nevera: 10, total: 34 }],
+    ])
+    const totales = totalizarCajas(resumirInventario(catalogo, stock))
+    expect(totales).toEqual({
+      bodega: { cajas: 3, sueltas: 0 },
+      nevera: { cajas: 1, sueltas: 15 },
+      general: { cajas: 4, sueltas: 15 },
+    })
+  })
+
+  it('no cuenta el licor, que se maneja por botella y no por caja', () => {
+    const stock = new Map([['l1', { bodega: 5, nevera: 2, total: 7 }]])
+    const totales = totalizarCajas(resumirInventario(catalogo, stock))
+    expect(totales.general).toEqual({ cajas: 0, sueltas: 0 })
+  })
+
+  it('un stock negativo no inventa cajas: queda como sueltas negativas', () => {
+    const stock = new Map([['c1', { bodega: -3, nevera: 30, total: 27 }]])
+    const totales = totalizarCajas(resumirInventario(catalogo, stock))
+    expect(totales.bodega).toEqual({ cajas: 0, sueltas: -3 })
+    expect(totales.nevera).toEqual({ cajas: 1, sueltas: 0 })
+  })
+
+  it('sin productos, todo en cero', () => {
+    expect(totalizarCajas([]).general).toEqual({ cajas: 0, sueltas: 0 })
   })
 })
