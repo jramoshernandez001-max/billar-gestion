@@ -69,7 +69,7 @@ const PRIVADAS = ['codigos_acceso', 'sesiones_codigo', 'intentos_codigo']
 const legibles = tablas.filter((t) => !PRIVADAS.includes(t))
 
 describe('migraciones de la base de datos', () => {
-  it('existen las ocho migraciones, en orden', () => {
+  it('existen las nueve migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -79,6 +79,7 @@ describe('migraciones de la base de datos', () => {
       '0006_operaciones_pendientes.sql',
       '0007_categoria_producto.sql',
       '0008_acceso_con_codigo.sql',
+      '0009_editar_venta.sql',
     ])
   })
 
@@ -310,6 +311,7 @@ describe('migraciones de la base de datos', () => {
           'registrar_traslado',
           'registrar_venta',
           'anular_venta',
+          'editar_venta',
           'registrar_ajuste',
           'registrar_deuda',
           'anular_deuda',
@@ -406,6 +408,16 @@ describe('migraciones de la base de datos', () => {
         const texto = definer.find((f) => f.nombre === nombre)?.texto ?? ''
         expect(texto, nombre).toMatch(/p_categoria text/i)
       }
+    })
+
+    it('editar_venta anula la venta y registra la corregida en la misma transacción', () => {
+      const texto = definer.find((f) => f.nombre === 'editar_venta')?.texto ?? ''
+      expect(texto).toMatch(/p_venta_id uuid,\s*p_fecha date,\s*p_items jsonb,\s*p_motivo text/i)
+      expect(texto).toMatch(/perform public\.anular_venta\(p_venta_id, p_motivo\)/i)
+      expect(texto).toMatch(/return public\.registrar_venta\(p_fecha, p_items\)/i)
+      // Sin conexión no se puede editar: no está entre las diferibles.
+      const pendiente = definer.find((f) => f.nombre === 'aplicar_operacion_pendiente')?.texto ?? ''
+      expect(pendiente).not.toMatch(/editar_venta/)
     })
 
     it('registrar_venta ignora los renglones de cantidad cero', () => {

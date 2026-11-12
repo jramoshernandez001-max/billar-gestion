@@ -3,7 +3,8 @@
  *
  * Qué hace: muestra un cierre guardado con su resultado y los productos que
  * se vendieron en su día o semana, avisa si está desactualizado, y permite
- * recalcularlo o corregir el efectivo y las transferencias contados.
+ * recalcularlo, corregir el efectivo y las transferencias contados o, en un
+ * cierre diario, ir a editar las ventas de ese día.
  * Cómo lo hace: carga el cierre, la lista de desactualizados, los productos y
  * las ventas; `describirCierre` arma el resultado y `resumirProductosVendidos`
  * la lista de productos vendidos del periodo. Recalcular y corregir llaman a los
@@ -143,6 +144,9 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
           Recalcular cierre
         </button>
 
+        {cierre.tipo === 'diario' && (
+          <button type="button" className="boton" onClick={() => alIr(`mas/ventas/dia/${cierre.desde}`)}>Editar ventas del día</button>
+        )}
         {!corrigiendo && <button type="button" className="boton" onClick={() => setCorrigiendo(true)}>Corregir dinero</button>}
         {corrigiendo && (
           <>

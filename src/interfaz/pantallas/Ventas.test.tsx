@@ -28,7 +28,7 @@ const bitacora: EntradaBitacora[] = [{
   registroId: 'v2', antes: null, despues: {}, motivo: 'registro duplicado',
 }]
 
-function armar(ventas: VentaRegistrada[], sobre: Partial<ServiciosVentas['ventas']> = {}) {
+function armar(ventas: VentaRegistrada[], sobre: Partial<ServiciosVentas['ventas']> = {}, fechaInicial?: string) {
   const anularVenta = vi.fn(sobre.anularVenta ?? (async () => undefined))
   const listarVentas = vi.fn(async () => ventas)
   const servicios: ServiciosVentas = {
@@ -37,7 +37,7 @@ function armar(ventas: VentaRegistrada[], sobre: Partial<ServiciosVentas['ventas
     bitacora: { listarBitacora: async () => bitacora },
   }
   const alIr = vi.fn()
-  render(<Ventas servicios={servicios} hoy="2026-11-03" alIr={alIr} />)
+  render(<Ventas servicios={servicios} hoy="2026-11-04" fechaInicial={fechaInicial ?? '2026-11-03'} alIr={alIr} />)
   return { anularVenta, listarVentas, alIr }
 }
 
@@ -138,5 +138,20 @@ describe('Ventas', () => {
     await screen.findAllByRole('article')
     fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
     expect(alIr).toHaveBeenCalledWith('mas')
+  })
+
+  it('cada venta vigente ofrece editar y lleva a la venta ya llena; la anulada no', async () => {
+    const { alIr } = armar(tres)
+    const tarjetas = await screen.findAllByRole('article')
+    fireEvent.click(within(tarjetas[0]).getByRole('button', { name: 'Editar' }))
+    expect(alIr).toHaveBeenCalledWith('mas/ventas/editar/v3')
+    const anulada = tarjetas.find((t) => within(t).queryByText('Anulada') !== null)
+    expect(anulada).toBeTruthy()
+    expect(within(anulada as HTMLElement).queryByRole('button', { name: 'Editar' })).toBeNull()
+  })
+
+  it('abre en la fecha inicial que recibe (otro día sin ventas)', async () => {
+    armar(tres, {}, '2026-11-04')
+    expect(await screen.findByText('No hay ventas en este día.')).toBeTruthy()
   })
 })

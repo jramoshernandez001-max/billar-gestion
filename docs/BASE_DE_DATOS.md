@@ -55,6 +55,7 @@ Restricciones en la propia base de datos:
 | `registrar_ajuste(producto, ubicación, unidades, motivo)` | Guarda el ajuste por conteo físico. | `registrar-ajuste` |
 | `registrar_venta(fecha, renglones)` | Guarda la venta, los renglones con cantidad (los de cero se ignoran; si todos son cero, falla) y la salida de nevera de cada uno. | `registrar-venta` |
 | `anular_venta(venta, motivo)` | Cambia el estado y crea los movimientos inversos. | `anular-registro` |
+| `editar_venta(venta, fecha, renglones, motivo)` | En una transacción anula la venta (`anular_venta`) y registra la corregida (`registrar_venta`); devuelve el id nueva. Exige conexión (migración 0009). | `anular-registro` y `registrar-venta` |
 | `registrar_deuda(cliente, fecha, monto, descripción)` | Guarda la deuda. | `registrar-deuda` |
 | `anular_deuda(deuda, motivo)` | Anula la deuda; falla si tiene abonos vigentes. | `anular-registro` |
 | `registrar_abono(deuda, fecha, monto, descripción)` | Bloquea la deuda, suma los abonos vigentes y falla si el nuevo se pasa de lo que se debe. | `registrar-abono` |

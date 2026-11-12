@@ -132,3 +132,36 @@ describe('listarVentas', () => {
     }
   })
 })
+
+describe('editarVenta', () => {
+  it('manda la venta, la fecha, los renglones y el motivo con los nombres de la base y devuelve el id nuevo', async () => {
+    const { cliente, rpc } = clienteFalso({ data: ID2 })
+    const id = await crearRepositorioVentas(cliente).editarVenta(ID, {
+      fecha: '2026-11-03',
+      renglones: [renglon, { ...renglon, cantidad: 0 }],
+    }, 'Se contó mal')
+    expect(id).toBe(ID2)
+    const [nombre, args] = rpc.mock.calls[0]
+    expect(nombre).toBe('editar_venta')
+    expect(Object.keys(args).sort()).toEqual([...parametrosSql('editar_venta')].sort())
+    expect(args).toEqual({
+      p_venta_id: ID,
+      p_fecha: '2026-11-03',
+      p_items: [{ producto_id: ID2, presentacion: 'unidad', cantidad: 2 }],
+      p_motivo: 'Se contó mal',
+    })
+  })
+
+  it('rechaza una venta corregida sin nada que registrar, sin llamar a la base', async () => {
+    const { cliente, rpc } = clienteFalso({ data: ID2 })
+    await expect(
+      crearRepositorioVentas(cliente).editarVenta(ID, { fecha: '2026-11-03', renglones: [{ ...renglon, cantidad: 0 }] }, 'x'),
+    ).rejects.toThrow(/nada que registrar/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('exige el motivo', async () => {
+    const { cliente } = clienteFalso({ data: ID2 })
+    await expect(crearRepositorioVentas(cliente).editarVenta(ID, { fecha: '2026-11-03', renglones: [renglon] }, '  ')).rejects.toThrow()
+  })
+})

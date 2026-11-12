@@ -32,7 +32,7 @@ function armar(sobre: { registrarVenta?: ServiciosVender['ventas']['registrarVen
         ['p3', { bodega: 2, nevera: 3, total: 5 }],
       ]),
     },
-    ventas: { registrarVenta },
+    ventas: { registrarVenta, listarVentas: async () => [], editarVenta: async () => 'x' },
   }
   const alIr = vi.fn()
   render(<Vender servicios={servicios} hoy="2026-11-03" alIr={alIr} />)
@@ -154,7 +154,7 @@ describe('Vender', () => {
   it('si no cargan los productos, lo dice y deja reintentar', async () => {
     const servicios: ServiciosVender = {
       inventario: { listarProductos: async () => { throw new Error('sin red') }, obtenerStock: async () => new Map() },
-      ventas: { registrarVenta: async () => 'x' },
+      ventas: { registrarVenta: async () => 'x', listarVentas: async () => [], editarVenta: async () => 'x' },
     }
     render(<Vender servicios={servicios} hoy="2026-11-03" alIr={() => {}} />)
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin red/)
@@ -169,5 +169,75 @@ describe('Vender', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Registrar' }))
     await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
     expect(registrarVenta.mock.calls[0][0].renglones[0]).toMatchObject({ productoId: 'p3', presentacion: 'unidad', cantidad: 1 })
+  })
+
+  describe('editar una venta', () => {
+    const aguilaVendible = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
+    const guardada = (estado: 'vigente' | 'anulada' = 'vigente') => ({
+      id: 'v9',
+      fecha: '2026-11-01',
+      estado,
+      creadoEn: '2026-11-02T03:00:00.000Z',
+      renglones: [{ productoId: 'p1', producto: aguilaVendible, presentacion: 'unidad' as const, cantidad: 5, precioCobrado: 3000 }],
+    })
+
+    function armarEdicion(estado: 'vigente' | 'anulada' = 'vigente', editarVenta = vi.fn(async () => 'v10')) {
+      const registrarVenta = vi.fn(async () => 'x')
+      const servicios: ServiciosVender = {
+        inventario: { listarProductos: async () => [aguila, agua, aguardiente], obtenerStock: async () => new Map() },
+        ventas: { registrarVenta, listarVentas: async () => [guardada(estado)], editarVenta },
+      }
+      const alIr = vi.fn()
+      render(<Vender servicios={servicios} hoy="2026-11-03" ventaId="v9" alIr={alIr} />)
+      return { editarVenta, registrarVenta, alIr }
+    }
+
+    it('abre la venta ya llena con su fecha y sus renglones', async () => {
+      armarEdicion()
+      expect(await screen.findByRole('heading', { name: 'Editar venta' })).toBeTruthy()
+      expect(await screen.findByText('Cerveza Águila')).toBeTruthy()
+      expect(screen.getByText('5', { selector: '.cantidad__valor' })).toBeTruthy()
+      expect(screen.getByText(/01\/11\/2026/)).toBeTruthy()
+    })
+
+    it('guarda los cambios con el motivo y vuelve a las ventas de ese día', async () => {
+      const { editarVenta, registrarVenta, alIr } = armarEdicion()
+      await screen.findByText('Cerveza Águila')
+      fireEvent.click(screen.getByRole('button', { name: 'Menos cantidad' }))
+      fireEvent.change(screen.getByLabelText('Motivo · opcional'), { target: { value: 'Se contó mal' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+      await waitFor(() => expect(editarVenta).toHaveBeenCalled())
+      expect(editarVenta).toHaveBeenCalledWith('v9', { fecha: '2026-11-01', renglones: [{ productoId: 'p1', presentacion: 'unidad', cantidad: 4 }] }, 'Se contó mal')
+      expect(registrarVenta).not.toHaveBeenCalled()
+      expect(alIr).toHaveBeenCalledWith('mas/ventas/dia/2026-11-01')
+    })
+
+    it('sin motivo escrito usa "Venta editada"', async () => {
+      const { editarVenta } = armarEdicion()
+      await screen.findByText('Cerveza Águila')
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+      await waitFor(() => expect(editarVenta).toHaveBeenCalled())
+      expect((editarVenta.mock.calls[0] as unknown[])[2]).toBe('Venta editada')
+    })
+
+    it('si la base rechaza la edición muestra el error y no sale', async () => {
+      const { alIr } = armarEdicion('vigente', vi.fn(async () => { throw new Error('Sin conexión') }))
+      await screen.findByText('Cerveza Águila')
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+      expect((await screen.findByRole('alert')).textContent).toMatch(/Sin conexión/)
+      expect(alIr).not.toHaveBeenCalled()
+    })
+
+    it('una venta anulada no se puede editar', async () => {
+      armarEdicion('anulada')
+      expect((await screen.findByRole('alert')).textContent).toMatch(/anulada/)
+    })
+
+    it('la flecha de volver regresa a las ventas', async () => {
+      const { alIr } = armarEdicion()
+      await screen.findByRole('heading', { name: 'Editar venta' })
+      fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+      expect(alIr).toHaveBeenCalledWith('mas/ventas')
+    })
   })
 })

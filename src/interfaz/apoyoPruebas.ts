@@ -11,7 +11,7 @@ import type { ServiciosApp } from '../App'
 /** Servicios de toda la app sin ventas, deudas, productos, cierres ni bitácora. */
 export function serviciosVacios(): ServiciosApp {
   return {
-    ventas: { listarVentas: async () => [], registrarVenta: async () => 'venta', anularVenta: async () => undefined },
+    ventas: { listarVentas: async () => [], registrarVenta: async () => 'venta', editarVenta: async () => 'venta', anularVenta: async () => undefined },
     deudas: {
       listarDeudas: async () => [],
       listarAbonos: async () => [],
