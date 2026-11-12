@@ -15,7 +15,7 @@ afterEach(cleanup)
 
 describe('ProductosVendidos', () => {
   it('sin ventas lo dice y no muestra total', () => {
-    render(<ProductosVendidos datos={{ filas: [], totalUnidades: 0, totalValor: 0, ventas: 0 }} />)
+    render(<ProductosVendidos datos={{ filas: [], totalUnidades: 0, totalValor: 0, ventas: 0, cajasCerveza: { cajas: 0, sueltas: 0 } }} />)
     expect(screen.getByText('No hubo ventas vigentes en este periodo.')).toBeTruthy()
     expect(screen.queryByText(/^Total/)).toBeNull()
   })
@@ -28,6 +28,7 @@ describe('ProductosVendidos', () => {
           totalUnidades: 2,
           totalValor: 100000,
           ventas: 1,
+          cajasCerveza: { cajas: 0, sueltas: 0 },
         }}
       />,
     )
@@ -35,5 +36,31 @@ describe('ProductosVendidos', () => {
     expect(screen.getByText(/2 botellas/)).toBeTruthy()
     expect(screen.getByText('Total · 2 unidades')).toBeTruthy()
     expect(screen.getAllByText('$ 100.000')).toHaveLength(2)
+  })
+
+  describe('cajas de cerveza de la semana', () => {
+    const datos = {
+      filas: [{ productoId: 'c', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidades: 77, valor: 231000, desglose: '3 cajas · 5 unidades' }],
+      totalUnidades: 77,
+      totalValor: 231000,
+      ventas: 2,
+      cajasCerveza: { cajas: 3, sueltas: 5 },
+    }
+
+    it('con mostrarCajas muestra el total de cajas y las sueltas', () => {
+      render(<ProductosVendidos datos={datos} mostrarCajas />)
+      expect(screen.getByText('Cajas de cerveza vendidas')).toBeTruthy()
+      expect(screen.getByText('3 cajas + 5 unidades')).toBeTruthy()
+    })
+
+    it('sin sueltas no las menciona, y en singular dice caja', () => {
+      render(<ProductosVendidos datos={{ ...datos, cajasCerveza: { cajas: 1, sueltas: 0 } }} mostrarCajas />)
+      expect(screen.getByText('1 caja')).toBeTruthy()
+    })
+
+    it('sin mostrarCajas (cierre diario) no aparece', () => {
+      render(<ProductosVendidos datos={datos} />)
+      expect(screen.queryByText('Cajas de cerveza vendidas')).toBeNull()
+    })
   })
 })

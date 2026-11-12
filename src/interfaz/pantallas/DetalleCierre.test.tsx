@@ -85,5 +85,7 @@ describe('DetalleCierre', () => {
     expect(bloque.textContent).toMatch(/5 unidades/)
     expect(bloque.textContent).toMatch(/\$ 15\.000/)
     expect(bloque.textContent).toMatch(/1 venta/)
+    // El total de cajas de cerveza es solo del cierre semanal.
+    expect(bloque.textContent).not.toMatch(/Cajas de cerveza/)
   })
 })

@@ -136,7 +136,7 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
 
         <ResumenCierre vista={vista} />
 
-        <ProductosVendidos datos={vendidos} />
+        <ProductosVendidos datos={vendidos} mostrarCajas={cierre.tipo === 'semanal'} />
 
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
         <button type="button" className="boton boton--primario" disabled={enviando} onClick={() => ejecutar(() => servicios.servicioCierres.recalcularCierre(cierre.id))}>
