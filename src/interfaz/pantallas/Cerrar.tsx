@@ -172,7 +172,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
           </div>
         ))}
         {vista !== null && <ResumenCierre vista={vista} />}
-        {vendidos !== null && <ProductosVendidos datos={vendidos} />}
+        {vendidos !== null && <ProductosVendidos datos={vendidos} mostrarCajas={tipo === 'semanal'} />}
 
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
         <button type="button" className="boton boton--primario" disabled={vista === null || enviando} onClick={cerrar}>

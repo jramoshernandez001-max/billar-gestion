@@ -7,13 +7,19 @@
  * Cómo lo hace: filtra las ventas por fecha (extremos incluidos), descarta
  * las anuladas, y recorre los renglones convirtiendo con `aUnidades` y
  * valorando con `valorItem` (precio cobrado, o el de lista si no hay).
- * Ordena de mayor a menor valor.
+ * Ordena de mayor a menor valor. Además cuenta las cajas de cerveza vendidas
+ * en equivalente: las unidades de cada cerveza se dividen entre las unidades
+ * por caja de ese producto (`descomponerEnCajas`) y se suman las cajas y las
+ * unidades sueltas de todas.
  * Por qué: al consultar un cierre, la persona quiere ver qué se vendió ese día
  * o esa semana. Usa las ventas vigentes de hoy: si algo se anuló después del
  * cierre, el cierre aparece como desactualizado y recalcularlo lo alinea.
+ * Las cajas se cuentan por producto porque cada cerveza trae un número
+ * distinto de unidades por caja (no se pueden juntar las sueltas de dos
+ * marcas en una caja).
  */
 import type { CategoriaProducto } from '../domain/inventario/categorias'
-import { aUnidades, type Presentacion } from '../domain/inventario/conversiones'
+import { aUnidades, descomponerEnCajas, type Presentacion } from '../domain/inventario/conversiones'
 import { estaVigente } from '../domain/compartido/estado'
 import type { Venta } from '../domain/ventas/venta'
 import { valorItem } from '../domain/ventas/valorVenta'
@@ -35,6 +41,11 @@ export interface ProductosVendidos {
   totalValor: number
   /** Cantidad de ventas vigentes del periodo. */
   ventas: number
+  /**
+   * Cajas de cerveza vendidas en equivalente: suma, por cada cerveza, de las
+   * cajas completas y de las unidades que sobran de cada una.
+   */
+  cajasCerveza: { cajas: number; sueltas: number }
 }
 
 /** Nombre y categoría de cada producto, por id. */
@@ -53,6 +64,7 @@ function textoPresentacion(presentacion: Presentacion, cantidad: number, categor
 
 interface Acumulado {
   unidades: number
+  unidadesPorCaja: number
   valor: number
   porPresentacion: Map<Presentacion, number>
 }
@@ -71,7 +83,7 @@ export function resumirProductosVendidos(
     for (const renglon of venta.renglones) {
       const unidades = aUnidades(renglon.producto, renglon.presentacion, renglon.cantidad)
       if (unidades === 0) continue
-      const actual = porProducto.get(renglon.productoId) ?? { unidades: 0, valor: 0, porPresentacion: new Map() }
+      const actual = porProducto.get(renglon.productoId) ?? { unidades: 0, unidadesPorCaja: renglon.producto.unidadesPorCaja, valor: 0, porPresentacion: new Map() }
       actual.unidades += unidades
       actual.valor += valorItem(renglon)
       actual.porPresentacion.set(renglon.presentacion, (actual.porPresentacion.get(renglon.presentacion) ?? 0) + renglon.cantidad)
@@ -79,6 +91,7 @@ export function resumirProductosVendidos(
     }
   }
 
+  const cajasCerveza = contarCajasCerveza(porProducto, nombres)
   const filas = [...porProducto].map(([productoId, a]): FilaVendida => {
     const info = nombres.get(productoId) ?? { nombre: 'Producto', categoria: 'cerveza' as const }
     return {
@@ -99,5 +112,32 @@ export function resumirProductosVendidos(
     totalUnidades: filas.reduce((suma, f) => suma + f.unidades, 0),
     totalValor: filas.reduce((suma, f) => suma + f.valor, 0),
     ventas: vigentes.length,
+    cajasCerveza,
   }
+}
+
+/**
+ * Cuenta las cajas de cerveza vendidas en equivalente.
+ *
+ * Qué hace: devuelve el total de cajas completas y de unidades sueltas de
+ * todas las cervezas vendidas.
+ * Cómo lo hace: para cada producto de categoría cerveza, descompone sus
+ * unidades vendidas con sus propias unidades por caja y suma los resultados.
+ * Por qué: el negocio piensa la venta de la semana en cajas; licores y otros
+ * productos no se cuentan en cajas.
+ */
+function contarCajasCerveza(
+  porProducto: ReadonlyMap<string, Acumulado>,
+  nombres: NombresDeProductos,
+): { cajas: number; sueltas: number } {
+  let cajas = 0
+  let sueltas = 0
+  for (const [productoId, a] of porProducto) {
+    const categoria = nombres.get(productoId)?.categoria ?? 'cerveza'
+    if (categoria !== 'cerveza') continue
+    const partes = descomponerEnCajas(a.unidades, a.unidadesPorCaja)
+    cajas += partes.cajas
+    sueltas += partes.sueltas
+  }
+  return { cajas, sueltas }
 }
