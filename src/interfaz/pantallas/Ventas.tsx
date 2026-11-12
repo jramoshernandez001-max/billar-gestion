@@ -3,11 +3,13 @@
  *
  * Qué hace: lista las ventas de un día (con filtro Todas, Vigentes o
  * Anuladas), muestra cuántas son vigentes, sus unidades y su total, y permite
- * anular una venta indicando el motivo.
+ * anular una venta indicando el motivo o editarla (abre la venta ya llena).
  * Cómo lo hace: carga ventas, productos y bitácora; `resumirVentas` arma lo
  * que se dibuja. Anular llama al repositorio y recarga la lista.
  * Por qué: nada se borra; una venta mal registrada se anula con un motivo que
- * queda en la bitácora. El diseño no trae la ventana para escribir el motivo;
+ * queda en la bitácora; editar la reemplaza por la corregida sin volver a
+ * diligenciarla toda. Puede abrir en un día dado (`fechaInicial`), por
+ * ejemplo desde el detalle de un cierre diario. El diseño no trae la ventana para escribir el motivo;
  * por ahora se muestra un formulario dentro de la tarjeta, a la espera del
  * diseño de Figma.
  */
@@ -39,6 +41,8 @@ interface Propiedades {
   servicios: ServiciosVentas
   /** Día de hoy, AAAA-MM-DD. */
   hoy: string
+  /** Día que se muestra al abrir; si falta, hoy. */
+  fechaInicial?: string
   alIr: (ruta: string) => void
 }
 
@@ -56,12 +60,14 @@ function Tarjeta({
   tarjeta,
   anulando,
   alAnular,
+  alEditar,
   alConfirmar,
   alCancelar,
 }: {
   tarjeta: TarjetaVenta
   anulando: boolean
   alAnular: () => void
+  alEditar: () => void
   alConfirmar: (motivo: string) => Promise<void>
   alCancelar: () => void
 }) {
@@ -88,7 +94,10 @@ function Tarjeta({
         <span className="dato__valor">{formatoPesos(tarjeta.total)}</span>
       </div>
       {vigente && !anulando && (
-        <button type="button" className="boton boton--peligro-texto" onClick={alAnular}>Anular</button>
+        <div className="acciones">
+          <button type="button" className="boton" onClick={alEditar}>Editar</button>
+          <button type="button" className="boton boton--peligro-texto" onClick={alAnular}>Anular</button>
+        </div>
       )}
       {vigente && anulando && <FormularioAnulacion titulo="Anular venta" alConfirmar={alConfirmar} alCancelar={alCancelar} />}
       {tarjeta.anulacion !== null && (
@@ -98,7 +107,7 @@ function Tarjeta({
   )
 }
 
-export function Ventas({ servicios, hoy, alIr }: Propiedades) {
+export function Ventas({ servicios, hoy, fechaInicial, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
     const [ventas, productos, entradas] = await Promise.all([
       servicios.ventas.listarVentas(),
@@ -109,7 +118,7 @@ export function Ventas({ servicios, hoy, alIr }: Propiedades) {
   }, [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)
 
-  const [fecha, setFecha] = useState(hoy)
+  const [fecha, setFecha] = useState(fechaInicial ?? hoy)
   const [filtro, setFiltro] = useState<FiltroVentas>('todas')
   const [limite, setLimite] = useState(PAGINA)
   const [anulando, setAnulando] = useState<string | null>(null)
@@ -179,6 +188,7 @@ export function Ventas({ servicios, hoy, alIr }: Propiedades) {
             tarjeta={t}
             anulando={anulando === t.id}
             alAnular={() => setAnulando(t.id)}
+            alEditar={() => alIr(`mas/ventas/editar/${t.id}`)}
             alConfirmar={(motivo) => anular(t.id, motivo)}
             alCancelar={() => setAnulando(null)}
           />

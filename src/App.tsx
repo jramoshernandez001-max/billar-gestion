@@ -108,6 +108,12 @@ function pantalla(
   if (seccion === 'mas' && accion === 'bitacora' && tercero !== undefined) {
     return <DetalleBitacora servicios={servicios} entradaId={tercero} alIr={ir} />
   }
+  if (seccion === 'mas' && accion === 'ventas' && tercero === 'editar' && cuarto !== undefined) {
+    return <Vender servicios={servicios} hoy={hoy} ventaId={cuarto} alIr={ir} />
+  }
+  if (seccion === 'mas' && accion === 'ventas' && tercero === 'dia' && cuarto !== undefined) {
+    return <Ventas key={cuarto} servicios={servicios} hoy={hoy} fechaInicial={cuarto} alIr={ir} />
+  }
   if (seccion === 'deudas' && accion === 'nueva') return <NuevaDeuda servicios={servicios} hoy={hoy} alIr={ir} />
   if (seccion === 'deudas' && accion === 'abonar') return <Abonar servicios={servicios} deudaId={tercero} hoy={hoy} alIr={ir} />
   if (seccion === 'deudas' && accion !== undefined) return <DetalleDeuda servicios={servicios} deudaId={accion} hoy={hoy} alIr={ir} />

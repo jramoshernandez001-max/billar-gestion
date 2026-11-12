@@ -1,10 +1,11 @@
 /**
  * Repositorio de ventas.
  *
- * Qué hace: registra y anula ventas llamando a las funciones de la base.
+ * Qué hace: registra, edita y anula ventas llamando a las funciones de la base.
  * Cómo lo hace: valida la fecha y cada renglón, descarta los renglones con
  * cantidad cero y manda el resto como lista JSON con los nombres que espera
- * `registrar_venta`. Anular manda el id y el motivo.
+ * `registrar_venta`. Anular manda el id y el motivo. Editar manda el id de la
+ * venta vieja, la venta corregida y el motivo a `editar_venta`.
  * Por qué: la base crea la venta, sus renglones, el descuento de la nevera y
  * la bitácora en una sola transacción; aquí solo se arma bien la petición.
  * Si no se manda precio cobrado, la base usa el precio vigente del producto
@@ -50,6 +51,8 @@ export interface VentaRegistrada extends Venta {
 export interface RepositorioVentas {
   registrarVenta(datos: DatosVenta): Promise<string>
   anularVenta(ventaId: string, motivo: string): Promise<void>
+  /** Reemplaza una venta por la corregida; devuelve el id de la nueva. */
+  editarVenta(ventaId: string, datos: DatosVenta, motivo: string): Promise<string>
   /** Ventas con sus renglones (vigentes y anuladas), como las usa el dominio. */
   listarVentas(): Promise<VentaRegistrada[]>
 }
@@ -76,6 +79,25 @@ function renglonAJson(renglon: RenglonVenta): Record<string, unknown> {
     json.precio_cobrado = renglon.precioCobrado
   }
   return json
+}
+
+/**
+ * Arma los parámetros de una venta para la base.
+ *
+ * Qué hace: devuelve `p_fecha` y `p_items` listos para `registrar_venta` o
+ * `editar_venta`.
+ * Cómo lo hace: valida la fecha y cada renglón y descarta los de cantidad
+ * cero; si no queda ninguno lanza un error.
+ * Por qué: registrar y editar mandan la venta igual; así la regla vive en un
+ * solo lugar y no se llama a la base con una venta vacía.
+ */
+function parametrosVenta(datos: DatosVenta): { p_fecha: string; p_items: Record<string, unknown>[] } {
+  validarFecha('La fecha de la venta', datos.fecha)
+  const renglones = datos.renglones.map(renglonAJson).filter((r) => r.cantidad !== 0)
+  if (renglones.length === 0) {
+    throw new Error('La venta no tiene nada que registrar: todos los renglones tienen cantidad cero')
+  }
+  return { p_fecha: datos.fecha, p_items: renglones }
 }
 
 /**
@@ -147,14 +169,15 @@ function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown
 export function crearRepositorioVentas(cliente: ClienteDatos): RepositorioVentas {
   return {
     async registrarVenta(datos) {
-      validarFecha('La fecha de la venta', datos.fecha)
-      const renglones = datos.renglones.map(renglonAJson).filter((r) => r.cantidad !== 0)
-      if (renglones.length === 0) {
-        throw new Error('La venta no tiene nada que registrar: todos los renglones tienen cantidad cero')
-      }
-      const id = await llamarFuncion(cliente, 'registrar_venta', {
-        p_fecha: datos.fecha,
-        p_items: renglones,
+      const id = await llamarFuncion(cliente, 'registrar_venta', parametrosVenta(datos))
+      return exigirIdRespuesta(id)
+    },
+
+    async editarVenta(ventaId, datos, motivo) {
+      const id = await llamarFuncion(cliente, 'editar_venta', {
+        p_venta_id: exigirId('La venta', ventaId),
+        ...parametrosVenta(datos),
+        p_motivo: exigirTexto('El motivo', motivo),
       })
       return exigirIdRespuesta(id)
     },

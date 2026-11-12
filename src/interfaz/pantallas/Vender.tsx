@@ -1,5 +1,5 @@
 /**
- * Pantalla "Nueva venta".
+ * Pantalla "Nueva venta" (y "Editar venta").
  *
  * Qué hace: deja armar una venta con varios renglones (producto, presentación,
  * cantidad y precio opcional), muestra subtotales, unidades y total, y la
@@ -7,10 +7,13 @@
  * Cómo lo hace: guarda el borrador con las funciones puras de `borradorVenta`
  * (que calculan precios, unidades y problemas) y solo dibuja el resultado; al
  * registrar convierte el borrador con `aDatosVenta` y llama al repositorio de
- * ventas, y luego pasa a la lista de ventas.
+ * ventas, y luego pasa a la lista de ventas. Con `ventaId` abre esa venta ya
+ * llena (`borradorDesdeVenta`) y al guardar llama a `editarVenta`, que anula
+ * la vieja y registra la corregida en una sola transacción.
  * Por qué: la lógica está probada aparte; aquí no se calcula nada. El precio
  * vacío significa "usa el de lista": la base lo guarda en la venta para que un
- * cambio de precio futuro no altere el historial.
+ * cambio de precio futuro no altere el historial. Editar evita volver a
+ * diligenciar toda la venta cuando hubo un error al cerrar el día.
  */
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { MinusCircle, Minus, Plus, ChevronDown } from 'lucide-react'
@@ -25,6 +28,7 @@ import {
   type CatalogoVendible,
   type RenglonBorrador,
 } from '../../aplicacion/borradorVenta'
+import { borradorDesdeVenta, motivoEdicion, ventaEditable } from '../../aplicacion/edicionVenta'
 import { opcionesDePresentacion } from '../../domain/inventario/categorias'
 import type { RepositorioInventario } from '../../datos/inventario'
 import type { RepositorioVentas } from '../../datos/ventas'
@@ -38,13 +42,15 @@ import { SelectorProducto, type OpcionProducto } from './SelectorProducto'
 /** Servicios que necesita la pantalla. */
 export interface ServiciosVender {
   inventario: Pick<RepositorioInventario, 'listarProductos' | 'obtenerStock'>
-  ventas: Pick<RepositorioVentas, 'registrarVenta'>
+  ventas: Pick<RepositorioVentas, 'registrarVenta' | 'listarVentas' | 'editarVenta'>
 }
 
 interface Propiedades {
   servicios: ServiciosVender
   /** Día de hoy, AAAA-MM-DD. */
   hoy: string
+  /** Si viene, se edita esa venta en lugar de registrar una nueva. */
+  ventaId?: string
   alIr: (ruta: string) => void
 }
 
@@ -53,14 +59,17 @@ function unidadesTexto(n: number): string {
   return `${n} ${n === 1 ? 'unidad' : 'unidades'}`
 }
 
-export function Vender({ servicios, hoy, alIr }: Propiedades) {
+export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
-    const [productos, stock] = await Promise.all([
+    const [productos, stock, ventas] = await Promise.all([
       servicios.inventario.listarProductos(),
       servicios.inventario.obtenerStock(),
+      ventaId === undefined ? Promise.resolve(null) : servicios.ventas.listarVentas(),
     ])
-    return { productos, stock }
-  }, [servicios])
+    // Al editar, la venta debe existir y seguir vigente (si no, se muestra el error).
+    const venta = ventas === null || ventaId === undefined ? null : ventaEditable(ventas, ventaId)
+    return { productos, stock, venta }
+  }, [servicios, ventaId])
   const { estado, datos, error, recargar } = useCarga(cargar)
 
   const contador = useRef(1)
@@ -69,6 +78,21 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
   const [eligiendo, setEligiendo] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [falloRegistro, setFalloRegistro] = useState<string | null>(null)
+  const [motivo, setMotivo] = useState('')
+  const editando = ventaId !== undefined
+  const titulo = editando ? 'Editar venta' : 'Nueva venta'
+  const subtitulo = editando ? 'Reemplaza la venta anterior' : 'Se descuenta de la nevera'
+  const volverA = editando ? 'mas/ventas' : 'inicio'
+
+  // Al editar, el borrador empieza con la venta guardada (una sola vez por
+  // venta). Se ajusta durante el render, como recomienda React para un estado
+  // que depende de datos recién cargados.
+  const ventaCargada = datos?.venta ?? null
+  const [iniciadaCon, setIniciadaCon] = useState<string | null>(null)
+  if (ventaCargada !== null && iniciadaCon !== ventaCargada.id) {
+    setIniciadaCon(ventaCargada.id)
+    setBorrador(borradorDesdeVenta(ventaCargada))
+  }
 
   const catalogo: CatalogoVendible = useMemo(
     () => new Map((datos?.productos ?? []).map((p) => [p.id, p])),
@@ -79,7 +103,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
   if (estado !== 'listo' || datos === null) {
     return (
       <>
-        <CabeceraInterna titulo="Nueva venta" subtitulo="Se descuenta de la nevera" alVolver={() => alIr('inicio')} />
+        <CabeceraInterna titulo={titulo} subtitulo={subtitulo} alVolver={() => alIr(volverA)} />
         <div className="marco__contenido">
           {estado === 'cargando' ? (
             <p role="status" className="estado">Cargando…</p>
@@ -87,7 +111,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
             <>
               <div className="aviso aviso--error">
                 <div className="aviso__mensaje">
-                  <span className="aviso__titulo">No se pudieron cargar los productos</span>
+                  <span className="aviso__titulo">{editando ? 'No se pudo abrir la venta' : 'No se pudieron cargar los productos'}</span>
                   <span role="alert">{error}</span>
                 </div>
               </div>
@@ -129,8 +153,14 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
     setEnviando(true)
     setFalloRegistro(null)
     try {
-      await servicios.ventas.registrarVenta(aDatosVenta(borrador, catalogo))
-      alIr('mas/ventas')
+      const venta = aDatosVenta(borrador, catalogo)
+      if (ventaId === undefined) {
+        await servicios.ventas.registrarVenta(venta)
+        alIr('mas/ventas')
+      } else {
+        await servicios.ventas.editarVenta(ventaId, venta, motivoEdicion(motivo))
+        alIr(`mas/ventas/dia/${venta.fecha}`)
+      }
     } catch (causa) {
       setFalloRegistro(causa instanceof Error ? causa.message : String(causa))
       setEnviando(false)
@@ -226,7 +256,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
 
   return (
     <>
-      <CabeceraInterna titulo="Nueva venta" subtitulo="Se descuenta de la nevera" alVolver={() => alIr('inicio')} />
+      <CabeceraInterna titulo={titulo} subtitulo={subtitulo} alVolver={() => alIr(volverA)} />
       <div className="marco__contenido">
         <CampoFecha valor={borrador.fecha} hoy={hoy} alCambiar={(fecha) => setBorrador((b) => ({ ...b, fecha }))} />
         <p className="texto-suave">Precio por presentación. Si lo dejas vacío, se usa el precio del catálogo.</p>
@@ -236,9 +266,15 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
           type="button"
           className="boton"
           onClick={() => {
-            contador.current += 1
-            const clave = `r${contador.current}`
-            setBorrador((b) => agregarRenglon(b, clave))
+            setBorrador((b) => {
+              // La venta editada ya trae claves r1, r2…: se salta las usadas.
+              let clave = ''
+              do {
+                contador.current += 1
+                clave = `r${contador.current}`
+              } while (b.renglones.some((r) => r.clave === clave))
+              return agregarRenglon(b, clave)
+            })
           }}
         >
           <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
@@ -253,10 +289,19 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
           <span className="dato__total">{formatoPesos(calculado.total)}</span>
         </div>
 
+        {editando && (
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="motivo-edicion">Motivo · opcional</label>
+            <div className="entrada">
+              <input id="motivo-edicion" type="text" className="entrada__control" placeholder="Venta editada" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+            </div>
+          </div>
+        )}
+
         {falloRegistro !== null && (
           <div className="aviso aviso--error">
             <div className="aviso__mensaje">
-              <span className="aviso__titulo">No se pudo registrar la venta</span>
+              <span className="aviso__titulo">{editando ? 'No se pudo guardar la venta' : 'No se pudo registrar la venta'}</span>
               <span role="alert">{falloRegistro}</span>
             </div>
           </div>
@@ -268,7 +313,7 @@ export function Vender({ servicios, hoy, alIr }: Propiedades) {
           disabled={!calculado.puedeRegistrar || enviando}
           onClick={registrar}
         >
-          Registrar
+          {editando ? 'Guardar cambios' : 'Registrar'}
         </button>
       </div>
     </>

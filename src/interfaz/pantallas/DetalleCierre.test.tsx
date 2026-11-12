@@ -66,6 +66,13 @@ describe('DetalleCierre', () => {
     await waitFor(() => expect(corregir).toHaveBeenCalledWith('c1', 45000, 10000))
   })
 
+  it('en un cierre diario permite ir a editar las ventas de ese día', async () => {
+    const alIr = vi.fn()
+    dibujar(servicios(), 'c1', alIr)
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar ventas del día' }))
+    expect(alIr).toHaveBeenCalledWith('mas/ventas/dia/2026-11-01')
+  })
+
   it('un cierre que no existe avisa', async () => {
     dibujar(servicios(), 'otro')
     expect((await screen.findByRole('alert')).textContent).toMatch(/no existe/i)
