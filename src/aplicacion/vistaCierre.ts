@@ -26,6 +26,8 @@ export interface VistaSemanal {
   utilidadReal: number | null
   diferenciaUtilidad: number | null
   ventasSinCosto: number
+  /** Valor de los productos adicionales ("Otros"): van aparte, sin utilidad. */
+  ventasAdicionales: number
   productosSinCosto: { id: string; nombre: string }[]
   /** Cuántas compras se usaron como costo. */
   comprasUsadas: number
@@ -74,6 +76,8 @@ function leerSemanal(resultado: Record<string, unknown>, nombres: ReadonlyMap<st
     completo: resultado.completo,
     costoReposicion: entero(resultado.costoReposicion),
     ventasSinCosto: entero(resultado.ventasSinCosto),
+    // Los cierres guardados antes de existir "Otros" no traen el dato: es cero.
+    ventasAdicionales: resultado.ventasAdicionales === undefined ? 0 : entero(resultado.ventasAdicionales),
     productosSinCosto,
     comprasUsadas: resultado.comprasUsadas.length,
   }

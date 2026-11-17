@@ -109,4 +109,13 @@ describe('cerrarDia', () => {
     expect(() => cerrarDia(datos({ efectivo: -1 }))).toThrow()
     expect(() => cerrarDia(datos({ transferencias: 0.5 }))).toThrow()
   })
+
+  it('suma a lo vendido los productos adicionales ("Otros") de las ventas vigentes', () => {
+    // 50.000 de cerveza + 25.000 de hidratantes = 75.000; el dinero alcanza justo.
+    const conOtros: Venta = { ...venta(renglones), adicionales: [{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }] }
+    const anulada: Venta = { ...venta([], 'anulada'), id: 'v2', adicionales: [{ descripcion: 'Maní', cantidad: 1, valor: 9000 }] }
+    const resultado = cerrarDia(datos({ ventas: [conOtros, anulada], efectivo: 55000 }))
+    expect(resultado.diferencia).toBe(0)
+    expect(resultado.cuadra).toBe(true)
+  })
 })

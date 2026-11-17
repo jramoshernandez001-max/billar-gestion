@@ -52,9 +52,16 @@ describe('describirCierre (semanal)', () => {
       utilidadReal: 33000,
       diferenciaUtilidad: -2000,
       ventasSinCosto: 0,
+      ventasAdicionales: 0,
       productosSinCosto: [],
       comprasUsadas: 2,
     })
+  })
+
+  it('trae las ventas de productos adicionales (cero en cierres guardados antes de existir)', () => {
+    const r = describirCierre('semanal', { ...base, completo: true, productosSinCosto: [], ventasSinCosto: 0, ventasAdicionales: 25000, utilidad: { utilidadEsperada: 1, utilidadReal: 1, diferencia: 0 } }, { efectivo: 0, transferencias: 0 }, nombres)
+    expect(r.semanal?.ventasAdicionales).toBe(25000)
+    expect(() => describirCierre('semanal', { ...base, completo: true, productosSinCosto: [], ventasSinCosto: 0, ventasAdicionales: 'x', utilidad: { utilidadEsperada: 1, utilidadReal: 1, diferencia: 0 } }, { efectivo: 0, transferencias: 0 }, nombres)).toThrow(/resultado/i)
   })
 
   it('incompleto no trae utilidad real y lista los productos sin costo con su nombre', () => {

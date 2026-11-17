@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest'
 import { anulacionesDeVentas, resumirVentas, type AnulacionVenta, type NombresProductos } from './resumenVentas'
 import type { EntradaBitacora } from '../datos/bitacora'
 import type { VentaRegistrada } from '../datos/ventas'
+import { formatoPesos } from '../interfaz/formato'
 
 const aguila = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 const nombres: NombresProductos = new Map([['p1', 'Águila'], ['p2', 'Coca-Cola']])
@@ -116,5 +117,16 @@ describe('anulacionesDeVentas', () => {
       entrada({ motivo: null }),
     ]
     expect(anulacionesDeVentas(lista).size).toBe(0)
+  })
+})
+
+describe('resumirVentas con productos adicionales', () => {
+  it('muestra cada adicional como un renglón "Otros" y lo suma al total', () => {
+    const conOtros: VentaRegistrada = { ...venta('v9', instante(3, 20, 0), 'vigente', [renglon('p1', 'unidad', 2, 3000)]), adicionales: [{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }] }
+    const r = resumirVentas({ ventas: [conOtros], fecha: '2026-11-03', filtro: 'todas', limite: 10, nombres, anulaciones: new Map() })
+    expect(r.total).toBe(31000)
+    expect(r.unidades).toBe(2)
+    expect(r.tarjetas[0].total).toBe(31000)
+    expect(r.tarjetas[0].renglones.at(-1)).toEqual({ descripcion: 'Hidratante · Otros × 5', detalle: formatoPesos(25000) })
   })
 })

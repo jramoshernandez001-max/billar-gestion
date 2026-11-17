@@ -168,6 +168,7 @@ describe('cerrarSemana', () => {
       completo: true,
       productosSinCosto: [],
       ventasSinCosto: 0,
+      ventasAdicionales: 0,
       comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
       costosUsados: [
         { productoId: 'cerveza-a', compra: { id: 'cerveza-a-2026-03-05', fecha: '2026-03-05' } },
@@ -223,6 +224,7 @@ describe('cerrarSemana', () => {
       costoReposicion: 46000,
       productosSinCosto: ['cerveza-c'],
       ventasSinCosto: 6000,
+      ventasAdicionales: 0,
       comprasUsadas: ['cerveza-a-2026-03-05', 'cerveza-b-2026-03-01'],
       costosUsados: [
         { productoId: 'cerveza-a', compra: { id: 'cerveza-a-2026-03-05', fecha: '2026-03-05' } },
@@ -338,5 +340,39 @@ describe('cerrarSemana', () => {
 
   it('rechaza un periodo con inicio posterior al fin', () => {
     expect(() => cerrarSemana(datos({ desde: '2026-03-16' }))).toThrow()
+  })
+
+  describe('productos adicionales ("Otros")', () => {
+    const otros = { descripcion: 'Hidratante', cantidad: 5, valor: 25000 }
+    const conOtros = (estado: Venta['estado'] = 'vigente'): Venta => ({ ...vigente([], estado), id: `otros-${estado}`, adicionales: [otros] })
+
+    it('entran en el cuadre, van aparte y no cambian la utilidad esperada', () => {
+      // Productos: 63.000, costo 46.000 (A 24 x 1.500 + B 5 x 2.000). Otros: 25.000.
+      const resultado = comoCompleto(cerrarSemana(datos({ ventas: [vigente(renglones), conOtros()], efectivo: 68000 })))
+      expect(resultado.ventasAdicionales).toBe(25000)
+      expect(resultado.cuadre.diferencia).toBe(0)
+      expect(resultado.utilidad).toEqual({ utilidadEsperada: 17000, utilidadReal: 17000, diferencia: 0 })
+    })
+
+    it('un faltante se refleja en la utilidad real sin tocar la esperada', () => {
+      const resultado = comoCompleto(cerrarSemana(datos({ ventas: [vigente(renglones), conOtros()], efectivo: 63000 })))
+      expect(resultado.utilidad).toEqual({ utilidadEsperada: 17000, utilidadReal: 12000, diferencia: -5000 })
+    })
+
+    it('no hacen el cierre incompleto aunque no tengan costo, y en un incompleto se restan de la esperada', () => {
+      const sinCompras = cerrarSemana(datos({ ventas: [vigente(renglones), conOtros()], efectivo: 68000, compras: [compras[2]] }))
+      expect(sinCompras.completo).toBe(false)
+      expect(sinCompras.productosSinCosto).toEqual(['cerveza-a'])
+      // Solo B tiene costo: 15.000 − 10.000 = 5.000.
+      if (sinCompras.completo) throw new Error('Se esperaba incompleto')
+      expect(sinCompras.utilidadEsperada).toBe(5000)
+      expect(sinCompras.ventasAdicionales).toBe(25000)
+      const soloOtros = cerrarSemana(datos({ ventas: [conOtros()], efectivo: 25000, transferencias: 0 }))
+      expect(soloOtros.completo).toBe(true)
+    })
+
+    it('los de una venta anulada no cuentan', () => {
+      expect(cerrarSemana(datos({ ventas: [vigente(renglones), conOtros('anulada')] })).ventasAdicionales).toBe(0)
+    })
   })
 })

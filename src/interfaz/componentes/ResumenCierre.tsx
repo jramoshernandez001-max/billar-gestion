@@ -3,7 +3,8 @@
  *
  * Qué hace: muestra lo vendido, el dinero (efectivo, transferencias y
  * deudas), si el cierre cuadra, falta o sobra y, en el semanal, la utilidad
- * (completa o solo la esperada si falta algún costo).
+ * (completa o solo la esperada si falta algún costo) y lo vendido en "Otros",
+ * que va aparte porque no tiene costo.
  * Cómo lo hace: dibuja una `VistaCierre` ya calculada; no calcula nada.
  * Por qué: es el mismo bloque en la vista previa antes de cerrar y en el
  * detalle de un cierre guardado.
@@ -48,6 +49,9 @@ export function ResumenCierre({ vista }: { vista: VistaCierre }) {
             <span className={`dato__valor${(s.diferenciaUtilidad ?? 0) < 0 ? ' dato__valor--negativo' : ''}`}>{firmado(s.diferenciaUtilidad ?? 0)}</span>
           </div>
           <div className="dato"><span className="dato__etiqueta">Costo de reposición</span><span className="dato__valor">{formatoPesos(s.costoReposicion)}</span></div>
+          {s.ventasAdicionales > 0 && (
+            <div className="dato"><span className="dato__etiqueta">Otros (aparte, sin utilidad)</span><span className="dato__valor" data-dato="otros">{formatoPesos(s.ventasAdicionales)}</span></div>
+          )}
           <p className="texto-suave">{s.comprasUsadas} {s.comprasUsadas === 1 ? 'compra usada' : 'compras usadas'} como costo</p>
         </article>
       )}
@@ -63,6 +67,9 @@ export function ResumenCierre({ vista }: { vista: VistaCierre }) {
           <article className="tarjeta">
             <div className="dato"><span className="dato__etiqueta">Utilidad esperada (solo con costo)</span><span className="dato__valor">{formatoPesos(s.utilidadEsperada)}</span></div>
             <div className="dato"><span className="dato__etiqueta">Vendido sin costo</span><span className="dato__valor" data-dato="sin-costo">{formatoPesos(s.ventasSinCosto)}</span></div>
+            {s.ventasAdicionales > 0 && (
+              <div className="dato"><span className="dato__etiqueta">Otros (aparte, sin utilidad)</span><span className="dato__valor" data-dato="otros">{formatoPesos(s.ventasAdicionales)}</span></div>
+            )}
             <ul className="lista-simple">
               {s.productosSinCosto.map((p) => <li key={p.id}>{p.nombre}</li>)}
             </ul>

@@ -2,7 +2,7 @@
  * Borrador de venta (estado del formulario "Nueva venta").
  *
  * Qué hace: maneja la venta que se está armando antes de registrarla: agregar,
- * cambiar y quitar renglones; calcular precio de lista, subtotales y total; y
+ * cambiar y quitar renglones y productos adicionales ("Otros"); calcular precio de lista, subtotales y total; y
  * decir qué problemas impiden registrarla.
  * Cómo lo hace: funciones puras que devuelven un borrador nuevo (nunca
  * modifican el anterior) y usan el cálculo de precios del dominio.
@@ -16,6 +16,7 @@ import { validarFecha } from '../domain/compartido/validaciones'
 import { aUnidades } from '../domain/inventario/conversiones'
 import { presentacionPermitida } from '../domain/inventario/categorias'
 import { precioDeLista, valorItem, type ProductoVendible } from '../domain/ventas/valorVenta'
+import { normalizarAdicional, type ProductoAdicional } from '../domain/ventas/productosAdicionales'
 import type { DatosVenta } from '../datos/ventas'
 
 /** Productos disponibles para vender, por id. */
@@ -33,10 +34,30 @@ export interface RenglonBorrador {
   precioCobrado?: number
 }
 
+/** Un producto adicional ("Otros") mientras se captura. */
+export interface AdicionalBorrador {
+  /** Identificador dentro del formulario (lo da la pantalla). */
+  clave: string
+  /** Nombre tal como se escribe; se limpia al registrar. */
+  descripcion: string
+  cantidad: number
+  /** Valor total del renglón; null mientras no se escribe. */
+  valor: number | null
+}
+
 /** La venta que se está armando. */
 export interface BorradorVenta {
   fecha: string
   renglones: readonly RenglonBorrador[]
+  /** Productos que no están en el inventario; si falta, no hay ninguno. */
+  adicionales?: readonly AdicionalBorrador[]
+}
+
+/** Lo calculado de un producto adicional para mostrarlo. */
+export interface AdicionalCalculado {
+  clave: string
+  /** Qué está mal; null si está bien. */
+  problema: string | null
 }
 
 /** Lo calculado de un renglón para mostrarlo. */
@@ -55,6 +76,8 @@ export interface RenglonCalculado {
 /** Lo calculado de toda la venta. */
 export interface BorradorCalculado {
   renglones: RenglonCalculado[]
+  adicionales: AdicionalCalculado[]
+  /** Productos del inventario más el valor de los adicionales válidos. */
   total: number
   /** Unidades físicas de todos los renglones válidos. */
   unidades: number
@@ -137,6 +160,62 @@ export function quitarRenglon(borrador: BorradorVenta, clave: string): BorradorV
   return { ...borrador, renglones: borrador.renglones.filter((r) => r.clave !== clave) }
 }
 
+/** Cambios permitidos en un adicional (la clave no cambia). */
+export type CambiosAdicional = Partial<Omit<AdicionalBorrador, 'clave'>>
+
+/**
+ * Agrega un producto adicional vacío (sin nombre, cantidad 1, sin valor)
+ * arriba de los demás.
+ *
+ * Qué hace: devuelve el borrador con el adicional nuevo de primero.
+ * Cómo lo hace: lo pone al inicio de la lista de adicionales.
+ * Por qué: igual que los renglones, el nuevo queda a la vista junto al botón.
+ *
+ * @throws Error si ya hay un adicional con esa clave.
+ */
+export function agregarAdicional(borrador: BorradorVenta, clave: string): BorradorVenta {
+  const actuales = borrador.adicionales ?? []
+  if (actuales.some((a) => a.clave === clave)) throw new Error(`Ya existe un producto adicional con la clave ${clave}`)
+  return { ...borrador, adicionales: [{ clave, descripcion: '', cantidad: 1, valor: null }, ...actuales] }
+}
+
+/**
+ * Cambia campos de un producto adicional.
+ * Cómo lo hace: copia el adicional con los cambios.
+ * @throws Error si no existe.
+ */
+export function cambiarAdicional(borrador: BorradorVenta, clave: string, cambios: CambiosAdicional): BorradorVenta {
+  const actuales = borrador.adicionales ?? []
+  if (!actuales.some((a) => a.clave === clave)) throw new Error(`No existe el producto adicional ${clave}`)
+  return { ...borrador, adicionales: actuales.map((a) => (a.clave === clave ? { ...a, ...cambios } : a)) }
+}
+
+/** Quita un producto adicional. @throws Error si no existe. */
+export function quitarAdicional(borrador: BorradorVenta, clave: string): BorradorVenta {
+  const actuales = borrador.adicionales ?? []
+  if (!actuales.some((a) => a.clave === clave)) throw new Error(`No existe el producto adicional ${clave}`)
+  return { ...borrador, adicionales: actuales.filter((a) => a.clave !== clave) }
+}
+
+/**
+ * Convierte un adicional del formulario en uno del dominio, limpio.
+ *
+ * Qué hace: devuelve el adicional listo o el problema que lo impide.
+ * Cómo lo hace: exige un valor escrito y usa normalizarAdicional, que limpia
+ * el nombre y valida cantidad y valor.
+ * Por qué: la pantalla muestra el problema en lenguaje claro y no deja
+ * registrar hasta corregirlo.
+ */
+function revisarAdicional(adicional: AdicionalBorrador): { listo: ProductoAdicional | null; problema: string | null } {
+  if (adicional.valor === null) return { listo: null, problema: 'Escribe el valor del producto adicional' }
+  try {
+    const listo = normalizarAdicional({ descripcion: adicional.descripcion, cantidad: adicional.cantidad, valor: adicional.valor })
+    return { listo, problema: null }
+  } catch (causa) {
+    return { listo: null, problema: causa instanceof Error ? causa.message : String(causa) }
+  }
+}
+
 /** Calcula un renglón; los errores del dominio se vuelven un problema legible. */
 function calcularRenglon(renglon: RenglonBorrador, catalogo: CatalogoVendible): RenglonCalculado {
   const vacio = { clave: renglon.clave, precioLista: null, subtotal: null, unidades: 0 }
@@ -169,6 +248,8 @@ function calcularRenglon(renglon: RenglonBorrador, catalogo: CatalogoVendible): 
  */
 export function calcularBorrador(borrador: BorradorVenta, catalogo: CatalogoVendible): BorradorCalculado {
   const renglones = borrador.renglones.map((r) => calcularRenglon(r, catalogo))
+  const revisados = (borrador.adicionales ?? []).map(revisarAdicional)
+  const adicionales = (borrador.adicionales ?? []).map((a, i) => ({ clave: a.clave, problema: revisados[i].problema }))
   const problemas: string[] = []
   try {
     validarFecha('La fecha de la venta', borrador.fecha)
@@ -176,11 +257,18 @@ export function calcularBorrador(borrador: BorradorVenta, catalogo: CatalogoVend
     problemas.push(causa instanceof Error ? causa.message : String(causa))
   }
   for (const r of renglones) if (r.problema !== null) problemas.push(r.problema)
-  const hayAlgo = borrador.renglones.some((r, i) => renglones[i].problema === null && r.cantidad > 0)
+  for (const a of adicionales) if (a.problema !== null) problemas.push(a.problema)
+  // Un adicional válido también es algo que vender (puede ir solo).
+  const hayAlgo =
+    borrador.renglones.some((r, i) => renglones[i].problema === null && r.cantidad > 0) ||
+    revisados.some((a) => a.listo !== null)
   if (!hayAlgo && problemas.length === 0) problemas.push('No hay nada que vender: agrega un renglón con cantidad')
-  const total = renglones.reduce((suma, r) => suma + (r.subtotal ?? 0), 0)
+  const total =
+    renglones.reduce((suma, r) => suma + (r.subtotal ?? 0), 0) +
+    revisados.reduce((suma, a) => suma + (a.listo?.valor ?? 0), 0)
+  // Las unidades son las del inventario: los adicionales no cuentan.
   const unidades = renglones.reduce((suma, r) => suma + r.unidades, 0)
-  return { renglones, total, unidades, problemas, puedeRegistrar: problemas.length === 0 }
+  return { renglones, adicionales, total, unidades, problemas, puedeRegistrar: problemas.length === 0 }
 }
 
 /**
@@ -190,6 +278,7 @@ export function calcularBorrador(borrador: BorradorVenta, catalogo: CatalogoVend
 export function aDatosVenta(borrador: BorradorVenta, catalogo: CatalogoVendible): DatosVenta {
   const calculado = calcularBorrador(borrador, catalogo)
   if (!calculado.puedeRegistrar) throw new Error(calculado.problemas[0])
+  const adicionales = (borrador.adicionales ?? []).map((a) => revisarAdicional(a).listo as ProductoAdicional)
   return {
     fecha: borrador.fecha,
     renglones: borrador.renglones.map((r) => ({
@@ -198,5 +287,6 @@ export function aDatosVenta(borrador: BorradorVenta, catalogo: CatalogoVendible)
       cantidad: r.cantidad,
       ...(r.precioCobrado !== undefined ? { precioCobrado: r.precioCobrado } : {}),
     })),
+    ...(adicionales.length > 0 ? { adicionales } : {}),
   }
 }

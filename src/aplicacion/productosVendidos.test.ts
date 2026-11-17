@@ -78,7 +78,7 @@ describe('resumirProductosVendidos', () => {
   })
 
   it('sin ventas devuelve todo en cero', () => {
-    expect(resumirProductosVendidos([], '2026-11-03', '2026-11-03', catalogo)).toEqual({ filas: [], totalUnidades: 0, totalValor: 0, ventas: 0, cajasCerveza: { cajas: 0, sueltas: 0 } })
+    expect(resumirProductosVendidos([], '2026-11-03', '2026-11-03', catalogo)).toEqual({ filas: [], totalUnidades: 0, totalValor: 0, adicionales: [], totalAdicionales: 0, ventas: 0, cajasCerveza: { cajas: 0, sueltas: 0 } })
   })
 
   it('un producto que ya no está en el catálogo se muestra como "Producto"', () => {
@@ -116,5 +116,24 @@ describe('resumirProductosVendidos', () => {
       const ventas = [venta('v1', '2026-11-03', [{ productoId: 'c', producto: cerveza, presentacion: 'caja', cantidad: 2 }], 'anulada')]
       expect(resumirProductosVendidos(ventas, '2026-11-03', '2026-11-03', catalogo).cajasCerveza).toEqual({ cajas: 0, sueltas: 0 })
     })
+  })
+})
+
+describe('productos adicionales ("Otros") vendidos', () => {
+  it('los junta por nombre (sin importar mayúsculas), los suma al total en valor y no en unidades', () => {
+    const ventas: Venta[] = [
+      { ...venta('v1', '2026-11-03', [{ productoId: 'c', producto: cerveza, presentacion: 'unidad', cantidad: 2 }]), adicionales: [{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }] },
+      { ...venta('v2', '2026-11-03', []), adicionales: [{ descripcion: 'hidratante', cantidad: 1, valor: 5000 }, { descripcion: 'Maní', cantidad: 2, valor: 4000 }] },
+      { ...venta('v3', '2026-11-03', [], 'anulada'), adicionales: [{ descripcion: 'Maní', cantidad: 9, valor: 9000 }] },
+    ]
+    const r = resumirProductosVendidos(ventas, '2026-11-03', '2026-11-03', catalogo)
+    expect(r.adicionales).toEqual([
+      { descripcion: 'Hidratante', cantidad: 6, valor: 30000 },
+      { descripcion: 'Maní', cantidad: 2, valor: 4000 },
+    ])
+    expect(r.totalAdicionales).toBe(34000)
+    expect(r.totalUnidades).toBe(2)
+    expect(r.totalValor).toBe(40000)
+    expect(r.ventas).toBe(2)
   })
 })

@@ -2,7 +2,7 @@
  * Lista de productos vendidos en un cierre.
  *
  * Qué hace: muestra, por producto, lo que se vendió (desglose y unidades) y
- * su valor, con los totales del periodo. En la semana (`mostrarCajas`)
+ * su valor, los productos adicionales ("Otros") y los totales del periodo. En la semana (`mostrarCajas`)
  * muestra además el total de cajas de cerveza vendidas en equivalente.
  * Cómo lo hace: dibuja un `ProductosVendidos` ya calculado; no calcula nada.
  * Por qué: el detalle de un cierre debe mostrar qué se vendió ese día o esa
@@ -28,7 +28,9 @@ export function ProductosVendidos({ datos, mostrarCajas = false }: { datos: Dato
         </span>
       </div>
 
-      {datos.filas.length === 0 && <p className="estado">No hubo ventas vigentes en este periodo.</p>}
+      {datos.filas.length === 0 && datos.adicionales.length === 0 && (
+        <p className="estado">No hubo ventas vigentes en este periodo.</p>
+      )}
 
       {datos.filas.map((fila) => (
         <div key={fila.productoId} className="dato" data-producto={fila.productoId}>
@@ -40,7 +42,24 @@ export function ProductosVendidos({ datos, mostrarCajas = false }: { datos: Dato
         </div>
       ))}
 
-      {datos.filas.length > 0 && (
+      {/* Otros: productos que no están en inventario, juntados por nombre. */}
+      {datos.adicionales.length > 0 && (
+        <>
+          <div className="division" />
+          <span className="texto-suave">Otros · no están en inventario</span>
+          {datos.adicionales.map((a) => (
+            <div key={a.descripcion} className="dato" data-adicional={a.descripcion}>
+              <span className="dato__etiqueta">
+                {a.descripcion}
+                <span className="texto-suave"> · {a.cantidad}</span>
+              </span>
+              <span className="dato__valor">{formatoPesos(a.valor)}</span>
+            </div>
+          ))}
+        </>
+      )}
+
+      {(datos.filas.length > 0 || datos.adicionales.length > 0) && (
         <>
           <div className="division" />
           <div className="dato">

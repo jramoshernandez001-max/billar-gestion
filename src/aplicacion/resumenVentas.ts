@@ -14,6 +14,7 @@
  */
 import { aUnidades } from '../domain/inventario/conversiones'
 import { valorItem } from '../domain/ventas/valorVenta'
+import { valorAdicionales } from '../domain/ventas/productosAdicionales'
 import type { EntradaBitacora } from '../datos/bitacora'
 import type { VentaRegistrada } from '../datos/ventas'
 import { fechaLocalIso, formatoPesos, horaLocal } from '../interfaz/formato'
@@ -85,9 +86,12 @@ function porRegistro(a: VentaRegistrada, b: VentaRegistrada): number {
   return a.creadoEn.localeCompare(b.creadoEn) || a.id.localeCompare(b.id)
 }
 
-/** Valor de una venta: suma de cantidad por precio cobrado de cada renglón. */
+/**
+ * Valor de una venta: suma de cantidad por precio cobrado de cada renglón,
+ * más el valor de sus productos adicionales ("Otros").
+ */
 function totalDe(venta: VentaRegistrada): number {
-  return venta.renglones.reduce((suma, r) => suma + valorItem(r), 0)
+  return venta.renglones.reduce((suma, r) => suma + valorItem(r), 0) + valorAdicionales(venta.adicionales ?? [])
 }
 
 /** Unidades físicas de una venta. */
@@ -107,10 +111,17 @@ function aTarjeta(
     numero: `V-${numero}`,
     hora: horaLocal(venta.creadoEn),
     estado: venta.estado,
-    renglones: venta.renglones.map((r) => ({
-      descripcion: `${nombres.get(r.productoId) ?? 'Producto'} · ${NOMBRE_PRESENTACION[r.presentacion]} × ${r.cantidad}`,
-      detalle: `${formatoPesos(r.precioCobrado ?? 0)} c/u · ${formatoPesos(valorItem(r))}`,
-    })),
+    renglones: [
+      ...venta.renglones.map((r) => ({
+        descripcion: `${nombres.get(r.productoId) ?? 'Producto'} · ${NOMBRE_PRESENTACION[r.presentacion]} × ${r.cantidad}`,
+        detalle: `${formatoPesos(r.precioCobrado ?? 0)} c/u · ${formatoPesos(valorItem(r))}`,
+      })),
+      // Los adicionales van al final; su valor es el total del renglón.
+      ...(venta.adicionales ?? []).map((a) => ({
+        descripcion: `${a.descripcion} · Otros × ${a.cantidad}`,
+        detalle: formatoPesos(a.valor),
+      })),
+    ],
     total: totalDe(venta),
     anulacion: venta.estado === 'anulada' ? (anulaciones.get(venta.id) ?? null) : null,
   }

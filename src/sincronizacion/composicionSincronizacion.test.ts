@@ -16,12 +16,21 @@ import { parametrosSql } from '../datos/apoyoPruebas'
 import { FUNCIONES_DIFERIBLES } from './colaPendientes'
 import { crearSincronizacion } from './composicionSincronizacion'
 
-const migraciones = import.meta.glob('../../supabase/migrations/0006_*.sql', {
+const migraciones = import.meta.glob('../../supabase/migrations/*.sql', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>
-const sql0006 = Object.values(migraciones)[0].replace(/--[^\n]*/g, '')
+/**
+ * Última definición de aplicar_operacion_pendiente (una migración posterior
+ * puede reemplazarla, como 0010 al agregar los productos adicionales).
+ */
+const definicionPendiente = Object.keys(migraciones)
+  .sort()
+  .map((ruta) => migraciones[ruta].replace(/--[^\n]*/g, ''))
+  .join('\n')
+  .split(/create (?:or replace )?function public\.aplicar_operacion_pendiente/i)
+  .at(-1) ?? ''
 
 function storageFalso(): Storage {
   const m = new Map<string, string>()
@@ -37,7 +46,7 @@ function storageFalso(): Storage {
 
 describe('aplicar_operacion_pendiente', () => {
   it('cada función permitida lee del json los mismos parámetros que ya tiene', () => {
-    const ramas = sql0006.split(/\n\s+when '/).slice(1)
+    const ramas = definicionPendiente.split(/\n\$\$;/)[0].split(/\n\s+when '/).slice(1)
     expect(ramas.length).toBe(FUNCIONES_DIFERIBLES.length)
     for (const rama of ramas) {
       const funcion = rama.match(/^(\w+)'/)?.[1] ?? ''

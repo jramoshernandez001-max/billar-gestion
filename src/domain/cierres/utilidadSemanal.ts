@@ -43,6 +43,12 @@ export interface DatosUtilidad {
   costoReposicion: number
   /** Efectivo + transferencias + deudas de la semana. */
   dineroTotal: number
+  /**
+   * Parte de lo vendido que va aparte de la utilidad (productos adicionales
+   * sin costo). Su plata está en el dinero total, así que se descuenta antes
+   * de calcular la utilidad real. Si falta, es cero.
+   */
+  ventasAparte?: number
 }
 
 /** Resultado de la utilidad semanal. */
@@ -116,9 +122,12 @@ export function calcularUtilidadSemanal(datos: DatosUtilidad): ResultadoUtilidad
   validarMonto('El valor de las ventas', datos.valorVentas)
   validarMonto('El costo de reposición', datos.costoReposicion)
   validarMonto('El dinero total', datos.dineroTotal)
+  const ventasAparte = datos.ventasAparte ?? 0
+  validarMonto('Las ventas aparte', ventasAparte)
 
   const utilidadEsperada = datos.valorVentas - datos.costoReposicion
-  const utilidadReal = datos.dineroTotal - datos.costoReposicion
+  // La plata de lo que va aparte no es utilidad de los productos con costo.
+  const utilidadReal = datos.dineroTotal - ventasAparte - datos.costoReposicion
 
   return {
     utilidadEsperada,

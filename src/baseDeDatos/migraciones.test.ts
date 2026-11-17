@@ -69,7 +69,7 @@ const PRIVADAS = ['codigos_acceso', 'sesiones_codigo', 'intentos_codigo']
 const legibles = tablas.filter((t) => !PRIVADAS.includes(t))
 
 describe('migraciones de la base de datos', () => {
-  it('existen las nueve migraciones, en orden', () => {
+  it('existen las diez migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -80,6 +80,7 @@ describe('migraciones de la base de datos', () => {
       '0007_categoria_producto.sql',
       '0008_acceso_con_codigo.sql',
       '0009_editar_venta.sql',
+      '0010_productos_adicionales.sql',
     ])
   })
 
@@ -90,7 +91,7 @@ describe('migraciones de la base de datos', () => {
     expect([...acciones].sort()).toEqual([...ACCIONES_BITACORA].sort())
   })
 
-  it('crea las catorce tablas del esquema', () => {
+  it('crea las quince tablas del esquema', () => {
     expect([...tablas].sort()).toEqual(
       [
         'usuarios_autorizados',
@@ -99,6 +100,7 @@ describe('migraciones de la base de datos', () => {
         'movimientos_inventario',
         'ventas',
         'venta_items',
+        'venta_adicionales',
         'deudas',
         'abonos_deuda',
         'cierres',
@@ -412,12 +414,38 @@ describe('migraciones de la base de datos', () => {
 
     it('editar_venta anula la venta y registra la corregida en la misma transacción', () => {
       const texto = definer.find((f) => f.nombre === 'editar_venta')?.texto ?? ''
-      expect(texto).toMatch(/p_venta_id uuid,\s*p_fecha date,\s*p_items jsonb,\s*p_motivo text/i)
+      expect(texto).toMatch(/p_venta_id uuid,\s*p_fecha date,\s*p_items jsonb,\s*p_adicionales jsonb,\s*p_motivo text/i)
       expect(texto).toMatch(/perform public\.anular_venta\(p_venta_id, p_motivo\)/i)
-      expect(texto).toMatch(/return public\.registrar_venta\(p_fecha, p_items\)/i)
+      expect(texto).toMatch(/return public\.registrar_venta\(p_fecha, p_items, p_adicionales\)/i)
       // Sin conexión no se puede editar: no está entre las diferibles.
       const pendiente = definer.find((f) => f.nombre === 'aplicar_operacion_pendiente')?.texto ?? ''
       expect(pendiente).not.toMatch(/editar_venta/)
+    })
+
+    it('los productos adicionales de una venta tienen nombre limpio, cantidad y valor mayores a cero, y no se modifican', () => {
+      const definicion = sql.match(/create table public\.venta_adicionales \(([\s\S]*?)\n\);/i)?.[1] ?? ''
+      expect(definicion).toMatch(/descripcion public\.descripcion_movimiento not null/)
+      expect(definicion).toMatch(/cantidad integer not null check \(cantidad > 0\)/)
+      expect(definicion).toMatch(/valor bigint not null check \(valor > 0\)/)
+      expect(sql).toMatch(/before delete on public\.venta_adicionales/i)
+      expect(sql).toMatch(/before update on public\.venta_adicionales/i)
+    })
+
+    it('registrar_venta guarda los adicionales sin mover inventario y acepta una venta solo con adicionales', () => {
+      const venta = definer.find((f) => f.nombre === 'registrar_venta')?.texto ?? ''
+      expect(venta).toMatch(/p_adicionales jsonb default '\[\]'::jsonb/i)
+      expect(venta).toMatch(/insert into public\.venta_adicionales/i)
+      expect(venta).toMatch(/normalizar_descripcion\(v_item ->> 'descripcion'\)/i)
+      // Cada adicional cuenta como algo que vender.
+      expect(venta).toMatch(/jsonb_array_elements\(v_lista_adicionales\)[\s\S]*v_con_cantidad := v_con_cantidad \+ 1/i)
+      const bloque = venta.split(/insert into public\.venta_adicionales/i)[1] ?? ''
+      expect(bloque).not.toMatch(/movimientos_inventario/i)
+    })
+
+    it('anular_venta deja los adicionales en la bitácora', () => {
+      const anular = definer.find((f) => f.nombre === 'anular_venta')?.texto ?? ''
+      expect(anular).toMatch(/from public\.venta_adicionales/i)
+      expect(anular).toMatch(/'adicionales', v_adicionales/i)
     })
 
     it('registrar_venta ignora los renglones de cantidad cero', () => {

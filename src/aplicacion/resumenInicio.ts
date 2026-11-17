@@ -12,6 +12,7 @@
 import { sumarDias } from '../domain/compartido/semana'
 import { validarFecha } from '../domain/compartido/validaciones'
 import { aUnidades } from '../domain/inventario/conversiones'
+import { adicionalesVigentes, valorAdicionales } from '../domain/ventas/productosAdicionales'
 import { valorVenta } from '../domain/ventas/valorVenta'
 import { renglonesVigentes, type Venta } from '../domain/ventas/venta'
 
@@ -52,7 +53,9 @@ function ventasDe(ventas: readonly Venta[], fecha: string): VentasDelDia {
   const vigentes = ventas.filter((v) => v.fecha === fecha && v.estado === 'vigente')
   const renglones = renglonesVigentes(vigentes)
   const unidades = renglones.reduce((suma, r) => suma + aUnidades(r.producto, r.presentacion, r.cantidad), 0)
-  return { fecha, total: valorVenta(renglones), cantidadVentas: vigentes.length, unidades }
+  // El total incluye los productos adicionales ("Otros"); las unidades no.
+  const total = valorVenta(renglones) + valorAdicionales(adicionalesVigentes(vigentes))
+  return { fecha, total, cantidadVentas: vigentes.length, unidades }
 }
 
 /**

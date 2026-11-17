@@ -34,7 +34,7 @@ describe('ResumenCierre', () => {
   })
 
   it('semanal completo muestra utilidad esperada, real y diferencia', () => {
-    render(<ResumenCierre vista={{ ...base, semanal: { completo: true, costoReposicion: 30000, utilidadEsperada: 35000, utilidadReal: 33000, diferenciaUtilidad: -2000, ventasSinCosto: 0, productosSinCosto: [], comprasUsadas: 2 } }} />)
+    render(<ResumenCierre vista={{ ...base, semanal: { completo: true, costoReposicion: 30000, utilidadEsperada: 35000, utilidadReal: 33000, diferenciaUtilidad: -2000, ventasSinCosto: 0, ventasAdicionales: 0, productosSinCosto: [], comprasUsadas: 2 } }} />)
     expect(screen.getByText('Utilidad esperada')).toBeTruthy()
     expect(screen.getByText('$ 33.000')).toBeTruthy()
     expect(screen.getByText('−$ 2.000')).toBeTruthy()
@@ -42,10 +42,18 @@ describe('ResumenCierre', () => {
   })
 
   it('semanal incompleto avisa, no muestra utilidad real y lista los productos sin costo', () => {
-    render(<ResumenCierre vista={{ ...base, semanal: { completo: false, costoReposicion: 30000, utilidadEsperada: 20000, utilidadReal: null, diferenciaUtilidad: null, ventasSinCosto: 12000, productosSinCosto: [{ id: 'p2', nombre: 'Agua Ejemplo' }], comprasUsadas: 1 } }} />)
+    render(<ResumenCierre vista={{ ...base, semanal: { completo: false, costoReposicion: 30000, utilidadEsperada: 20000, utilidadReal: null, diferenciaUtilidad: null, ventasSinCosto: 12000, ventasAdicionales: 0, productosSinCosto: [{ id: 'p2', nombre: 'Agua Ejemplo' }], comprasUsadas: 1 } }} />)
     expect(screen.getByText(/incompleto/i)).toBeTruthy()
     expect(screen.queryByText('Utilidad real')).toBeNull()
     expect(screen.getByText('Agua Ejemplo')).toBeTruthy()
     expect(screen.getByText('$ 12.000', { selector: '[data-dato="sin-costo"]' })).toBeTruthy()
+  })
+
+  it('semanal con "Otros" los muestra aparte, sin utilidad; sin "Otros" no aparece la fila', () => {
+    render(<ResumenCierre vista={{ ...base, semanal: { completo: true, costoReposicion: 30000, utilidadEsperada: 35000, utilidadReal: 35000, diferenciaUtilidad: 0, ventasSinCosto: 0, ventasAdicionales: 25000, productosSinCosto: [], comprasUsadas: 2 } }} />)
+    expect(screen.getByText('$ 25.000', { selector: '[data-dato="otros"]' })).toBeTruthy()
+    cleanup()
+    render(<ResumenCierre vista={{ ...base, semanal: { completo: true, costoReposicion: 30000, utilidadEsperada: 35000, utilidadReal: 35000, diferenciaUtilidad: 0, ventasSinCosto: 0, ventasAdicionales: 0, productosSinCosto: [], comprasUsadas: 2 } }} />)
+    expect(screen.queryByText(/Otros \(aparte/)).toBeNull()
   })
 })
