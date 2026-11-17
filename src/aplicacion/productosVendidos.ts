@@ -2,7 +2,8 @@
  * Productos vendidos en un periodo.
  *
  * Qué hace: suma, por producto, las unidades y el valor vendidos en las
- * ventas vigentes dentro de un periodo, con el desglose por presentación
+ * ventas vigentes dentro de un periodo (y aparte los productos adicionales
+ * "Otros", juntados por nombre), con el desglose por presentación
  * ("1 caja · 4 unidades"), y los totales.
  * Cómo lo hace: filtra las ventas por fecha (extremos incluidos), descarta
  * las anuladas, y recorre los renglones convirtiendo con `aUnidades` y
@@ -22,6 +23,7 @@ import type { CategoriaProducto } from '../domain/inventario/categorias'
 import { aUnidades, descomponerEnCajas, type Presentacion } from '../domain/inventario/conversiones'
 import { estaVigente } from '../domain/compartido/estado'
 import type { Venta } from '../domain/ventas/venta'
+import type { ProductoAdicional } from '../domain/ventas/productosAdicionales'
 import { valorItem } from '../domain/ventas/valorVenta'
 
 /** Una fila del resumen: un producto con lo vendido. */
@@ -37,8 +39,14 @@ export interface FilaVendida {
 
 export interface ProductosVendidos {
   filas: FilaVendida[]
+  /** Unidades del inventario (los adicionales no cuentan). */
   totalUnidades: number
+  /** Valor de todo lo vendido, con los adicionales. */
   totalValor: number
+  /** Productos adicionales ("Otros") juntados por nombre, de mayor a menor valor. */
+  adicionales: ProductoAdicional[]
+  /** Valor de los adicionales. */
+  totalAdicionales: number
   /** Cantidad de ventas vigentes del periodo. */
   ventas: number
   /**
@@ -91,6 +99,8 @@ export function resumirProductosVendidos(
     }
   }
 
+  const adicionales = juntarAdicionales(vigentes)
+  const totalAdicionales = adicionales.reduce((suma, a) => suma + a.valor, 0)
   const cajasCerveza = contarCajasCerveza(porProducto, nombres)
   const filas = [...porProducto].map(([productoId, a]): FilaVendida => {
     const info = nombres.get(productoId) ?? { nombre: 'Producto', categoria: 'cerveza' as const }
@@ -110,10 +120,33 @@ export function resumirProductosVendidos(
   return {
     filas,
     totalUnidades: filas.reduce((suma, f) => suma + f.unidades, 0),
-    totalValor: filas.reduce((suma, f) => suma + f.valor, 0),
+    totalValor: filas.reduce((suma, f) => suma + f.valor, 0) + totalAdicionales,
+    adicionales,
+    totalAdicionales,
     ventas: vigentes.length,
     cajasCerveza,
   }
+}
+
+/**
+ * Junta los productos adicionales de las ventas por nombre.
+ *
+ * Qué hace: devuelve un renglón por nombre con la cantidad y el valor sumados.
+ * Cómo lo hace: agrupa sin importar mayúsculas (deja el primer nombre como se
+ * escribió) y ordena de mayor a menor valor.
+ * Por qué: el mismo producto se escribe a mano en varias ventas; en el
+ * resumen del día o la semana se lee mejor una sola línea por producto.
+ */
+function juntarAdicionales(ventas: readonly Venta[]): ProductoAdicional[] {
+  const porNombre = new Map<string, ProductoAdicional>()
+  for (const venta of ventas) {
+    for (const a of venta.adicionales ?? []) {
+      const clave = a.descripcion.toLocaleLowerCase('es')
+      const actual = porNombre.get(clave)
+      porNombre.set(clave, actual === undefined ? { ...a } : { ...actual, cantidad: actual.cantidad + a.cantidad, valor: actual.valor + a.valor })
+    }
+  }
+  return [...porNombre.values()].sort((x, y) => y.valor - x.valor || x.descripcion.localeCompare(y.descripcion))
 }
 
 /**

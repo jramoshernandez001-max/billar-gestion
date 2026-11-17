@@ -11,6 +11,7 @@
  * módulos; aquí solo se arma el día, sin repetirlas.
  */
 import { totalDeudasPendientes, type Abono, type Deuda } from '../deudas/deudas'
+import { adicionalesVigentes, valorAdicionales } from '../ventas/productosAdicionales'
 import { valorVenta } from '../ventas/valorVenta'
 import { renglonesVigentes, type Venta } from '../ventas/venta'
 import { cuadrarCierre, type ResultadoCuadre } from './cuadreCierre'
@@ -34,7 +35,7 @@ export interface DatosCierreDiario {
  *
  * Qué hace: devuelve el resultado del cuadre del día.
  * Cómo lo hace: calcula el valor de lo vendido en las ventas vigentes (una
- * venta anulada no suma), suma lo que siguen debiendo
+ * venta anulada no suma), con sus productos adicionales, suma lo que siguen debiendo
  * las deudas nacidas ese día (periodo desde = hasta = fecha) y le pasa todo
  * a cuadrarCierre.
  * Por qué: el cierre diario es el mismo cálculo que el semanal con un
@@ -44,7 +45,8 @@ export interface DatosCierreDiario {
  */
 export function cerrarDia(datos: DatosCierreDiario): ResultadoCuadre {
   return cuadrarCierre({
-    valorVentas: valorVenta(renglonesVigentes(datos.ventas)),
+    // Lo vendido incluye los productos adicionales ("Otros"): su plata está en la caja.
+    valorVentas: valorVenta(renglonesVigentes(datos.ventas)) + valorAdicionales(adicionalesVigentes(datos.ventas)),
     efectivo: datos.efectivo,
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.fecha, datos.fecha),

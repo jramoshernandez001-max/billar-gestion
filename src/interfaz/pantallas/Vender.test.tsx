@@ -144,6 +144,58 @@ describe('Vender', () => {
     expect((screen.getByRole('button', { name: 'Registrar' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
+  describe('Otros (productos que no están en inventario)', () => {
+    it('agrega un producto adicional con nombre, cantidad y valor, y lo suma al total', async () => {
+      armar()
+      await elegir(/Águila/)
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar otro producto' }))
+      const otro = screen.getByRole('region', { name: 'Otro producto 1' })
+      expect((screen.getByRole('button', { name: 'Registrar' }) as HTMLButtonElement).disabled).toBe(true)
+      fireEvent.change(within(otro).getByLabelText('Producto adicional'), { target: { value: 'Gatorade' } })
+      for (let i = 0; i < 4; i += 1) fireEvent.click(within(otro).getByRole('button', { name: 'Más cantidad de otro producto' }))
+      fireEvent.change(within(otro).getByLabelText('Valor total'), { target: { value: '25.000' } })
+      // 3.000 de la cerveza + 25.000 de Gatorade; las unidades son solo las del inventario.
+      expect(screen.getByText('$ 28.000', { selector: '.dato__total' })).toBeTruthy()
+      expect(screen.getByText('Total · 1 unidad')).toBeTruthy()
+      expect((screen.getByRole('button', { name: 'Registrar' }) as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('registra la venta con sus productos adicionales', async () => {
+      const { registrarVenta, alIr } = armar()
+      await elegir(/Águila/)
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar otro producto' }))
+      fireEvent.change(screen.getByLabelText('Producto adicional'), { target: { value: ' Gatorade ' } })
+      fireEvent.change(screen.getByLabelText('Valor total'), { target: { value: '5000' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Registrar' }))
+      await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/ventas'))
+      expect(registrarVenta).toHaveBeenCalledWith({
+        fecha: '2026-11-03',
+        renglones: [{ productoId: 'p1', presentacion: 'unidad', cantidad: 1 }],
+        adicionales: [{ descripcion: 'Gatorade', cantidad: 1, valor: 5000 }],
+      })
+    })
+
+    it('se puede vender solo un producto adicional, quitando el renglón vacío', async () => {
+      const { registrarVenta } = armar()
+      await screen.findByText('Elegir producto')
+      fireEvent.click(screen.getByRole('button', { name: 'Quitar renglón' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar otro producto' }))
+      fireEvent.change(screen.getByLabelText('Producto adicional'), { target: { value: 'Gatorade' } })
+      fireEvent.change(screen.getByLabelText('Valor total'), { target: { value: '5000' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Registrar' }))
+      await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
+      expect(registrarVenta.mock.calls[0][0].renglones).toEqual([])
+    })
+
+    it('quita un producto adicional', async () => {
+      armar()
+      await screen.findByText('Elegir producto')
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar otro producto' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Quitar producto adicional' }))
+      expect(screen.queryByRole('region', { name: 'Otro producto 1' })).toBeNull()
+    })
+  })
+
   it('la flecha de volver regresa al inicio', async () => {
     const { alIr } = armar()
     await screen.findByRole('heading', { name: 'Nueva venta' })

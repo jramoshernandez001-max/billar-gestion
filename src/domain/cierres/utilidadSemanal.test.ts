@@ -69,6 +69,18 @@ describe('costoReposicionTotal', () => {
 })
 
 describe('calcularUtilidadSemanal', () => {
+  it('descuenta del dinero las ventas que van aparte (productos adicionales)', () => {
+    // Productos con costo: vendiste 100.000, reponer cuesta 70.000. Además
+    // hubo 20.000 de "Otros"; tienes 115.000 en total, falta 5.000.
+    expect(
+      calcularUtilidadSemanal({ valorVentas: 100000, costoReposicion: 70000, dineroTotal: 115000, ventasAparte: 20000 }),
+    ).toEqual({ utilidadEsperada: 30000, utilidadReal: 25000, diferencia: -5000 })
+  })
+
+  it('rechaza unas ventas aparte inválidas', () => {
+    expect(() => calcularUtilidadSemanal({ valorVentas: 1, costoReposicion: 0, dineroTotal: 1, ventasAparte: -1 })).toThrow()
+  })
+
   it('calcula la utilidad esperada, la real y la diferencia', () => {
     // Vendiste 2.000.000, reponer cuesta 1.700.000 y tienes 1.950.000.
     expect(

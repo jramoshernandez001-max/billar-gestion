@@ -30,6 +30,35 @@ describe('registrarVenta', () => {
       { producto_id: ID2, presentacion: 'unidad', cantidad: 2 },
       { producto_id: ID2, presentacion: 'caja', cantidad: 1, precio_cobrado: 55000 },
     ])
+    expect(args.p_adicionales).toEqual([])
+  })
+
+  it('manda los productos adicionales ("Otros") con el nombre limpio', async () => {
+    const { cliente, rpc } = clienteFalso({ data: ID })
+    await crearRepositorioVentas(cliente).registrarVenta({
+      fecha: '2026-11-03',
+      renglones: [renglon],
+      adicionales: [{ descripcion: '  Hidratante   azul ', cantidad: 5, valor: 25000 }],
+    })
+    expect(rpc.mock.calls[0][1].p_adicionales).toEqual([{ descripcion: 'Hidratante azul', cantidad: 5, valor: 25000 }])
+  })
+
+  it('acepta una venta que solo tiene productos adicionales', async () => {
+    const { cliente, rpc } = clienteFalso({ data: ID })
+    await crearRepositorioVentas(cliente).registrarVenta({
+      fecha: '2026-11-03',
+      renglones: [],
+      adicionales: [{ descripcion: 'Hidratante', cantidad: 1, valor: 5000 }],
+    })
+    expect(rpc.mock.calls[0][1].p_items).toEqual([])
+  })
+
+  it('rechaza un producto adicional inválido sin llamar a la base', async () => {
+    const { cliente, rpc } = clienteFalso({ data: ID })
+    const repo = crearRepositorioVentas(cliente)
+    await expect(repo.registrarVenta({ fecha: '2026-11-03', renglones: [renglon], adicionales: [{ descripcion: ' ', cantidad: 1, valor: 5000 }] })).rejects.toThrow(/nombre/i)
+    await expect(repo.registrarVenta({ fecha: '2026-11-03', renglones: [renglon], adicionales: [{ descripcion: 'Maní', cantidad: 1, valor: 0 }] })).rejects.toThrow(/valor/i)
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('ignora los renglones con cantidad cero', async () => {
@@ -99,6 +128,7 @@ describe('listarVentas', () => {
       ventas: [ventaFila, { ...ventaFila, id: 'v2', estado: 'anulada' }],
       venta_items: [itemFila],
       productos: [productoFila],
+      venta_adicionales: [],
     })
     const ventas = await crearRepositorioVentas(cliente).listarVentas()
     expect(ventas).toEqual([
@@ -148,6 +178,7 @@ describe('editarVenta', () => {
       p_venta_id: ID,
       p_fecha: '2026-11-03',
       p_items: [{ producto_id: ID2, presentacion: 'unidad', cantidad: 2 }],
+      p_adicionales: [],
       p_motivo: 'Se contó mal',
     })
   })
@@ -163,5 +194,21 @@ describe('editarVenta', () => {
   it('exige el motivo', async () => {
     const { cliente } = clienteFalso({ data: ID2 })
     await expect(crearRepositorioVentas(cliente).editarVenta(ID, { fecha: '2026-11-03', renglones: [renglon] }, '  ')).rejects.toThrow()
+  })
+})
+
+describe('listarVentas con productos adicionales', () => {
+  const ventaFila = { id: ID, fecha: '2026-11-03', estado: 'vigente', creado_en: '2026-11-03T21:20:00+00:00' }
+  const adicionalFila = { venta_id: ID, descripcion: 'Hidratante', cantidad: 5, valor: 25000 }
+
+  it('agrega a cada venta sus adicionales', async () => {
+    const { cliente } = clienteFalso({}, { ventas: [ventaFila], venta_items: [], productos: [], venta_adicionales: [adicionalFila] })
+    const [venta] = await crearRepositorioVentas(cliente).listarVentas()
+    expect(venta.adicionales).toEqual([{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }])
+  })
+
+  it('rechaza una fila de adicionales con forma inesperada', async () => {
+    const { cliente } = clienteFalso({}, { ventas: [ventaFila], venta_items: [], productos: [], venta_adicionales: [{ ...adicionalFila, valor: 'mucho' }] })
+    await expect(crearRepositorioVentas(cliente).listarVentas()).rejects.toThrow(/adicionales/i)
   })
 })

@@ -14,7 +14,7 @@
 import { estaVigente } from '../domain/compartido/estado'
 import { precioDeLista } from '../domain/ventas/valorVenta'
 import type { Venta } from '../domain/ventas/venta'
-import type { BorradorVenta, RenglonBorrador } from './borradorVenta'
+import type { AdicionalBorrador, BorradorVenta, RenglonBorrador } from './borradorVenta'
 
 /** Motivo que se usa si la persona no escribe uno. */
 export const MOTIVO_POR_DEFECTO = 'Venta editada'
@@ -39,8 +39,9 @@ export function ventaEditable<V extends Venta>(ventas: readonly V[], ventaId: st
 /**
  * Convierte una venta guardada en un borrador para corregirla.
  *
- * Qué hace: devuelve un borrador con la fecha y los renglones de la venta, en
- * el mismo orden y con claves r1, r2…
+ * Qué hace: devuelve un borrador con la fecha, los renglones (claves r1,
+ * r2…) y los productos adicionales (claves a1, a2…) de la venta, en el mismo
+ * orden.
  * Cómo lo hace: copia producto, presentación y cantidad. El precio cobrado se
  * deja vacío si es igual al precio de lista actual, y se conserva si se había
  * cambiado a mano.
@@ -49,8 +50,16 @@ export function ventaEditable<V extends Venta>(ventas: readonly V[], ventaId: st
  * un precio especial (por ejemplo, una caja a domicilio) no se pierde.
  */
 export function borradorDesdeVenta(venta: Venta): BorradorVenta {
+  // Los productos adicionales ("Otros") vuelven tal cual, con claves a1, a2…
+  const adicionales = (venta.adicionales ?? []).map((a, indice): AdicionalBorrador => ({
+    clave: `a${indice + 1}`,
+    descripcion: a.descripcion,
+    cantidad: a.cantidad,
+    valor: a.valor,
+  }))
   return {
     fecha: venta.fecha,
+    ...(adicionales.length > 0 ? { adicionales } : {}),
     renglones: venta.renglones.map((renglon, indice): RenglonBorrador => {
       const nuevo: RenglonBorrador = {
         clave: `r${indice + 1}`,

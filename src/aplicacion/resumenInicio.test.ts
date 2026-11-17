@@ -60,3 +60,12 @@ describe('resumirInicio', () => {
     expect(() => resumirInicio({ hoy: 'hoy', ventas: [], deudaPendiente: 0, productosNegativos: 0, cierresDesactualizados: 0 })).toThrow()
   })
 })
+
+describe('resumirInicio con productos adicionales', () => {
+  it('el total de hoy incluye el valor de los adicionales, sin sumarlos a las unidades', () => {
+    const conOtros: Venta = { ...venta('v1', '2026-11-03', 2), adicionales: [{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }] }
+    const r = resumirInicio({ hoy: '2026-11-03', ventas: [conOtros], deudaPendiente: 0, productosNegativos: 0, cierresDesactualizados: 0 })
+    expect(r.hoy.total).toBe(31000)
+    expect(r.hoy.unidades).toBe(2)
+  })
+})

@@ -12,6 +12,7 @@
 import { estaVigente, type EstadoRegistro } from '../compartido/estado'
 import { aUnidades } from '../inventario/conversiones'
 import type { RenglonVenta } from './movimientosVenta'
+import type { ProductoAdicional } from './productosAdicionales'
 
 /** Estados posibles de una venta: los mismos de todo registro anulable. */
 export type EstadoVenta = EstadoRegistro
@@ -23,6 +24,11 @@ export interface Venta {
   fecha: string
   estado: EstadoVenta
   renglones: readonly RenglonVenta[]
+  /**
+   * Productos que no están en el inventario (apartado "Otros"). Opcional:
+   * las ventas que no los tienen simplemente no lo traen.
+   */
+  adicionales?: readonly ProductoAdicional[]
 }
 
 /**

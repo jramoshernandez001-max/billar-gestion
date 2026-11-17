@@ -4,7 +4,8 @@
  * Qué hace: registra, edita y anula ventas llamando a las funciones de la base.
  * Cómo lo hace: valida la fecha y cada renglón, descarta los renglones con
  * cantidad cero y manda el resto como lista JSON con los nombres que espera
- * `registrar_venta`. Anular manda el id y el motivo. Editar manda el id de la
+ * `registrar_venta`, junto con los productos adicionales ("Otros") ya
+ * limpios en `p_adicionales`. Anular manda el id y el motivo. Editar manda el id de la
  * venta vieja, la venta corregida y el motivo a `editar_venta`.
  * Por qué: la base crea la venta, sus renglones, el descuento de la nevera y
  * la bitácora en una sola transacción; aquí solo se arma bien la petición.
@@ -13,6 +14,7 @@
  */
 import type { Presentacion } from '../domain/inventario/conversiones'
 import type { Venta } from '../domain/ventas/venta'
+import { normalizarAdicional, type ProductoAdicional } from '../domain/ventas/productosAdicionales'
 import { validarFecha, validarMonto } from '../domain/compartido/validaciones'
 import { leerFilas, llamarFuncion, type ClienteDatos } from './clienteDatos'
 import { esEntero, esObjeto, exigirId, exigirIdRespuesta, exigirTexto, exigirUnoDe } from './entradas'
@@ -35,6 +37,8 @@ export interface DatosVenta {
   /** Día de la venta, AAAA-MM-DD. */
   fecha: string
   renglones: RenglonVenta[]
+  /** Productos que no están en el inventario (apartado "Otros"). */
+  adicionales?: ProductoAdicional[]
 }
 
 /**
@@ -91,13 +95,47 @@ function renglonAJson(renglon: RenglonVenta): Record<string, unknown> {
  * Por qué: registrar y editar mandan la venta igual; así la regla vive en un
  * solo lugar y no se llama a la base con una venta vacía.
  */
-function parametrosVenta(datos: DatosVenta): { p_fecha: string; p_items: Record<string, unknown>[] } {
+function parametrosVenta(datos: DatosVenta): {
+  p_fecha: string
+  p_items: Record<string, unknown>[]
+  p_adicionales: ProductoAdicional[]
+} {
   validarFecha('La fecha de la venta', datos.fecha)
   const renglones = datos.renglones.map(renglonAJson).filter((r) => r.cantidad !== 0)
-  if (renglones.length === 0) {
+  // Cada adicional se limpia y valida aquí para no llamar a la base en vano.
+  const adicionales = (datos.adicionales ?? []).map(normalizarAdicional)
+  if (renglones.length === 0 && adicionales.length === 0) {
     throw new Error('La venta no tiene nada que registrar: todos los renglones tienen cantidad cero')
   }
-  return { p_fecha: datos.fecha, p_items: renglones }
+  return { p_fecha: datos.fecha, p_items: renglones, p_adicionales: adicionales }
+}
+
+/**
+ * Agrupa por venta las filas de productos adicionales.
+ *
+ * Qué hace: devuelve un mapa venta → adicionales.
+ * Cómo lo hace: revisa la forma de cada fila y la agrega a la lista de su
+ * venta, en el orden en que llegan.
+ * Por qué: los adicionales se leen de su propia tabla y se pegan a la venta
+ * para que los cierres y las pantallas los sumen.
+ */
+function agruparAdicionales(filas: unknown[]): Map<string, ProductoAdicional[]> {
+  const porVenta = new Map<string, ProductoAdicional[]>()
+  for (const fila of filas) {
+    if (
+      !esObjeto(fila) ||
+      typeof fila.venta_id !== 'string' ||
+      typeof fila.descripcion !== 'string' ||
+      !esEntero(fila.cantidad) ||
+      !esEntero(fila.valor)
+    ) {
+      throw new Error('Una fila de productos adicionales no tiene la forma esperada')
+    }
+    const lista = porVenta.get(fila.venta_id) ?? []
+    lista.push({ descripcion: fila.descripcion, cantidad: fila.cantidad, valor: fila.valor })
+    porVenta.set(fila.venta_id, lista)
+  }
+  return porVenta
 }
 
 /**
@@ -108,7 +146,8 @@ function parametrosVenta(datos: DatosVenta): { p_fecha: string; p_items: Record<
  * y copia el precio cobrado guardado en cada renglón.
  * Por qué: el cierre usa el precio que se cobró entonces, no el de hoy.
  */
-function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown[]): VentaRegistrada[] {
+function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown[], adicionales: unknown[]): VentaRegistrada[] {
+  const adicionalesPorVenta = agruparAdicionales(adicionales)
   const porProducto = new Map(productos.map((fila) => {
     const p = filaAProductoVendible(fila)
     return [p.id, p.producto] as const
@@ -148,6 +187,7 @@ function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown
     ) {
       throw new Error('Una fila de ventas no tiene la forma esperada')
     }
+    const suyos = adicionalesPorVenta.get(fila.id)
     return {
       id: fila.id,
       fecha: fila.fecha,
@@ -155,6 +195,8 @@ function armarVentas(ventas: unknown[], renglones: unknown[], productos: unknown
       // PostgREST entrega "...+00:00"; se normaliza a ISO UTC como en los cierres.
       creadoEn: new Date(fila.creado_en).toISOString(),
       renglones: porVenta.get(fila.id) ?? [],
+      // Solo las ventas con "Otros" traen el campo.
+      ...(suyos === undefined ? {} : { adicionales: suyos }),
     }
   })
 }
@@ -190,12 +232,13 @@ export function crearRepositorioVentas(cliente: ClienteDatos): RepositorioVentas
     },
 
     async listarVentas() {
-      const [ventas, renglones, productos] = await Promise.all([
+      const [ventas, renglones, productos, adicionales] = await Promise.all([
         leerFilas(cliente, 'ventas', 'id, fecha, estado, creado_en'),
         leerFilas(cliente, 'venta_items', 'venta_id, producto_id, presentacion, cantidad, precio_cobrado'),
         leerFilas(cliente, 'productos', COLUMNAS_PRODUCTO),
+        leerFilas(cliente, 'venta_adicionales', 'venta_id, descripcion, cantidad, valor'),
       ])
-      return armarVentas(ventas, renglones, productos)
+      return armarVentas(ventas, renglones, productos, adicionales)
     },
   }
 }

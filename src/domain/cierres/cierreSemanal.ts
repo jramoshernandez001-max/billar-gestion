@@ -18,6 +18,7 @@ import { totalDeudasPendientes, type Abono, type Deuda } from '../deudas/deudas'
 import { compraAUltimaCompra, ultimaCompraDe, type Compra } from '../inventario/compras'
 import { aUnidades } from '../inventario/conversiones'
 import type { RenglonVenta } from '../ventas/movimientosVenta'
+import { adicionalesVigentes, valorAdicionales } from '../ventas/productosAdicionales'
 import { valorItem, valorVenta } from '../ventas/valorVenta'
 import { renglonesVigentes, type Venta } from '../ventas/venta'
 import { cuadrarCierre, type ResultadoCuadre } from './cuadreCierre'
@@ -75,6 +76,12 @@ interface BaseCierreSemanal {
    * Va aparte: no entra en la utilidad, pero sí en el cuadre.
    */
   ventasSinCosto: number
+  /**
+   * Valor de los productos adicionales ("Otros"), en pesos. No están en el
+   * inventario ni tienen costo: entran en el cuadre, pero no en la utilidad,
+   * y no hacen el cierre incompleto.
+   */
+  ventasAdicionales: number
   /**
    * Ids de las compras de donde salió el costo. Se guardan para saber si
    * el cierre queda desactualizado cuando una de ellas se anula o corrige.
@@ -221,8 +228,9 @@ function valorDeProductos(
  * deudas nacidas en el periodo (por lo que sigan debiendo al último día).
  * Si todo tiene costo, calcula la utilidad con calcularUtilidadSemanal; si
  * no, resta el costo de las ventas de los productos con costo.
- * Por qué: el cuadre usa la venta total, porque toda la venta debe estar en
- * el dinero. La utilidad real compara el dinero con el costo, y el dinero
+ * Por qué: el cuadre usa la venta total (con los productos adicionales),
+ * porque toda la venta debe estar en el dinero. Los adicionales no tienen
+ * costo: van aparte y su plata se descuenta antes de la utilidad real. La utilidad real compara el dinero con el costo, y el dinero
  * no se puede separar por producto: con productos sin costo no hay forma
  * honesta de calcularla, así que no se calcula. Un producto sin costo no
  * impide cerrar: el resultado sale incompleto, con la lista de esos
@@ -235,9 +243,11 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
   validarSemana(datos.desde, datos.hasta)
   // Una venta anulada no suma ni en lo vendido ni en el costo de reposición.
   const renglones = renglonesVigentes(datos.ventas)
-  const valorVentas = valorVenta(renglones)
+  const valorProductos = valorVenta(renglones)
+  const ventasAdicionales = valorAdicionales(adicionalesVigentes(datos.ventas))
   const cuadre = cuadrarCierre({
-    valorVentas,
+    // El cuadre usa toda la venta: los adicionales también están en la caja.
+    valorVentas: valorProductos + ventasAdicionales,
     efectivo: datos.efectivo,
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.desde, datos.hasta),
@@ -255,6 +265,7 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     costoReposicion,
     productosSinCosto,
     ventasSinCosto,
+    ventasAdicionales,
     comprasUsadas,
     costosUsados,
     cuadre,
@@ -264,16 +275,17 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     return {
       completo: false,
       ...base,
-      utilidadEsperada: valorVentas - ventasSinCosto - costoReposicion,
+      utilidadEsperada: valorProductos - ventasSinCosto - costoReposicion,
     }
   }
   return {
     completo: true,
     ...base,
     utilidad: calcularUtilidadSemanal({
-      valorVentas,
+      valorVentas: valorProductos,
       costoReposicion,
       dineroTotal: cuadre.dineroTotal,
+      ventasAparte: ventasAdicionales,
     }),
   }
 }

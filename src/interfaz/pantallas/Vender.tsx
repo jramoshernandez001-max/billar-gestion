@@ -2,7 +2,8 @@
  * Pantalla "Nueva venta" (y "Editar venta").
  *
  * Qué hace: deja armar una venta con varios renglones (producto, presentación,
- * cantidad y precio opcional), muestra subtotales, unidades y total, y la
+ * cantidad y precio opcional) y, en el apartado "Otros", productos que no
+ * están en inventario (nombre, cantidad y valor total); muestra subtotales, unidades y total, y la
  * registra. Desde cada renglón se abre "Elegir producto".
  * Cómo lo hace: guarda el borrador con las funciones puras de `borradorVenta`
  * (que calculan precios, unidades y problemas) y solo dibuja el resultado; al
@@ -18,12 +19,16 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { MinusCircle, Minus, Plus, ChevronDown } from 'lucide-react'
 import {
+  agregarAdicional,
   agregarRenglon,
   aDatosVenta,
   borradorVacio,
   calcularBorrador,
+  cambiarAdicional,
   cambiarRenglon,
+  quitarAdicional,
   quitarRenglon,
+  type AdicionalBorrador,
   type BorradorVenta,
   type CatalogoVendible,
   type RenglonBorrador,
@@ -73,6 +78,7 @@ export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
   const { estado, datos, error, recargar } = useCarga(cargar)
 
   const contador = useRef(1)
+  const contadorOtros = useRef(0)
   const [borrador, setBorrador] = useState<BorradorVenta>(() => agregarRenglon(borradorVacio(hoy), 'r1'))
   /** Clave del renglón cuyo producto se está eligiendo; null si ninguno. */
   const [eligiendo, setEligiendo] = useState<string | null>(null)
@@ -254,6 +260,92 @@ export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
     )
   }
 
+  /**
+   * Dibuja un producto adicional ("Otros"): nombre, cantidad y valor total.
+   * Por qué: son productos que no están en inventario; solo se anota cuánto
+   * se cobró por ellos para que el cierre cuadre.
+   */
+  const dibujarAdicional = (adicional: AdicionalBorrador, indice: number) => {
+    const problema = calculado.adicionales[indice]?.problema ?? null
+    const cambiarOtro = (cambios: Parameters<typeof cambiarAdicional>[2]) =>
+      setBorrador((b) => cambiarAdicional(b, adicional.clave, cambios))
+    const idNombre = `otro-nombre-${adicional.clave}`
+    const idValor = `otro-valor-${adicional.clave}`
+    return (
+      <section className="tarjeta" key={adicional.clave} aria-label={`Otro producto ${indice + 1}`}>
+        <div className="renglon__producto">
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor={idNombre}>Producto adicional</label>
+            <div className="entrada">
+              <input
+                id={idNombre}
+                type="text"
+                className="entrada__control"
+                placeholder="Ej.: Gatorade"
+                value={adicional.descripcion}
+                onChange={(e) => cambiarOtro({ descripcion: e.target.value })}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="renglon__quitar"
+            aria-label="Quitar producto adicional"
+            onClick={() => setBorrador((b) => quitarAdicional(b, adicional.clave))}
+          >
+            <MinusCircle size={20} strokeWidth={1.5} />
+          </button>
+        </div>
+
+        <div className="renglon__medidas">
+          <div className="campo campo--cantidad">
+            <span className="campo__etiqueta">Cantidad</span>
+            <div className="cantidad">
+              <button
+                type="button"
+                className="cantidad__boton"
+                aria-label="Menos cantidad de otro producto"
+                onClick={() => cambiarOtro({ cantidad: Math.max(1, adicional.cantidad - 1) })}
+              >
+                <Minus size={20} strokeWidth={1.5} />
+              </button>
+              <span className="cantidad__valor" aria-live="polite">{adicional.cantidad}</span>
+              <button
+                type="button"
+                className="cantidad__boton"
+                aria-label="Más cantidad de otro producto"
+                onClick={() => cambiarOtro({ cantidad: adicional.cantidad + 1 })}
+              >
+                <Plus size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
+          <div className="campo campo--precio">
+            <label className="campo__etiqueta" htmlFor={idValor}>Valor total</label>
+            <span className="entrada">
+              <input
+                id={idValor}
+                type="text"
+                inputMode="numeric"
+                className="entrada__control"
+                placeholder="$ 0"
+                value={adicional.valor === null ? '' : String(adicional.valor)}
+                onChange={(e) => {
+                  // Solo dígitos: "25.000" se toma como 25000 pesos.
+                  const digitos = e.target.value.replace(/\D/g, '')
+                  cambiarOtro({ valor: digitos === '' ? null : Number(digitos) })
+                }}
+              />
+            </span>
+          </div>
+        </div>
+        {problema !== null && adicional.descripcion.trim() !== '' && adicional.valor !== null && (
+          <p className="texto-suave" role="note">{problema}</p>
+        )}
+      </section>
+    )
+  }
+
   return (
     <>
       <CabeceraInterna titulo={titulo} subtitulo={subtitulo} alVolver={() => alIr(volverA)} />
@@ -283,6 +375,30 @@ export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
 
         {borrador.renglones.map(dibujarRenglon)}
 
+        {/* Otros: productos que no están en inventario (no descuentan de la nevera). */}
+        <div className="tarjeta__cabecera">
+          <span className="renglones__descripcion">Otros</span>
+          <span className="texto-suave">No están en inventario</span>
+        </div>
+        <button
+          type="button"
+          className="boton"
+          onClick={() => {
+            setBorrador((b) => {
+              // La venta editada ya trae claves a1, a2…: se salta las usadas.
+              let clave = ''
+              do {
+                contadorOtros.current += 1
+                clave = `a${contadorOtros.current}`
+              } while ((b.adicionales ?? []).some((a) => a.clave === clave))
+              return agregarAdicional(b, clave)
+            })
+          }}
+        >
+          <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span className="boton__texto">Agregar otro producto</span>
+        </button>
+        {(borrador.adicionales ?? []).map(dibujarAdicional)}
 
         <div className="dato">
           <span className="dato__etiqueta">Total · {unidadesTexto(calculado.unidades)}</span>

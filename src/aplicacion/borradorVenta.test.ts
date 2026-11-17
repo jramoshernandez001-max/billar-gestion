@@ -10,8 +10,11 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  agregarAdicional,
   agregarRenglon,
   aDatosVenta,
+  cambiarAdicional,
+  quitarAdicional,
   borradorVacio,
   calcularBorrador,
   cambiarRenglon,
@@ -167,5 +170,57 @@ describe('aDatosVenta', () => {
 
   it('rechaza un borrador que no se puede registrar', () => {
     expect(() => aDatosVenta(base(), catalogo)).toThrow(/producto/i)
+  })
+})
+
+describe('productos adicionales ("Otros")', () => {
+  const soloOtros = () => agregarAdicional(borradorVacio('2026-11-03'), 'a1')
+
+  it('agregar crea un adicional vacío con cantidad 1, arriba de los demás', () => {
+    const b = agregarAdicional(soloOtros(), 'a2')
+    expect(b.adicionales?.map((a) => a.clave)).toEqual(['a2', 'a1'])
+    expect(b.adicionales?.[1]).toEqual({ clave: 'a1', descripcion: '', cantidad: 1, valor: null })
+    expect(() => agregarAdicional(b, 'a1')).toThrow()
+  })
+
+  it('cambiar y quitar un adicional', () => {
+    const b = cambiarAdicional(soloOtros(), 'a1', { descripcion: 'Hidratante', cantidad: 5, valor: 25000 })
+    expect(b.adicionales).toEqual([{ clave: 'a1', descripcion: 'Hidratante', cantidad: 5, valor: 25000 }])
+    expect(quitarAdicional(b, 'a1').adicionales).toEqual([])
+    expect(() => cambiarAdicional(b, 'zz', {})).toThrow()
+    expect(() => quitarAdicional(b, 'zz')).toThrow()
+  })
+
+  it('suma el valor de los adicionales al total, sin contarlos como unidades del inventario', () => {
+    let b = cambiarRenglon(base(), 'r1', { productoId: 'cerveza', cantidad: 2 }, catalogo)
+    b = cambiarAdicional(agregarAdicional(b, 'a1'), 'a1', { descripcion: 'Hidratante', cantidad: 5, valor: 25000 })
+    const calculado = calcularBorrador(b, catalogo)
+    expect(calculado.total).toBe(31000)
+    expect(calculado.unidades).toBe(2)
+    expect(calculado.adicionales).toEqual([{ clave: 'a1', problema: null }])
+    expect(calculado.puedeRegistrar).toBe(true)
+  })
+
+  it('una venta solo con adicionales se puede registrar', () => {
+    const b = cambiarAdicional(soloOtros(), 'a1', { descripcion: 'Hidratante', cantidad: 1, valor: 5000 })
+    expect(calcularBorrador(b, catalogo).puedeRegistrar).toBe(true)
+  })
+
+  it('un adicional sin nombre o sin valor impide registrar', () => {
+    const sinNombre = calcularBorrador(cambiarAdicional(soloOtros(), 'a1', { valor: 5000 }), catalogo)
+    expect(sinNombre.puedeRegistrar).toBe(false)
+    expect(sinNombre.adicionales[0].problema).toMatch(/nombre/i)
+    const sinValor = calcularBorrador(cambiarAdicional(soloOtros(), 'a1', { descripcion: 'Maní' }), catalogo)
+    expect(sinValor.adicionales[0].problema).toMatch(/valor/i)
+    expect(sinValor.total).toBe(0)
+  })
+
+  it('aDatosVenta manda los adicionales con el nombre limpio', () => {
+    const b = cambiarAdicional(soloOtros(), 'a1', { descripcion: ' Hidratante ', cantidad: 5, valor: 25000 })
+    expect(aDatosVenta(b, catalogo)).toEqual({
+      fecha: '2026-11-03',
+      renglones: [],
+      adicionales: [{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }],
+    })
   })
 })

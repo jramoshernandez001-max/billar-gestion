@@ -34,6 +34,12 @@ describe('borradorDesdeVenta', () => {
     ])
   })
 
+  it('trae los productos adicionales con claves a1, a2…', () => {
+    const b = borradorDesdeVenta({ ...venta, adicionales: [{ descripcion: 'Hidratante', cantidad: 5, valor: 25000 }] })
+    expect(b.adicionales).toEqual([{ clave: 'a1', descripcion: 'Hidratante', cantidad: 5, valor: 25000 }])
+    expect(borradorDesdeVenta(venta).adicionales).toBeUndefined()
+  })
+
   it('deja vacío el precio que coincide con el de lista y conserva el que se cambió a mano', () => {
     const [caja, unidad] = borradorDesdeVenta(venta).renglones
     expect(caja.precioCobrado).toBeUndefined()

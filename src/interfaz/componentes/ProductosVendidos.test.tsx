@@ -14,8 +14,20 @@ import { ProductosVendidos } from './ProductosVendidos'
 afterEach(cleanup)
 
 describe('ProductosVendidos', () => {
+  it('muestra los productos adicionales ("Otros") aunque no haya productos del inventario', () => {
+    render(
+      <ProductosVendidos
+        datos={{ filas: [], totalUnidades: 0, totalValor: 25000, adicionales: [{ descripcion: 'Gatorade', cantidad: 5, valor: 25000 }], totalAdicionales: 25000, ventas: 1, cajasCerveza: { cajas: 0, sueltas: 0 } }}
+      />,
+    )
+    expect(screen.queryByText('No hubo ventas vigentes en este periodo.')).toBeNull()
+    expect(screen.getByText(/Otros · no están en inventario/)).toBeTruthy()
+    expect(screen.getByText(/Gatorade/)).toBeTruthy()
+    expect(screen.getAllByText('$ 25.000')).toHaveLength(2)
+  })
+
   it('sin ventas lo dice y no muestra total', () => {
-    render(<ProductosVendidos datos={{ filas: [], totalUnidades: 0, totalValor: 0, ventas: 0, cajasCerveza: { cajas: 0, sueltas: 0 } }} />)
+    render(<ProductosVendidos datos={{ filas: [], totalUnidades: 0, totalValor: 0, adicionales: [], totalAdicionales: 0, ventas: 0, cajasCerveza: { cajas: 0, sueltas: 0 } }} />)
     expect(screen.getByText('No hubo ventas vigentes en este periodo.')).toBeTruthy()
     expect(screen.queryByText(/^Total/)).toBeNull()
   })
@@ -27,6 +39,8 @@ describe('ProductosVendidos', () => {
           filas: [{ productoId: 'p', nombre: 'Ron Ejemplo', categoria: 'licor', unidades: 2, valor: 100000, desglose: '2 botellas' }],
           totalUnidades: 2,
           totalValor: 100000,
+          adicionales: [],
+          totalAdicionales: 0,
           ventas: 1,
           cajasCerveza: { cajas: 0, sueltas: 0 },
         }}
@@ -43,6 +57,8 @@ describe('ProductosVendidos', () => {
       filas: [{ productoId: 'c', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidades: 77, valor: 231000, desglose: '3 cajas · 5 unidades' }],
       totalUnidades: 77,
       totalValor: 231000,
+      adicionales: [],
+      totalAdicionales: 0,
       ventas: 2,
       cajasCerveza: { cajas: 3, sueltas: 5 },
     }
