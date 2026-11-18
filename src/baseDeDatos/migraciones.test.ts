@@ -69,7 +69,7 @@ const PRIVADAS = ['codigos_acceso', 'sesiones_codigo', 'intentos_codigo']
 const legibles = tablas.filter((t) => !PRIVADAS.includes(t))
 
 describe('migraciones de la base de datos', () => {
-  it('existen las once migraciones, en orden', () => {
+  it('existen las doce migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -82,6 +82,7 @@ describe('migraciones de la base de datos', () => {
       '0009_editar_venta.sql',
       '0010_productos_adicionales.sql',
       '0011_cierre_semanal_libre.sql',
+      '0012_compras_varios_productos.sql',
     ])
   })
 
@@ -260,6 +261,19 @@ describe('migraciones de la base de datos', () => {
     })
   })
 
+  describe('compra con varios productos (0012)', () => {
+    it('registrar_compras llama a registrar_compra por renglón y exige al menos uno', () => {
+      const texto = funciones.find((f) => f.nombre === 'registrar_compras')?.texto.toLowerCase() ?? ''
+      expect(texto).toMatch(/public\.registrar_compra\(/)
+      expect(texto).toMatch(/al menos un producto/)
+    })
+
+    it('se puede guardar sin conexión', () => {
+      const texto = funciones.find((f) => f.nombre === 'aplicar_operacion_pendiente')?.texto ?? ''
+      expect(texto).toMatch(/when 'registrar_compras' then/)
+    })
+  })
+
   describe('acceso con código', () => {
     it('las tablas del acceso con código no tienen permisos ni políticas para la app', () => {
       for (const tabla of PRIVADAS) {
@@ -339,6 +353,7 @@ describe('migraciones de la base de datos', () => {
           'recalcular_cierre',
           'corregir_dinero_cierre',
           'aplicar_operacion_pendiente',
+          'registrar_compras',
         ].sort(),
       )
     })
@@ -412,7 +427,7 @@ describe('migraciones de la base de datos', () => {
       const texto = definer.find((f) => f.nombre === 'aplicar_operacion_pendiente')?.texto ?? ''
       const permitidas = [...texto.matchAll(/when '(\w+)' then/g)].map((m) => m[1]).sort()
       expect(permitidas).toEqual(
-        ['registrar_abono', 'registrar_ajuste', 'registrar_compra', 'registrar_deuda', 'registrar_traslado', 'registrar_venta'].sort(),
+        ['registrar_abono', 'registrar_ajuste', 'registrar_compra', 'registrar_compras', 'registrar_deuda', 'registrar_traslado', 'registrar_venta'].sort(),
       )
       expect(texto).toMatch(/pg_advisory_xact_lock/i)
       expect(texto).toMatch(/from public\.operaciones_aplicadas where clave = p_clave/i)

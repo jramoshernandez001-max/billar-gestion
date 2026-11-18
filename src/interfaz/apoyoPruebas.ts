@@ -28,7 +28,7 @@ export function serviciosVacios(): ServiciosApp {
       listarCompras: async () => [],
       crearProducto: async () => 'producto',
       editarProducto: async () => undefined,
-      registrarCompra: async () => 'compra',
+      registrarCompras: async () => undefined,
       corregirCostoCompra: async () => undefined,
       anularCompra: async () => undefined,
     },

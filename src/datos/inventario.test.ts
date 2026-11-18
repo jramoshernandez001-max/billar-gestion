@@ -74,6 +74,43 @@ describe('compras', () => {
     expect(argumentos).toMatchObject({ p_presentacion: 'caja', p_cantidad: 2, p_costo_total: 100000, p_fecha: '2026-11-02' })
   })
 
+  it('registrarCompras manda todos los renglones en una sola llamada a registrar_compras', async () => {
+    const { cliente, rpc } = clienteFalso({ data: [ID, ID2] })
+    await crearRepositorioInventario(cliente).registrarCompras({
+      fecha: '2026-11-18',
+      renglones: [
+        { productoId: ID, presentacion: 'caja', cantidad: 10, costoTotal: 740000 },
+        { productoId: ID2, presentacion: 'unidad', cantidad: 2, costoTotal: 90000 },
+      ],
+    })
+    const [nombre, argumentos] = rpc.mock.calls[0]
+    expect(nombre).toBe('registrar_compras')
+    expect(Object.keys(argumentos).sort()).toEqual(parametrosSql('registrar_compras').sort())
+    expect(argumentos).toEqual({
+      p_fecha: '2026-11-18',
+      p_renglones: [
+        { producto_id: ID, presentacion: 'caja', cantidad: 10, costo_total: 740000 },
+        { producto_id: ID2, presentacion: 'unidad', cantidad: 2, costo_total: 90000 },
+      ],
+    })
+  })
+
+  it('registrarCompras acepta la respuesta de una compra guardada sin conexión', async () => {
+    const { cliente } = clienteFalso({ data: 'pendiente:abc' })
+    await expect(crearRepositorioInventario(cliente).registrarCompras({
+      fecha: '2026-11-18', renglones: [{ productoId: ID, presentacion: 'caja', cantidad: 1, costoTotal: 1000 }],
+    })).resolves.toBeUndefined()
+  })
+
+  it('registrarCompras rechaza sin llamar a la base una compra vacía o con un renglón inválido', async () => {
+    const { cliente, rpc } = clienteFalso()
+    const repo = crearRepositorioInventario(cliente)
+    await expect(repo.registrarCompras({ fecha: '2026-11-18', renglones: [] })).rejects.toThrow(/al menos/i)
+    await expect(repo.registrarCompras({ fecha: '2026-11-18', renglones: [{ productoId: ID, presentacion: 'caja', cantidad: 0, costoTotal: 1000 }] })).rejects.toThrow(/cantidad/i)
+    await expect(repo.registrarCompras({ fecha: 'ayer', renglones: [{ productoId: ID, presentacion: 'caja', cantidad: 1, costoTotal: 1000 }] })).rejects.toThrow(/fecha/i)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('rechaza una compra inválida sin llamar a la base', async () => {
     const { cliente, rpc } = clienteFalso()
     const repo = crearRepositorioInventario(cliente)
