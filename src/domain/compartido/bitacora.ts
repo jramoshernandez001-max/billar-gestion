@@ -34,6 +34,7 @@ export const ACCIONES_BITACORA = [
   'cambiar-precio',
   'crear-producto',
   'editar-producto',
+  'eliminar-producto',
   'anular-registro',
   'recalcular-cierre-diario',
   'recalcular-cierre-semanal',

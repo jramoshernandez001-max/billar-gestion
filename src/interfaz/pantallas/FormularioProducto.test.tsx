@@ -21,6 +21,7 @@ function servicios(sobre: Partial<ServiciosFormularioProducto['inventario']> = {
       listarProductos: async () => [existente, { ...existente, id: 'p2', nombre: 'Agua Ejemplo' }],
       crearProducto: vi.fn(async () => 'nuevo'),
       editarProducto: vi.fn(async () => undefined),
+      eliminarProducto: vi.fn(async () => undefined),
       ...sobre,
     },
   }
@@ -98,5 +99,36 @@ describe('FormularioProducto', () => {
     expect(s.inventario.crearProducto).toHaveBeenCalledWith({
       nombre: 'Aguardiente Ejemplo', categoria: 'licor', unidadesPorCaja: 1, manejaSixpack: false, precioUnidad: 50000, precioCaja: 50000,
     })
+  })
+
+  it('al editar se puede eliminar el producto con un motivo y vuelve a la lista', async () => {
+    const s = servicios()
+    const alIr = vi.fn()
+    render(<FormularioProducto servicios={s} productoId="p1" alIr={alIr} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar producto' }))
+    expect(screen.getByText(/ya registrados no cambian/)).toBeTruthy()
+    const confirmar = screen.getAllByRole('button', { name: 'Eliminar producto' }).at(-1) as HTMLButtonElement
+    expect(confirmar.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'Ya no se vende' } })
+    fireEvent.click(confirmar)
+    await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/productos'))
+    expect(s.inventario.eliminarProducto).toHaveBeenCalledWith('p1', 'Ya no se vende')
+  })
+
+  it('si la base no deja eliminar (tiene existencias) muestra el error', async () => {
+    const s = servicios({ eliminarProducto: async () => { throw new Error('todavía tiene existencias') } })
+    const alIr = vi.fn()
+    render(<FormularioProducto servicios={s} productoId="p1" alIr={alIr} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar producto' }))
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'x' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar producto' }).at(-1) as HTMLButtonElement)
+    expect((await screen.findByRole('alert')).textContent).toMatch(/existencias/)
+    expect(alIr).not.toHaveBeenCalled()
+  })
+
+  it('al crear no aparece el botón de eliminar', async () => {
+    render(<FormularioProducto servicios={servicios()} alIr={vi.fn()} />)
+    await screen.findByText('Nuevo producto')
+    expect(screen.queryByRole('button', { name: 'Eliminar producto' })).toBeNull()
   })
 })

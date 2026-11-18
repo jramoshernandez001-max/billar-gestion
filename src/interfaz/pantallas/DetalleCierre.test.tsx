@@ -34,7 +34,7 @@ function servicios(sobre: { recalcular?: ServiciosDetalleCierre['servicioCierres
     cierres: { listarCierres: async () => [cierre], corregirDineroCierre: sobre.corregir ?? (async () => undefined) },
     desactualizados: { idsDesactualizados: async () => (sobre.desactualizado ? ['c1'] : []) },
     servicioCierres: { recalcularCierre: sobre.recalcular ?? (async () => undefined) },
-    inventario: { listarProductos: async () => productos },
+    inventario: { listarTodosLosProductos: async () => productos },
     ventas: { listarVentas: async () => ventas },
   }
 }

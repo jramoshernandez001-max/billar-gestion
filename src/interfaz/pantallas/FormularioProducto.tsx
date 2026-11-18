@@ -6,6 +6,7 @@
  * Cómo lo hace: `validarProducto` (aplicacion) revisa los campos y devuelve un
  * mensaje por campo; al guardar llama a crear o editar y vuelve a la lista. El
  * producto a editar viaja en la ruta.
+ * Eliminar (solo al editar) pide un motivo y no borra el historial.
  * Por qué: cambiar un precio no altera ventas pasadas, porque cada venta
  * guarda el precio cobrado; por eso se avisa al editar.
  */
@@ -19,10 +20,11 @@ import { Opciones } from '../componentes/Opciones'
 import { useCarga } from '../useCarga'
 import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
 import { useAvisos } from '../avisos/contextoAvisos'
+import { FormularioAnulacion } from '../componentes/FormularioAnulacion'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosFormularioProducto {
-  inventario: Pick<RepositorioInventario, 'listarProductos' | 'crearProducto' | 'editarProducto'>
+  inventario: Pick<RepositorioInventario, 'listarProductos' | 'crearProducto' | 'editarProducto' | 'eliminarProducto'>
 }
 
 interface Propiedades {
@@ -46,6 +48,7 @@ export function FormularioProducto({ servicios, productoId, volverA = 'mas/produ
   const [cambios, setCambios] = useState<Partial<EntradaProducto>>({})
   const [enviando, setEnviando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
 
   const editando = productoId !== undefined
   const cabecera = (
@@ -166,6 +169,25 @@ export function FormularioProducto({ servicios, productoId, volverA = 'mas/produ
         <button type="button" className="boton boton--primario" disabled={!resultado.puedeGuardar || enviando} onClick={guardar}>
           Guardar producto
         </button>
+        {editando && (
+          <button type="button" className="boton boton--peligro-texto" onClick={() => setEliminando(true)}>
+            Eliminar producto
+          </button>
+        )}
+        {editando && eliminando && (
+          <FormularioAnulacion
+            titulo="Eliminar producto"
+            etiquetaMotivo="Motivo"
+            nota="Deja de aparecer en la app. Las ventas, compras y cierres ya registrados no cambian. Sus existencias deben estar en cero."
+            textoConfirmar="Eliminar producto"
+            alCancelar={() => setEliminando(false)}
+            alConfirmar={async (motivo) => {
+              await servicios.inventario.eliminarProducto(productoId, motivo)
+              avisos.mostrar(MENSAJES_ACCION.productoEliminado)
+              alIr(volverA)
+            }}
+          />
+        )}
       </div>
     </>
   )

@@ -13,7 +13,7 @@ describe('cargarBitacoraConNombres', () => {
     const r = await cargarBitacoraConNombres({
       bitacora: { listarBitacora: async () => [] },
       inventario: {
-        listarProductos: async () => [
+        listarTodosLosProductos: async () => [
           { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza', unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 },
         ],
       },

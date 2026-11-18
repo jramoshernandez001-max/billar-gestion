@@ -18,6 +18,7 @@ export const MENSAJES_ACCION = {
   ajusteRegistrado: 'Ajuste de stock guardado',
   productoCreado: 'Producto creado con éxito',
   productoEditado: 'Producto actualizado',
+  productoEliminado: 'Producto eliminado',
   deudaRegistrada: 'Deuda registrada con éxito',
   deudaAnulada: 'Deuda anulada',
   abonoRegistrado: 'Abono registrado con éxito',
