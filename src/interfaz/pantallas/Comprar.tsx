@@ -38,6 +38,8 @@ import { ListaDesplegable } from '../componentes/ListaDesplegable'
 import { Opciones } from '../componentes/Opciones'
 import { formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosComprar {
@@ -89,6 +91,7 @@ interface PropiedadesFormulario extends Propiedades {
  * producto de la ruta es licor), y así se arma una sola vez.
  */
 function FormularioCompra({ productos, productoId, hoy, servicios, alIr, cabecera }: PropiedadesFormulario) {
+  const avisos = useAvisos()
   const catalogo: CatalogoCompra = new Map(productos.map((p) => [p.id, p]))
   const [borrador, setBorrador] = useState<BorradorCompra>(() => borradorCompraVacio(hoy, productoId, catalogo))
   const [enviando, setEnviando] = useState(false)
@@ -104,6 +107,7 @@ function FormularioCompra({ productos, productoId, hoy, servicios, alIr, cabecer
     setFallo(null)
     try {
       await servicios.inventario.registrarCompras(aDatosCompras(borrador, catalogo))
+      avisos.mostrar(MENSAJES_ACCION.compraRegistrada)
       alIr('mas/compras')
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

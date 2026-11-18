@@ -27,6 +27,8 @@ import { ProductosVendidos } from '../componentes/ProductosVendidos'
 import { ResumenCierre } from '../componentes/ResumenCierre'
 import { fechaCorta } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosDetalleCierre {
@@ -44,6 +46,7 @@ interface Propiedades {
 }
 
 export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [cierres, ids, productos, ventas] = await Promise.all([
       servicios.cierres.listarCierres(),
@@ -140,7 +143,7 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
         <ProductosVendidos datos={vendidos} mostrarCajas={cierre.tipo === 'semanal'} />
 
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
-        <button type="button" className="boton boton--primario" disabled={enviando} onClick={() => ejecutar(() => servicios.servicioCierres.recalcularCierre(cierre.id))}>
+        <button type="button" className="boton boton--primario" disabled={enviando} onClick={() => ejecutar(async () => { await servicios.servicioCierres.recalcularCierre(cierre.id); avisos.mostrar(MENSAJES_ACCION.cierreRecalculado) })}>
           Recalcular cierre
         </button>
 
@@ -165,7 +168,7 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
                 type="button"
                 className="boton boton--primario"
                 disabled={!hayCambio || enviando}
-                onClick={() => ejecutar(() => servicios.cierres.corregirDineroCierre(cierre.id, efectivoNuevo, transferenciasNuevas))}
+                onClick={() => ejecutar(async () => { await servicios.cierres.corregirDineroCierre(cierre.id, efectivoNuevo, transferenciasNuevas); avisos.mostrar(MENSAJES_ACCION.dineroCorregido) })}
               >
                 Guardar corrección
               </button>

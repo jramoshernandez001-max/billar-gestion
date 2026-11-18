@@ -21,6 +21,8 @@ import { ListaDesplegable } from '../componentes/ListaDesplegable'
 import { Opciones } from '../componentes/Opciones'
 import { textoUnidades } from '../formato'
 import { useDatosInventario } from '../useDatosInventario'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosAjustar {
@@ -45,6 +47,7 @@ const TIPOS = [
 ] as const
 
 export function AjustarStock({ servicios, productoId, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const { estado, datos, error, recargar } = useDatosInventario(servicios.inventario)
   const [ubicacion, setUbicacion] = useState<Ubicacion>('nevera')
   const [tipo, setTipo] = useState<TipoAjuste>('sumar')
@@ -83,6 +86,7 @@ export function AjustarStock({ servicios, productoId, alIr }: Propiedades) {
         unidades: resultado.unidadesConSigno,
         motivo: motivo.trim(),
       })
+      avisos.mostrar(MENSAJES_ACCION.ajusteRegistrado)
       alIr('inventario')
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

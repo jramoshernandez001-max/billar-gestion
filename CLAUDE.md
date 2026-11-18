@@ -20,7 +20,7 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - Trabajar en una rama por funcionalidad; `main` solo recibe cambios ya revisados.
 - No ejecutar `git push` sin que el usuario lo apruebe.
 - El usuario quiere ser guiado paso a paso: explicar brevemente qué se hizo y confirmar antes de avanzar.
-- Todo lo visual (pantallas, ventanas emergentes) lo diseña el usuario en Figma. Para cada vista solo se le indica qué campos y qué elementos de entrada o gráficos hacen falta.
+- Desde noviembre de 2026 los elementos visuales que pida el usuario los pone Claude directamente en la app (antes se diseñaban en Figma).
 
 ## Arquitectura
 - `src/domain/`: lógica de negocio pura, sin React ni base de datos. Carpetas: `inventario`, `ventas`, `cierres`, `deudas`, `compartido`.
@@ -34,6 +34,7 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - `src/datos/`: repositorios (inventario, ventas, deudas, cierres) que llaman a las funciones de la base con parámetros `p_*` por nombre (una prueba los compara con las migraciones) y convierten filas a los tipos del dominio. Dependen de la interfaz `ClienteDatos`, no de Supabase.
 - `src/aplicacion/`: servicios que unen repositorios y dominio (p. ej. `servicioCierres.ts`: carga datos, filtra el periodo, calcula con el dominio y guarda).
 - `src/interfaz/`: pantallas y componentes según el diseño de Figma (estilos solo en `estilos.css`). Las pantallas no calculan nada: usan las funciones de `src/aplicacion/` y reciben los servicios por propiedades. Rutas con `#/ruta` (`ruta.ts`; las pantallas de producto llevan el id en la ruta, p. ej. `inventario/trasladar/<id>`); `App.tsx` elige la pantalla.
+- `src/interfaz/avisos/`: ventanitas emergentes de confirmación. `ProveedorAvisos` (en `App.tsx`) las dibuja y quita a los 3 s; las pantallas llaman `useAvisos().mostrar(MENSAJES_ACCION.x)` después de guardar (textos en `src/aplicacion/mensajesAccion.ts`). Sin proveedor no hacen nada.
 - `src/sincronizacion/`: modo sin conexión. `colaPendientes.ts` guarda en el teléfono (localStorage) las operaciones nuevas (venta, compra, traslado, ajuste, deuda, abono) con una clave única; `servicioSincronizacion.ts` las envía en orden con `aplicar_operacion_pendiente` (migración 0006, que no repite una clave), se detiene si falla la red y marca como rechazada la que la base rechace; `clienteSincronizado.ts` envuelve `ClienteDatos` (encola esas escrituras, exige conexión para anular/corregir/cerrar y, sin red, devuelve la última copia de cada lectura; las copias se borran al cerrar sesión). Un registro en cola devuelve el id `pendiente:<clave>`. El momento de registro es el del servidor al sincronizar.
 - `src/configuracion/`: la configuración de Supabase sale de `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (copiar `.env.example` a `.env.local`, que no se sube). Se rechaza cualquier clave secreta.
 

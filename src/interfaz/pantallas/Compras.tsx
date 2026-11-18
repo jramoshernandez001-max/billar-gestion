@@ -28,6 +28,8 @@ import { ListaDesplegable } from '../componentes/ListaDesplegable'
 import { Opciones } from '../componentes/Opciones'
 import { fechaCompleta, formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCompras {
@@ -98,6 +100,7 @@ function Tarjeta({
 }
 
 export function Compras({ servicios, hoy, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [compras, productos, entradas] = await Promise.all([
       servicios.inventario.listarCompras(),
@@ -137,6 +140,7 @@ export function Compras({ servicios, hoy, alIr }: Propiedades) {
 
   const anular = async (compraId: string, motivo: string) => {
     await servicios.inventario.anularCompra(compraId, motivo)
+    avisos.mostrar(MENSAJES_ACCION.compraAnulada)
     setAnulando(null)
     recargar()
   }

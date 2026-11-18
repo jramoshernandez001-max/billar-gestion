@@ -22,6 +22,8 @@ import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { ListaDesplegable } from '../componentes/ListaDesplegable'
 import { textoUnidades } from '../formato'
 import { useDatosInventario } from '../useDatosInventario'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosTrasladar {
@@ -36,6 +38,7 @@ interface Propiedades {
 }
 
 export function Trasladar({ servicios, productoId, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const { estado, datos, error, recargar } = useDatosInventario(servicios.inventario)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -66,6 +69,7 @@ export function Trasladar({ servicios, productoId, alIr }: Propiedades) {
     setFallo(null)
     try {
       await servicios.inventario.registrarTraslado(productoId, solicitadas)
+      avisos.mostrar(MENSAJES_ACCION.trasladoRegistrado)
       alIr('inventario')
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

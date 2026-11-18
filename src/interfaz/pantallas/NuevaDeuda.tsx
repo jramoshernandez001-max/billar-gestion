@@ -13,6 +13,8 @@ import { validarDeuda, type EntradaDeuda } from '../../aplicacion/formulariosDeu
 import type { RepositorioDeudas } from '../../datos/deudas'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosNuevaDeuda {
@@ -26,6 +28,7 @@ interface Propiedades {
 }
 
 export function NuevaDeuda({ servicios, hoy, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const [fecha, setFecha] = useState(hoy)
   const [entrada, setEntrada] = useState<EntradaDeuda>({ cliente: '', monto: '', descripcion: '' })
   const [tocados, setTocados] = useState<Partial<Record<keyof EntradaDeuda, true>>>({})
@@ -45,6 +48,7 @@ export function NuevaDeuda({ servicios, hoy, alIr }: Propiedades) {
     setFallo(null)
     try {
       await servicios.deudas.registrarDeuda(resultado.datos)
+      avisos.mostrar(MENSAJES_ACCION.deudaRegistrada)
       alIr('deudas')
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

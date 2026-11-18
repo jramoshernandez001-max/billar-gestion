@@ -29,6 +29,8 @@ import { CampoFecha } from '../componentes/CampoFecha'
 import { Opciones } from '../componentes/Opciones'
 import { fechaCompleta, formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosVentas {
@@ -108,6 +110,7 @@ function Tarjeta({
 }
 
 export function Ventas({ servicios, hoy, fechaInicial, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [ventas, productos, entradas] = await Promise.all([
       servicios.ventas.listarVentas(),
@@ -164,6 +167,7 @@ export function Ventas({ servicios, hoy, fechaInicial, alIr }: Propiedades) {
 
   const anular = async (ventaId: string, motivo: string) => {
     await servicios.ventas.anularVenta(ventaId, motivo)
+    avisos.mostrar(MENSAJES_ACCION.ventaAnulada)
     setAnulando(null)
     recargar()
   }

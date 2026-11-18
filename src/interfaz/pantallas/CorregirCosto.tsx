@@ -19,6 +19,8 @@ import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCorregirCosto {
@@ -32,6 +34,7 @@ interface Propiedades {
 }
 
 export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [compras, productos] = await Promise.all([servicios.inventario.listarCompras(), servicios.inventario.listarProductos()])
     return { compras, productos }
@@ -90,6 +93,7 @@ export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
     setFallo(null)
     try {
       await servicios.inventario.corregirCostoCompra(compra.id, costoNuevo, motivo.trim())
+      avisos.mostrar(MENSAJES_ACCION.costoCorregido)
       volver()
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

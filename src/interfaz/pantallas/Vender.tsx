@@ -43,6 +43,8 @@ import { Opciones } from '../componentes/Opciones'
 import { formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
 import { SelectorProducto, type OpcionProducto } from './SelectorProducto'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosVender {
@@ -65,6 +67,7 @@ function unidadesTexto(n: number): string {
 }
 
 export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [productos, stock, ventas] = await Promise.all([
       servicios.inventario.listarProductos(),
@@ -162,9 +165,11 @@ export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
       const venta = aDatosVenta(borrador, catalogo)
       if (ventaId === undefined) {
         await servicios.ventas.registrarVenta(venta)
+        avisos.mostrar(MENSAJES_ACCION.ventaRegistrada)
         alIr('mas/ventas')
       } else {
         await servicios.ventas.editarVenta(ventaId, venta, motivoEdicion(motivo))
+        avisos.mostrar(MENSAJES_ACCION.ventaEditada)
         alIr(`mas/ventas/dia/${venta.fecha}`)
       }
     } catch (causa) {

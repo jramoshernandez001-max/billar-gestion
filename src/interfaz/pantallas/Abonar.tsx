@@ -17,6 +17,8 @@ import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosAbonar {
@@ -31,6 +33,7 @@ interface Propiedades {
 }
 
 export function Abonar({ servicios, deudaId, hoy, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [deudas, abonos] = await Promise.all([servicios.deudas.listarDeudas(), servicios.deudas.listarAbonos()])
     return { deudas, abonos }
@@ -82,6 +85,7 @@ export function Abonar({ servicios, deudaId, hoy, alIr }: Propiedades) {
     setFallo(null)
     try {
       await servicios.deudas.registrarAbono(resultado.datos)
+      avisos.mostrar(MENSAJES_ACCION.abonoRegistrado)
       volver()
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))
