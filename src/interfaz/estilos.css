@@ -1120,3 +1120,41 @@ button {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* Ventanitas emergentes de confirmación (Avisos.tsx): abajo, sobre la barra de navegación. */
+.avisos-emergentes {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.aviso-emergente {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--primario);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(25, 44, 38, 0.25);
+  animation: aviso-entra 3s ease forwards;
+}
+
+@keyframes aviso-entra {
+  0% { opacity: 0; transform: translateY(16px) scale(0.96); }
+  8% { opacity: 1; transform: translateY(0) scale(1); }
+  88% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviso-emergente { animation: none; }
+}

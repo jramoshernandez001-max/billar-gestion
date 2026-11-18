@@ -19,6 +19,8 @@ import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { FormularioAnulacion } from '../componentes/FormularioAnulacion'
 import { fechaCompleta, formatoPesos } from '../formato'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosDetalleDeuda {
@@ -37,6 +39,7 @@ interface Propiedades {
 type Anulando = { tipo: 'deuda' } | { tipo: 'abono'; id: string } | null
 
 export function DetalleDeuda({ servicios, deudaId, hoy, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(async () => {
     const [deudas, abonos, entradas] = await Promise.all([
       servicios.deudas.listarDeudas(),
@@ -79,10 +82,12 @@ export function DetalleDeuda({ servicios, deudaId, hoy, alIr }: Propiedades) {
 
   const anularDeuda = async (motivo: string) => {
     await servicios.deudas.anularDeuda(detalle.id, motivo)
+    avisos.mostrar(MENSAJES_ACCION.deudaAnulada)
     alIr('deudas')
   }
   const anularAbono = async (abonoId: string, motivo: string) => {
     await servicios.deudas.anularAbono(abonoId, motivo)
+    avisos.mostrar(MENSAJES_ACCION.abonoAnulado)
     setAnulando(null)
     recargar()
   }

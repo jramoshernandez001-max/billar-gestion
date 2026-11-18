@@ -10,6 +10,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Comprar, type ServiciosComprar } from './Comprar'
+import { ProveedorAvisos } from '../avisos/Avisos'
 
 afterEach(cleanup)
 
@@ -78,6 +79,14 @@ describe('Comprar', () => {
         { productoId: 'p2', presentacion: 'caja', cantidad: 2, costoTotal: 30000 },
       ],
     })
+  })
+
+  it('al registrar muestra la ventanita "Compra registrada con éxito"', async () => {
+    render(<ProveedorAvisos><Comprar servicios={servicios()} productoId="p1" hoy="2026-11-03" alIr={vi.fn()} /></ProveedorAvisos>)
+    await screen.findByText('Nueva compra')
+    fireEvent.change(screen.getByLabelText('Precio por caja · renglón 1'), { target: { value: '74000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }))
+    expect((await screen.findByRole('status')).textContent).toBe('Compra registrada con éxito')
   })
 
   it('se puede quitar un producto de la compra', async () => {

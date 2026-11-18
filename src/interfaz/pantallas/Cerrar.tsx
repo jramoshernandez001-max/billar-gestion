@@ -26,6 +26,8 @@ import { Opciones } from '../componentes/Opciones'
 import { ProductosVendidos } from '../componentes/ProductosVendidos'
 import { ResumenCierre } from '../componentes/ResumenCierre'
 import { fechaCorta } from '../formato'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCerrar {
@@ -49,6 +51,7 @@ type Previa = { clave: string; vista: VistaCierre; hasta: string } | { clave: st
 const entero = (texto: string) => (/^\d+$/.test(texto) && Number(texto) > 0 ? Number(texto) : null)
 
 export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
+  const avisos = useAvisos()
   const [fecha, setFecha] = useState(hoy)
   // Semanal: por defecto la última semana de martes a lunes; el usuario la puede cambiar.
   const [desdeSemana, setDesdeSemana] = useState(() => semanaPorDefecto(hoy).desde)
@@ -143,6 +146,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
     setFallo(null)
     try {
       const id = await servicios.servicioCierres.cerrarPeriodo(datos)
+      avisos.mostrar(MENSAJES_ACCION.cierreGuardado)
       alIr(`mas/cierres/${id}`)
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

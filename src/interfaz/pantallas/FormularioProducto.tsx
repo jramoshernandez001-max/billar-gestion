@@ -17,6 +17,8 @@ import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
 import { CATEGORIAS, etiquetaCategoria } from '../../domain/inventario/categorias'
 import { Opciones } from '../componentes/Opciones'
 import { useCarga } from '../useCarga'
+import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
+import { useAvisos } from '../avisos/contextoAvisos'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosFormularioProducto {
@@ -38,6 +40,7 @@ const VACIA: EntradaProducto = { nombre: '', categoria: 'cerveza', unidadesPorCa
 const soloDigitos = (texto: string) => texto.replace(/\D/g, '')
 
 export function FormularioProducto({ servicios, productoId, volverA = 'mas/productos', alIr }: Propiedades) {
+  const avisos = useAvisos()
   const cargar = useCallback(() => servicios.inventario.listarProductos(), [servicios])
   const { estado, datos: productos, error, recargar } = useCarga(cargar)
   const [cambios, setCambios] = useState<Partial<EntradaProducto>>({})
@@ -101,6 +104,7 @@ export function FormularioProducto({ servicios, productoId, volverA = 'mas/produ
     try {
       if (editando) await servicios.inventario.editarProducto(productoId, resultado.datos)
       else await servicios.inventario.crearProducto(resultado.datos)
+      avisos.mostrar(editando ? MENSAJES_ACCION.productoEditado : MENSAJES_ACCION.productoCreado)
       alIr(volverA)
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))

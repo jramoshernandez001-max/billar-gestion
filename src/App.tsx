@@ -44,6 +44,7 @@ import { Vender, type ServiciosVender } from './interfaz/pantallas/Vender'
 import { Ventas, type ServiciosVentas } from './interfaz/pantallas/Ventas'
 import { pestanaDe, segmentosDeRuta } from './interfaz/ruta'
 import { useRuta } from './interfaz/useRuta'
+import { ProveedorAvisos } from './interfaz/avisos/Avisos'
 
 /** Servicios de datos que usan las pantallas (crece con cada pantalla). */
 export type ServiciosApp = ServiciosInicio &
@@ -182,13 +183,14 @@ function Contenido({
 }) {
   const { ruta, ir } = useRuta()
   const [hoy] = useState(() => fechaLocalIso(new Date()))
+  // ProveedorAvisos: ventanitas de confirmación ("Venta registrada con éxito").
   return (
-    <>
+    <ProveedorAvisos>
       <AvisoSinConexion />
       {sincronizacion !== undefined && <AvisoPendientes servicio={sincronizacion} />}
       {pantalla(ruta, { servicios, nombre, correo, cerrarSesion, hoy, ir })}
       <NavegacionInferior activa={pestanaDe(ruta)} alIr={ir} />
-    </>
+    </ProveedorAvisos>
   )
 }
 
