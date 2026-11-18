@@ -1,15 +1,15 @@
 /**
  * Pruebas de la validación de la semana del cierre.
  *
- * Qué hace: verifica que una semana de cierre vaya de un lunes al domingo
- * siguiente (exactamente 7 días) y que se rechace cualquier otro periodo.
- * Cómo lo hace: prueba semanas válidas (incluso las que cruzan de mes y de
- * año) y periodos inválidos, y revisa el cálculo de sumar días.
- * Por qué: el cierre semanal y su utilidad solo son comparables entre sí si
- * todas las semanas cubren los mismos días.
+ * Qué hace: verifica el periodo libre del cierre semanal, la semana que se
+ * propone por defecto (martes a lunes) y cuándo dos periodos se cruzan.
+ * Cómo lo hace: prueba rangos válidos e inválidos, días de la semana que
+ * cruzan de mes y de año, y el cálculo de sumar días.
+ * Por qué: el negocio cierra la semana el martes y a veces necesita cerrar
+ * otro rango; dos cierres semanales no deben contar los mismos días.
  */
 import { describe, it, expect } from 'vitest'
-import { diaDeLaSemana, lunesDe, sumarDias, validarSemana } from './semana'
+import { diaDeLaSemana, periodosSeCruzan, semanaPorDefecto, sumarDias, validarPeriodoSemanal } from './semana'
 
 describe('sumarDias', () => {
   it('suma días dentro del mes, cruzando de mes y de año', () => {
@@ -37,39 +37,50 @@ describe('diaDeLaSemana', () => {
   })
 })
 
-describe('validarSemana', () => {
-  it('acepta de lunes al domingo siguiente', () => {
-    expect(() => validarSemana('2026-03-09', '2026-03-15')).not.toThrow()
-    expect(() => validarSemana('2026-12-28', '2027-01-03')).not.toThrow()
+describe('validarPeriodoSemanal', () => {
+  it('acepta cualquier rango de uno o más días, en cualquier día de la semana', () => {
+    expect(() => validarPeriodoSemanal('2026-11-10', '2026-11-16')).not.toThrow()
+    expect(() => validarPeriodoSemanal('2026-11-10', '2026-11-10')).not.toThrow()
+    expect(() => validarPeriodoSemanal('2026-12-29', '2027-01-12')).not.toThrow()
   })
 
-  it('rechaza una semana que no empieza en lunes', () => {
-    expect(() => validarSemana('2026-03-10', '2026-03-16')).toThrow(/lunes/i)
-  })
-
-  it('rechaza un fin que no es el domingo siguiente', () => {
-    expect(() => validarSemana('2026-03-09', '2026-03-14')).toThrow(/domingo/i)
-    expect(() => validarSemana('2026-03-09', '2026-03-22')).toThrow(/domingo/i)
-    expect(() => validarSemana('2026-03-09', '2026-03-08')).toThrow(/domingo/i)
+  it('rechaza un fin anterior al inicio', () => {
+    expect(() => validarPeriodoSemanal('2026-11-16', '2026-11-10')).toThrow(/anterior/i)
   })
 
   it('rechaza fechas inválidas', () => {
-    expect(() => validarSemana('2026-02-30', '2026-03-08')).toThrow(/fecha/i)
-    expect(() => validarSemana('2026-03-09', 'domingo')).toThrow(/fecha/i)
+    expect(() => validarPeriodoSemanal('2026-02-30', '2026-03-08')).toThrow(/fecha/i)
+    expect(() => validarPeriodoSemanal('2026-03-09', 'lunes')).toThrow(/fecha/i)
   })
 })
 
-describe('lunesDe', () => {
-  it('devuelve el mismo día si ya es lunes', () => {
-    expect(lunesDe('2026-11-02')).toBe('2026-11-02')
+describe('semanaPorDefecto', () => {
+  it('propone la última semana completa de martes a lunes', () => {
+    // Miércoles 18 de noviembre de 2026 → martes 10 a lunes 16.
+    expect(semanaPorDefecto('2026-11-18')).toEqual({ desde: '2026-11-10', hasta: '2026-11-16' })
   })
 
-  it('retrocede hasta el lunes, incluso desde el domingo y cruzando mes', () => {
-    expect(lunesDe('2026-11-08')).toBe('2026-11-02')
-    expect(lunesDe('2026-12-02')).toBe('2026-11-30')
+  it('el martes propone la semana que terminó ayer', () => {
+    expect(semanaPorDefecto('2026-11-17')).toEqual({ desde: '2026-11-10', hasta: '2026-11-16' })
   })
 
-  it('rechaza fechas inválidas', () => {
-    expect(() => lunesDe('hoy')).toThrow()
+  it('el lunes la semana todavía no termina: propone la anterior', () => {
+    expect(semanaPorDefecto('2026-11-16')).toEqual({ desde: '2026-11-03', hasta: '2026-11-09' })
+  })
+
+  it('cruza de mes y de año', () => {
+    expect(semanaPorDefecto('2027-01-01')).toEqual({ desde: '2026-12-22', hasta: '2026-12-28' })
+  })
+})
+
+describe('periodosSeCruzan', () => {
+  it('se cruzan si comparten al menos un día', () => {
+    expect(periodosSeCruzan({ desde: '2026-11-10', hasta: '2026-11-16' }, { desde: '2026-11-16', hasta: '2026-11-22' })).toBe(true)
+    expect(periodosSeCruzan({ desde: '2026-11-10', hasta: '2026-11-16' }, { desde: '2026-11-12', hasta: '2026-11-13' })).toBe(true)
+  })
+
+  it('no se cruzan si uno termina antes de que empiece el otro', () => {
+    expect(periodosSeCruzan({ desde: '2026-11-10', hasta: '2026-11-16' }, { desde: '2026-11-17', hasta: '2026-11-23' })).toBe(false)
+    expect(periodosSeCruzan({ desde: '2026-11-17', hasta: '2026-11-23' }, { desde: '2026-11-10', hasta: '2026-11-16' })).toBe(false)
   })
 })

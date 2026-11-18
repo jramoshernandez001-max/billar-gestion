@@ -76,12 +76,21 @@ describe('Cerrar', () => {
     expect(s.servicioCierres.cerrarPeriodo).toHaveBeenCalledWith({ tipo: 'diario', desde: '2026-11-04', efectivo: 60000, transferencias: 0, costosManuales: {} })
   })
 
-  it('semanal: usa el lunes de la semana de hoy', async () => {
+  it('semanal: propone la última semana de martes a lunes', async () => {
     const s = servicios()
     dibujar(s, 'semanal')
     await waitFor(() => expect(s.servicioCierres.vistaPreviaCierre).toHaveBeenCalled())
-    expect(vi.mocked(s.servicioCierres.vistaPreviaCierre).mock.calls[0][0].desde).toBe('2026-11-02')
-    expect(await screen.findByText('02/11 – 08/11')).toBeTruthy()
+    // Hoy es miércoles 4 de noviembre: martes 27 de octubre a lunes 2 de noviembre.
+    expect(vi.mocked(s.servicioCierres.vistaPreviaCierre).mock.calls[0][0]).toMatchObject({ desde: '2026-10-27', hasta: '2026-11-02' })
+    expect(await screen.findByText('27/10 – 02/11')).toBeTruthy()
+  })
+
+  it('semanal: se pueden elegir las fechas de inicio y fin', async () => {
+    const s = servicios()
+    dibujar(s, 'semanal')
+    fireEvent.change(await screen.findByLabelText('Desde'), { target: { value: '2026-10-20' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-03' } })
+    await waitFor(() => expect(vi.mocked(s.servicioCierres.vistaPreviaCierre).mock.calls.at(-1)?.[0]).toMatchObject({ desde: '2026-10-20', hasta: '2026-11-03' }))
   })
 
   it('semanal incompleto pide el costo por unidad de cada producto sin costo', async () => {

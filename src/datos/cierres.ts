@@ -13,7 +13,7 @@
  */
 import type { CierreGuardado, TipoCierre } from '../domain/cierres/actualizacionCierre'
 import type { CostoUsado } from '../domain/cierres/cierreSemanal'
-import { validarSemana } from '../domain/compartido/semana'
+import { validarPeriodoSemanal } from '../domain/compartido/semana'
 import { validarFecha, validarMonto } from '../domain/compartido/validaciones'
 import { leerFilas, llamarFuncion, type ClienteDatos } from './clienteDatos'
 import { esEntero, esObjeto, exigirId, exigirIdRespuesta, exigirUnoDe } from './entradas'
@@ -52,15 +52,15 @@ export interface RepositorioCierres {
  * Valida el periodo según el tipo de cierre.
  *
  * Qué hace: lanza un error si el periodo no corresponde al tipo.
- * Cómo lo hace: el diario debe ser de un solo día; el semanal, de lunes a
- * domingo (validarSemana).
+ * Cómo lo hace: el diario debe ser de un solo día; el semanal, cualquier
+ * rango con fin no anterior al inicio (validarPeriodoSemanal).
  * Por qué: la base lo exige igual; avisar antes da un mensaje más claro.
  */
 function validarPeriodo(tipo: TipoCierre, desde: string, hasta: string): void {
   validarFecha('El inicio del cierre', desde)
   validarFecha('El fin del cierre', hasta)
   if (tipo === 'semanal') {
-    validarSemana(desde, hasta)
+    validarPeriodoSemanal(desde, hasta)
   } else if (desde !== hasta) {
     throw new Error('El cierre diario debe ser de un solo día')
   }

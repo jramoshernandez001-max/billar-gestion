@@ -53,7 +53,7 @@ describe('guardarCierre', () => {
     const { cliente, rpc } = clienteFalso({ data: ID })
     const repo = crearRepositorioCierres(cliente)
     await expect(repo.guardarCierre({ ...semanal, tipo: 'mensual' as 'diario' })).rejects.toThrow(/tipo/i)
-    await expect(repo.guardarCierre({ ...semanal, desde: '2026-11-03' })).rejects.toThrow(/lunes/i)
+    await expect(repo.guardarCierre({ ...semanal, desde: '2026-11-09' })).rejects.toThrow(/anterior/i)
     await expect(repo.guardarCierre({ ...semanal, tipo: 'diario', hasta: '2026-11-03' })).rejects.toThrow(/día/i)
     await expect(repo.guardarCierre({ ...semanal, efectivo: -1 })).rejects.toThrow()
     await expect(repo.guardarCierre({ ...semanal, transferencias: 1.5 })).rejects.toThrow()

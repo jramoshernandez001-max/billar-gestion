@@ -12,7 +12,7 @@
  * Por qué: la utilidad solo se calcula en el cierre semanal. Cada regla ya
  * vive en su módulo; aquí solo se juntan para la semana.
  */
-import { validarSemana } from '../compartido/semana'
+import { validarPeriodoSemanal } from '../compartido/semana'
 import { validarMonto } from '../compartido/validaciones'
 import { totalDeudasPendientes, type Abono, type Deuda } from '../deudas/deudas'
 import { compraAUltimaCompra, ultimaCompraDe, type Compra } from '../inventario/compras'
@@ -31,9 +31,9 @@ import {
 
 /** Lo que se necesita para cerrar una semana. Dinero en pesos enteros. */
 export interface DatosCierreSemanal {
-  /** Lunes con que empieza la semana, en formato AAAA-MM-DD. */
+  /** Primer día del periodo (por defecto un martes), AAAA-MM-DD. */
   desde: string
-  /** Domingo con que termina la semana (desde + 6 días), AAAA-MM-DD. */
+  /** Último día del periodo (por defecto el lunes siguiente), AAAA-MM-DD. */
   hasta: string
   /** Ventas del periodo; solo suman las vigentes. */
   ventas: readonly Venta[]
@@ -181,7 +181,7 @@ export function lineasReposicion(
       resultado.costosUsados.push({ productoId, compra: { id: ultima.id, fecha: ultima.fecha } })
       continue
     }
-    // Sin compra hasta el domingo: con costo manual o sin costo, igual queda
+    // Sin compra hasta el último día: con costo manual o sin costo, igual queda
     // anotado, porque una compra registrada después pasaría a mandar.
     resultado.costosUsados.push({ productoId, compra: null })
     // Object.hasOwn evita tomar por costo algo heredado del prototipo.
@@ -223,7 +223,7 @@ function valorDeProductos(
  * Qué hace: devuelve el costo de reposición, el cuadre y, si todo lo
  * vendido tiene costo, la utilidad completa; si no, solo la utilidad
  * esperada de lo que tiene costo y, aparte, lo vendido sin costo.
- * Cómo lo hace: valida que el periodo vaya de lunes a domingo, toma solo
+ * Cómo lo hace: valida el periodo (fin no anterior al inicio), toma solo
  * las ventas vigentes, cuadra lo vendido contra efectivo, transferencias y las
  * deudas nacidas en el periodo (por lo que sigan debiendo al último día).
  * Si todo tiene costo, calcula la utilidad con calcularUtilidadSemanal; si
@@ -237,10 +237,10 @@ function valorDeProductos(
  * productos, su venta y el faltante o sobrante del cuadre, sin mezclarlos.
  *
  * @throws Error si alguna fecha, monto, costo manual o renglón es inválido,
- * o si el periodo no va de un lunes al domingo siguiente.
+ * o si el fin del periodo es anterior al inicio.
  */
 export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal {
-  validarSemana(datos.desde, datos.hasta)
+  validarPeriodoSemanal(datos.desde, datos.hasta)
   // Una venta anulada no suma ni en lo vendido ni en el costo de reposición.
   const renglones = renglonesVigentes(datos.ventas)
   const valorProductos = valorVenta(renglones)

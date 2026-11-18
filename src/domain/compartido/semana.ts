@@ -1,23 +1,21 @@
 /**
  * Semana del cierre semanal.
  *
- * Qué hace: valida que el periodo de un cierre semanal vaya de un lunes al
- * domingo siguiente (exactamente 7 días), y ofrece dos ayudas de fechas:
- * sumar días y saber qué día de la semana es.
+ * Qué hace: valida el periodo de un cierre semanal (cualquier rango, sin
+ * fin antes del inicio), propone la semana de martes a lunes, dice si dos
+ * periodos se cruzan y ofrece ayudas de fechas: sumar días y día de la
+ * semana.
  * Cómo lo hace: funciones puras que convierten el texto AAAA-MM-DD en un
  * instante a medianoche UTC y usan solo métodos UTC (getUTCDay,
  * setUTCDate), así el resultado no depende de la zona horaria del equipo.
- * Por qué: el negocio cierra la semana de lunes a domingo. Si cada semana
- * cubriera días distintos, las utilidades no se podrían comparar. Con la
- * hora local, un celular en otra zona podría ver otro día de la semana.
+ * Por qué: el negocio cierra la semana los martes (ventas de martes a lunes)
+ * y a veces elige otro rango. Con la hora local, un celular en otra zona
+ * podría ver otro día de la semana.
  */
 import { validarFecha } from './validaciones'
 
 /** Un día en milisegundos; en UTC todos los días duran lo mismo. */
 const MS_POR_DIA = 24 * 60 * 60 * 1000
-
-/** Días que hay del lunes al domingo de la misma semana. */
-const DIAS_DEL_LUNES_AL_DOMINGO = 6
 
 /**
  * Convierte una fecha AAAA-MM-DD en su instante a medianoche UTC.
@@ -38,7 +36,7 @@ function aMedianocheUtc(nombre: string, fecha: string): Date {
  * si es negativo).
  * Cómo lo hace: suma milisegundos de días completos al instante UTC y
  * vuelve a texto; en UTC no hay cambios de horario que corran el día.
- * Por qué: el fin de la semana es el lunes más seis días, y hay que
+ * Por qué: la semana propuesta se arma restando días, y hay que
  * calcularlo bien al cruzar de mes, de año o un 29 de febrero.
  *
  * @throws Error si la fecha es inválida o los días no son un entero.
@@ -56,7 +54,7 @@ export function sumarDias(fecha: string, dias: number): string {
  *
  * Qué hace: devuelve 1 para lunes, 2 para martes… y 7 para domingo.
  * Cómo lo hace: usa getUTCDay (0 es domingo) y pasa el domingo a 7.
- * Por qué: el negocio cierra la semana de lunes a domingo; numerarla así
+ * Por qué: la semana del negocio termina el lunes; numerarla así
  * hace más claras las comparaciones.
  *
  * @throws Error si la fecha es inválida.
@@ -66,41 +64,62 @@ export function diaDeLaSemana(fecha: string): number {
   return dia === 0 ? 7 : dia
 }
 
+/** Un periodo de fechas AAAA-MM-DD, con ambos extremos incluidos. */
+export interface Periodo {
+  desde: string
+  hasta: string
+}
+
+/** Día de la semana con que termina la semana del negocio (1 = lunes). */
+const DIA_FIN_DE_SEMANA = 1
+
 /**
- * Valida que un periodo sea una semana de cierre de lunes a domingo.
+ * Valida el periodo de un cierre semanal.
  *
- * Qué hace: lanza un error si `desde` no es lunes o si `hasta` no es el
- * domingo siguiente (6 días después).
- * Cómo lo hace: valida ambas fechas, revisa el día de la semana de `desde`
- * y compara `hasta` con `desde` más seis días.
- * Por qué: la semana debe tener exactamente 7 días y empezar en lunes.
- * Comparar con el lunes más seis días cubre a la vez que `hasta` sea
- * domingo, que sea de esa misma semana y que no sea anterior a `desde`.
+ * Qué hace: lanza un error si alguna fecha es inválida o si el fin es
+ * anterior al inicio.
+ * Cómo lo hace: valida ambas fechas y las compara como texto (AAAA-MM-DD
+ * ordena igual que el calendario).
+ * Por qué: el usuario elige de qué fecha a qué fecha cierra; puede ser de
+ * cualquier largo y empezar cualquier día, pero no al revés.
  *
- * @throws Error si alguna fecha es inválida, si `desde` no es lunes o si
- * `hasta` no es el domingo siguiente.
+ * @throws Error si una fecha es inválida o si `hasta` es anterior a `desde`.
  */
-export function validarSemana(desde: string, hasta: string): void {
-  validarFecha('La fecha de inicio de la semana', desde)
-  validarFecha('La fecha de fin de la semana', hasta)
-  if (diaDeLaSemana(desde) !== 1) {
-    throw new Error('La semana de cierre debe empezar un lunes')
-  }
-  if (hasta !== sumarDias(desde, DIAS_DEL_LUNES_AL_DOMINGO)) {
-    throw new Error('La semana de cierre debe terminar el domingo siguiente al lunes de inicio')
+export function validarPeriodoSemanal(desde: string, hasta: string): void {
+  validarFecha('La fecha de inicio del cierre semanal', desde)
+  validarFecha('La fecha de fin del cierre semanal', hasta)
+  if (hasta < desde) {
+    throw new Error('La fecha de fin del cierre semanal no puede ser anterior a la de inicio')
   }
 }
 
 /**
- * Devuelve el lunes de la semana de una fecha.
+ * Propone la semana a cerrar.
  *
- * Qué hace: la fecha misma si es lunes; si no, el lunes anterior.
- * Cómo lo hace: resta (día de la semana - 1) días con sumarDias.
- * Por qué: el cierre semanal empieza siempre en lunes; con esto la pantalla
- * ofrece la semana que contiene el día elegido.
+ * Qué hace: devuelve la última semana completa de martes a lunes antes de
+ * hoy.
+ * Cómo lo hace: retrocede desde hoy hasta el lunes anterior (si hoy es
+ * lunes, el de la semana pasada, porque hoy todavía se vende) y toma los 6
+ * días anteriores a ese lunes.
+ * Por qué: el negocio cierra la semana los martes, con las ventas de martes
+ * a lunes. El usuario puede cambiar las fechas si necesita otro rango.
  *
  * @throws Error si la fecha es inválida.
  */
-export function lunesDe(fecha: string): string {
-  return sumarDias(fecha, -(diaDeLaSemana(fecha) - 1))
+export function semanaPorDefecto(hoy: string): Periodo {
+  const diasAtras = ((diaDeLaSemana(hoy) - DIA_FIN_DE_SEMANA - 1 + 7) % 7) + 1
+  const hasta = sumarDias(hoy, -diasAtras)
+  return { desde: sumarDias(hasta, -6), hasta }
+}
+
+/**
+ * Dice si dos periodos comparten al menos un día.
+ *
+ * Qué hace: true si se cruzan, false si uno termina antes de que empiece el
+ * otro.
+ * Cómo lo hace: compara los extremos como texto AAAA-MM-DD.
+ * Por qué: dos cierres semanales no pueden contar las mismas ventas.
+ */
+export function periodosSeCruzan(a: Periodo, b: Periodo): boolean {
+  return a.desde <= b.hasta && b.desde <= a.hasta
 }

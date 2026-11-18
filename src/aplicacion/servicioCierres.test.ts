@@ -87,7 +87,7 @@ describe('cerrarPeriodo semanal', () => {
     const { servicio, guardarCierre } = armar({
       ventas: [venta('a', '2026-11-03', 10), venta('fuera', '2026-11-09', 50)],
     })
-    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-02', efectivo: 29000, transferencias: 0 })
+    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-02', hasta: '2026-11-08', efectivo: 29000, transferencias: 0 })
     const [datos] = guardarCierre.mock.calls[0] as unknown as [
       { hasta: string; costosUsados: unknown; resultado: { completo: boolean; costoReposicion: number } },
     ]
@@ -99,7 +99,7 @@ describe('cerrarPeriodo semanal', () => {
 
   it('usa los costos manuales para productos sin compras', async () => {
     const { servicio, guardarCierre } = armar({ ventas: [{ ...venta('a', '2026-11-03', 1), renglones: [{ productoId: 'sinCompra', producto, presentacion: 'unidad', cantidad: 1, precioCobrado: 3000 }] }] })
-    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-02', efectivo: 3000, transferencias: 0, costosManuales: { sinCompra: 1800 } })
+    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-02', hasta: '2026-11-08', efectivo: 3000, transferencias: 0, costosManuales: { sinCompra: 1800 } })
     const [datos] = guardarCierre.mock.calls[0] as unknown as [{ costosManuales: unknown; resultado: { completo: boolean; costoReposicion: number } }]
     expect(datos.resultado).toMatchObject({ completo: true, costoReposicion: 1800 })
     expect(datos.costosManuales).toEqual({ sinCompra: 1800 })
@@ -107,15 +107,36 @@ describe('cerrarPeriodo semanal', () => {
 
   it('sin costo queda incompleto en vez de tomar cero', async () => {
     const { servicio, guardarCierre } = armar({ ventas: [{ ...venta('a', '2026-11-03', 1), renglones: [{ productoId: 'sinCompra', producto, presentacion: 'unidad', cantidad: 1, precioCobrado: 3000 }] }] })
-    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-02', efectivo: 3000, transferencias: 0 })
+    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-02', hasta: '2026-11-08', efectivo: 3000, transferencias: 0 })
     const [datos] = guardarCierre.mock.calls[0] as unknown as [{ resultado: { completo: boolean; productosSinCosto: string[] } }]
     expect(datos.resultado).toMatchObject({ completo: false, productosSinCosto: ['sinCompra'] })
   })
 
-  it('rechaza una semana que no empieza en lunes', async () => {
+  it('acepta un periodo de martes a lunes', async () => {
+    const { servicio, guardarCierre } = armar({ ventas: [venta('a', '2026-11-03', 1), venta('lunes', '2026-11-09', 1)] })
+    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-03', hasta: '2026-11-09', efectivo: 6000, transferencias: 0 })
+    const [datos] = guardarCierre.mock.calls[0] as unknown as [{ desde: string; hasta: string }]
+    expect(datos).toMatchObject({ desde: '2026-11-03', hasta: '2026-11-09' })
+  })
+
+  it('exige la fecha final y que no sea anterior a la inicial', async () => {
     const { servicio, guardarCierre } = armar()
-    await expect(servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-03', efectivo: 0, transferencias: 0 })).rejects.toThrow(/lunes/i)
+    await expect(servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-03', efectivo: 0, transferencias: 0 })).rejects.toThrow(/fin/i)
+    await expect(servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-09', hasta: '2026-11-03', efectivo: 0, transferencias: 0 })).rejects.toThrow(/anterior/i)
     expect(guardarCierre).not.toHaveBeenCalled()
+  })
+
+  it('rechaza un periodo que se cruza con otro cierre semanal; un diario no estorba', async () => {
+    const base = { calculadoEn: '2026-11-10T23:00:00.000Z', efectivo: 0, transferencias: 0, dineroCorregidoEn: null, costosManuales: {}, costosUsados: [], resultado: {} }
+    const cierres: CierreLeido[] = [
+      { ...base, id: 's1', tipo: 'semanal', desde: '2026-11-03', hasta: '2026-11-09' },
+      { ...base, id: 'd1', tipo: 'diario', desde: '2026-11-10', hasta: '2026-11-10' },
+    ]
+    const { servicio, guardarCierre } = armar({ cierres })
+    await expect(servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-09', hasta: '2026-11-15', efectivo: 0, transferencias: 0 })).rejects.toThrow(/se cruza/i)
+    await expect(servicio.vistaPreviaCierre({ tipo: 'semanal', desde: '2026-11-09', hasta: '2026-11-15', efectivo: 0, transferencias: 0 })).rejects.toThrow(/se cruza/i)
+    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-10', hasta: '2026-11-16', efectivo: 0, transferencias: 0 })
+    expect(guardarCierre).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -133,7 +154,7 @@ describe('vistaPreviaCierre', () => {
 
   it('en la semana trae la fecha final y los costos usados', async () => {
     const { servicio } = armar({ ventas: [venta('a', '2026-11-03', 1)] })
-    const previa = await servicio.vistaPreviaCierre({ tipo: 'semanal', desde: '2026-11-02', efectivo: 0, transferencias: 0 })
+    const previa = await servicio.vistaPreviaCierre({ tipo: 'semanal', desde: '2026-11-02', hasta: '2026-11-08', efectivo: 0, transferencias: 0 })
     expect(previa.hasta).toBe('2026-11-08')
     expect(previa.costosUsados).toEqual([{ productoId: P1, compra: { id: 'c1', fecha: '2026-11-01' } }])
   })
