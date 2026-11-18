@@ -2,8 +2,8 @@
 /**
  * Pruebas de la pantalla "Nueva compra".
  *
- * Qué hace: verifica el panel de cálculo, la presentación, el registro y los
- * errores.
+ * Qué hace: verifica el precio por presentación, el total calculado, varios
+ * productos en una sola compra, el registro y los errores.
  * Cómo lo hace: servicios falsos con productos inventados.
  * Por qué: un costo mal registrado cambia la utilidad semanal.
  */
@@ -19,7 +19,7 @@ const productos = [
 ]
 
 function servicios(sobre: Partial<ServiciosComprar['inventario']> = {}): ServiciosComprar {
-  return { inventario: { listarProductos: async () => productos, registrarCompra: vi.fn(async () => 'c1'), ...sobre } }
+  return { inventario: { listarProductos: async () => productos, registrarCompras: vi.fn(async () => undefined), ...sobre } }
 }
 
 const dibujar = (s: ServiciosComprar, productoId: string | undefined, alIr = vi.fn()) =>
@@ -32,50 +32,77 @@ describe('Comprar', () => {
     expect((screen.getByRole('button', { name: 'Registrar compra' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('elegir un producto cambia la ruta', async () => {
-    const alIr = vi.fn()
-    dibujar(servicios(), undefined, alIr)
-    await screen.findByText('Nueva compra')
-    fireEvent.change(screen.getByLabelText('Producto'), { target: { value: 'p1' } })
-    expect(alIr).toHaveBeenCalledWith('inventario/comprar/p1')
-  })
-
-  it('muestra el panel con unidades y costo por unidad', async () => {
+  it('viene con el producto de la ruta y pide el precio por caja', async () => {
     dibujar(servicios(), 'p1')
     await screen.findByText('Nueva compra')
-    fireEvent.click(screen.getByRole('radio', { name: 'Caja' }))
-    fireEvent.click(screen.getByLabelText('Más cantidad'))
-    fireEvent.change(screen.getByLabelText('Costo total'), { target: { value: '96000' } })
-    expect(screen.getByText('2 cajas × 24 unidades')).toBeTruthy()
-    expect(screen.getByText('48 unidades')).toBeTruthy()
-    expect(screen.getByText('$ 2.000')).toBeTruthy()
-    expect(screen.getByText('Al registrar se sumarán 48 unidades de Cerveza Ejemplo.')).toBeTruthy()
+    expect((screen.getByLabelText('Producto 1') as HTMLSelectElement).value).toBe('p1')
+    expect(screen.getByLabelText('Precio por caja · renglón 1')).toBeTruthy()
   })
 
-  it('sixpack aparece tachado si el producto no lo maneja', async () => {
+  it('con el precio por caja calcula el total pagado y el costo por unidad', async () => {
+    dibujar(servicios(), 'p1')
+    await screen.findByText('Nueva compra')
+    fireEvent.click(screen.getByLabelText('Más cantidad · renglón 1'))
+    fireEvent.change(screen.getByLabelText('Precio por caja · renglón 1'), { target: { value: '48000' } })
+    expect(screen.getByText('2 cajas × 24 unidades')).toBeTruthy()
+    expect(screen.getByText(/\$ 2\.000 por unidad/)).toBeTruthy()
+    expect(screen.getAllByText('$ 96.000').length).toBeGreaterThan(0)
+  })
+
+  it('sixpack aparece tachado si el producto no lo maneja; al elegir sixpack pide el precio del sixpack', async () => {
     dibujar(servicios(), 'p2')
     await screen.findByText('Nueva compra')
     expect((screen.getByRole('radio', { name: 'Sixpack' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: 'p1' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Sixpack' }))
+    expect(screen.getByLabelText('Precio por sixpack · renglón 1')).toBeTruthy()
   })
 
-  it('registra la compra y va al historial', async () => {
+  it('registra varios productos con un solo botón y va al historial', async () => {
     const s = servicios()
     const alIr = vi.fn()
     dibujar(s, 'p1', alIr)
     await screen.findByText('Nueva compra')
-    fireEvent.click(screen.getByRole('radio', { name: 'Caja' }))
-    fireEvent.click(screen.getByLabelText('Más cantidad'))
-    fireEvent.change(screen.getByLabelText('Costo total'), { target: { value: '96000' } })
+    fireEvent.change(screen.getByLabelText('Precio por caja · renglón 1'), { target: { value: '74000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }))
+    fireEvent.change(screen.getByLabelText('Producto 2'), { target: { value: 'p2' } })
+    fireEvent.click(screen.getByLabelText('Más cantidad · renglón 2'))
+    fireEvent.change(screen.getByLabelText('Precio por caja · renglón 2'), { target: { value: '15000' } })
+    expect(screen.getByText('$ 104.000')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }))
     await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/compras'))
-    expect(s.inventario.registrarCompra).toHaveBeenCalledWith({ productoId: 'p1', presentacion: 'caja', cantidad: 2, costoTotal: 96000, fecha: '2026-11-03' })
+    expect(s.inventario.registrarCompras).toHaveBeenCalledWith({
+      fecha: '2026-11-03',
+      renglones: [
+        { productoId: 'p1', presentacion: 'caja', cantidad: 1, costoTotal: 74000 },
+        { productoId: 'p2', presentacion: 'caja', cantidad: 2, costoTotal: 30000 },
+      ],
+    })
+  })
+
+  it('se puede quitar un producto de la compra', async () => {
+    dibujar(servicios(), 'p1')
+    await screen.findByText('Nueva compra')
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }))
+    expect(screen.getByLabelText('Producto 2')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar producto 2' }))
+    expect(screen.queryByLabelText('Producto 2')).toBeNull()
+  })
+
+  it('si falta un precio dice en qué renglón y no deja registrar', async () => {
+    dibujar(servicios(), 'p1')
+    await screen.findByText('Nueva compra')
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }))
+    fireEvent.change(screen.getByLabelText('Precio por caja · renglón 1'), { target: { value: '74000' } })
+    expect(screen.getByText(/Renglón 2: Elige un producto/)).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Registrar compra' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('si falla el registro muestra el error y no navega', async () => {
     const alIr = vi.fn()
-    dibujar(servicios({ registrarCompra: async () => { throw new Error('sin permisos') } }), 'p1', alIr)
+    dibujar(servicios({ registrarCompras: async () => { throw new Error('sin permisos') } }), 'p1', alIr)
     await screen.findByText('Nueva compra')
-    fireEvent.change(screen.getByLabelText('Costo total'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText('Precio por caja · renglón 1'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }))
     expect((await screen.findByRole('alert')).textContent).toMatch(/sin permisos/)
     expect(alIr).not.toHaveBeenCalled()
@@ -95,10 +122,12 @@ describe('Comprar', () => {
     dibujar(s, 'p3')
     await screen.findByText('Nueva compra')
     expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['Botella'])
-    expect(screen.getByText('Cantidad de botellas')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Costo total'), { target: { value: '30000' } })
+    fireEvent.change(screen.getByLabelText('Precio por botella · renglón 1'), { target: { value: '30000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }))
-    await waitFor(() => expect(s.inventario.registrarCompra).toHaveBeenCalled())
-    expect(s.inventario.registrarCompra).toHaveBeenCalledWith(expect.objectContaining({ productoId: 'p3', presentacion: 'unidad', cantidad: 1, costoTotal: 30000 }))
+    await waitFor(() => expect(s.inventario.registrarCompras).toHaveBeenCalled())
+    expect(s.inventario.registrarCompras).toHaveBeenCalledWith({
+      fecha: '2026-11-03',
+      renglones: [{ productoId: 'p3', presentacion: 'unidad', cantidad: 1, costoTotal: 30000 }],
+    })
   })
 })

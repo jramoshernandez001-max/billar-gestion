@@ -64,6 +64,13 @@ export interface DatosCompra {
   fecha: string
 }
 
+/** Una compra de varios productos: la fecha y un renglón por producto. */
+export interface DatosCompras {
+  /** Día de la compra, AAAA-MM-DD. */
+  fecha: string
+  renglones: readonly Omit<DatosCompra, 'fecha'>[]
+}
+
 /** Datos de un ajuste de inventario por conteo físico. */
 export interface DatosAjusteInventario {
   productoId: string
@@ -87,6 +94,8 @@ export interface RepositorioInventario {
   crearProducto(datos: DatosProducto): Promise<string>
   editarProducto(id: string, datos: DatosProducto): Promise<void>
   registrarCompra(datos: DatosCompra): Promise<string>
+  /** Registra varios productos comprados juntos, todo o nada. */
+  registrarCompras(datos: DatosCompras): Promise<void>
   corregirCostoCompra(compraId: string, costoNuevo: number, motivo: string): Promise<void>
   anularCompra(compraId: string, motivo: string): Promise<void>
   registrarTraslado(productoId: string, unidades: number): Promise<ResultadoTraslado>
@@ -193,6 +202,23 @@ export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioIn
         p_fecha: datos.fecha,
       })
       return exigirIdRespuesta(id)
+    },
+
+    async registrarCompras(datos) {
+      validarFecha('La fecha de la compra', datos.fecha)
+      if (datos.renglones.length === 0) throw new Error('La compra debe tener al menos un producto')
+      const renglones = datos.renglones.map((r) => {
+        validarMonto('El costo total de la compra', r.costoTotal)
+        return {
+          producto_id: exigirId('El producto', r.productoId),
+          presentacion: exigirUnoDe('La presentación', r.presentacion, PRESENTACIONES),
+          cantidad: exigirEnteroPositivo('La cantidad de la compra', r.cantidad),
+          costo_total: r.costoTotal,
+        }
+      })
+      const respuesta = await llamarFuncion(cliente, 'registrar_compras', { p_fecha: datos.fecha, p_renglones: renglones })
+      // En línea llegan los ids; sin conexión, el id de la operación pendiente.
+      if (!Array.isArray(respuesta) && typeof respuesta !== 'string') throw respuestaInesperada()
     },
 
     async corregirCostoCompra(compraId, costoNuevo, motivo) {

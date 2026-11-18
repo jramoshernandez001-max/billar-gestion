@@ -1,22 +1,36 @@
 /**
  * Pantalla "Nueva compra".
  *
- * Qué hace: registra una compra de un producto (fecha, presentación, cantidad
- * y costo total) que se suma a la bodega, y muestra las unidades y el costo
- * por unidad antes de guardar.
- * Cómo lo hace: lee los productos; `calcularCompra` (aplicacion) calcula las
- * unidades, el costo por unidad y qué impide registrar; al guardar llama al
- * repositorio y va al historial. El producto viaja en la ruta
- * (`inventario/comprar/<id>`).
- * Por qué: el costo por unidad de la última compra es la base de la utilidad
- * semanal; verlo antes de guardar evita errores de digitación.
+ * Qué hace: registra una compra de uno o varios productos (fecha y, por
+ * producto, presentación, cantidad y precio de cada caja, sixpack o
+ * botella). Muestra el total de cada producto, su costo por unidad y el
+ * total de la compra antes de guardar; todo entra a la bodega.
+ * Cómo lo hace: lee los productos; el borrador (`borradorCompra`, en
+ * aplicacion) guarda los renglones y calcula totales y problemas; al
+ * registrar manda todo junto con `registrarCompras` (todo o nada) y va al
+ * historial. Si llega un producto en la ruta (`inventario/comprar/<id>`), el
+ * primer renglón ya lo trae.
+ * Por qué: el negocio compra varios productos a la vez y sabe el precio de
+ * cada caja, no siempre el total; la app hace las cuentas. El costo por
+ * unidad de la última compra es la base de la utilidad semanal.
  */
-import { useCallback, useState } from 'react'
-import { Minus, Plus, Info } from 'lucide-react'
-import { calcularCompra } from '../../aplicacion/calculoCompra'
-import type { RepositorioInventario } from '../../datos/inventario'
-import { opcionesDePresentacion, presentacionPermitida } from '../../domain/inventario/categorias'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { Info, Minus, MinusCircle, Plus } from 'lucide-react'
+import {
+  aDatosCompras,
+  agregarRenglonCompra,
+  borradorCompraVacio,
+  calcularBorradorCompra,
+  cambiarRenglonCompra,
+  quitarRenglonCompra,
+  type BorradorCompra,
+  type CatalogoCompra,
+  type RenglonCompraBorrador,
+} from '../../aplicacion/borradorCompra'
+import type { Producto, RepositorioInventario } from '../../datos/inventario'
+import { opcionesDePresentacion } from '../../domain/inventario/categorias'
 import type { Presentacion } from '../../domain/inventario/conversiones'
+
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
 import { EstadoDeCarga } from '../componentes/EstadoDeCarga'
@@ -27,33 +41,28 @@ import { useCarga } from '../useCarga'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosComprar {
-  inventario: Pick<RepositorioInventario, 'listarProductos' | 'registrarCompra'>
+  inventario: Pick<RepositorioInventario, 'listarProductos' | 'registrarCompras'>
 }
 
 interface Propiedades {
   servicios: ServiciosComprar
-  /** Producto elegido (viene de la ruta). */
+  /** Producto con que empieza la compra (viene de la ruta). */
   productoId?: string
   /** Día de hoy, AAAA-MM-DD. */
   hoy: string
   alIr: (ruta: string) => void
 }
 
-const ETIQUETA_CANTIDAD: Record<Presentacion, string> = {
-  unidad: 'Cantidad de unidades',
-  sixpack: 'Cantidad de sixpacks',
-  caja: 'Cantidad de cajas',
+/** Cómo se llama el precio que se pide, según la presentación. */
+const NOMBRE_PRECIO: Record<Presentacion, string> = {
+  caja: 'Precio por caja',
+  sixpack: 'Precio por sixpack',
+  unidad: 'Precio por unidad',
 }
 
 export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
   const cargar = useCallback(() => servicios.inventario.listarProductos(), [servicios])
   const { estado, datos: productos, error, recargar } = useCarga(cargar)
-  const [fecha, setFecha] = useState(hoy)
-  const [elegida, setPresentacion] = useState<Presentacion>('caja')
-  const [cantidad, setCantidad] = useState(1)
-  const [costoTexto, setCostoTexto] = useState('')
-  const [enviando, setEnviando] = useState(false)
-  const [fallo, setFallo] = useState<string | null>(null)
 
   const cabecera = <CabeceraInterna titulo="Nueva compra" subtitulo="Se suma a la bodega" alVolver={() => alIr('inventario')} />
   if (estado !== 'listo' || productos === null) {
@@ -66,21 +75,35 @@ export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
       </>
     )
   }
+  return <FormularioCompra productos={productos} productoId={productoId} hoy={hoy} servicios={servicios} alIr={alIr} cabecera={cabecera} />
+}
 
-  const producto = productos.find((p) => p.id === productoId) ?? null
-  const costoTotal = costoTexto === '' ? null : Number(costoTexto)
-  // Si el producto no admite la presentación elegida (licor: solo botella), se usa unidad.
-  const presentacion: Presentacion =
-    producto !== null && !presentacionPermitida(producto.categoria, elegida, producto.manejaSixpack) ? 'unidad' : elegida
-  const resultado = calcularCompra({ producto, presentacion, cantidad, costoTotal })
-  const puedeRegistrar = resultado.puedeRegistrar && !enviando
+interface PropiedadesFormulario extends Propiedades {
+  productos: readonly Producto[]
+  cabecera: ReactNode
+}
+
+/**
+ * Formulario de la compra, ya con los productos cargados.
+ * Por qué aparte: el borrador inicial necesita el catálogo (para saber si el
+ * producto de la ruta es licor), y así se arma una sola vez.
+ */
+function FormularioCompra({ productos, productoId, hoy, servicios, alIr, cabecera }: PropiedadesFormulario) {
+  const catalogo: CatalogoCompra = new Map(productos.map((p) => [p.id, p]))
+  const [borrador, setBorrador] = useState<BorradorCompra>(() => borradorCompraVacio(hoy, productoId, catalogo))
+  const [enviando, setEnviando] = useState(false)
+  const [fallo, setFallo] = useState<string | null>(null)
+  const contador = useRef(1)
+
+  const calculado = calcularBorradorCompra(borrador, catalogo)
+  const cambiar = (clave: string, cambios: Parameters<typeof cambiarRenglonCompra>[2]) =>
+    setBorrador((b) => cambiarRenglonCompra(b, clave, cambios, catalogo))
 
   const registrar = async () => {
-    if (producto === null || costoTotal === null) return
     setEnviando(true)
     setFallo(null)
     try {
-      await servicios.inventario.registrarCompra({ productoId: producto.id, presentacion, cantidad, costoTotal, fecha })
+      await servicios.inventario.registrarCompras(aDatosCompras(borrador, catalogo))
       alIr('mas/compras')
     } catch (causa) {
       setFallo(causa instanceof Error ? causa.message : String(causa))
@@ -88,67 +111,125 @@ export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
     }
   }
 
-  return (
-    <>
-      {cabecera}
-      <div className="marco__contenido">
-        <CampoFecha valor={fecha} hoy={hoy} alCambiar={setFecha} />
-        <ListaDesplegable
-          etiqueta="Producto"
-          valor={producto?.id ?? ''}
-          textoVacio="Elegir producto"
-          opciones={productos.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
-          alCambiar={(id) => alIr(`inventario/comprar/${id}`)}
-        />
+  const agregar = () => {
+    contador.current += 1
+    const clave = `r${contador.current}`
+    setBorrador((b) => agregarRenglonCompra(b, clave))
+  }
+
+  const dibujarRenglon = (renglon: RenglonCompraBorrador, indice: number) => {
+    const numero = indice + 1
+    const producto = renglon.productoId === null ? undefined : catalogo.get(renglon.productoId)
+    const fila = calculado.renglones[indice]
+    const esLicor = producto?.categoria === 'licor'
+    const nombrePrecio = esLicor ? 'Precio por botella' : NOMBRE_PRECIO[renglon.presentacion]
+    const idPrecio = `precio-${renglon.clave}`
+    return (
+      <section className="tarjeta" key={renglon.clave} aria-label={`Producto ${numero} de la compra`}>
+        <div className="renglon__producto">
+          <div className="renglon__elegir">
+            <ListaDesplegable
+              etiqueta={`Producto ${numero}`}
+              valor={renglon.productoId ?? ''}
+              textoVacio="Elegir producto"
+              opciones={productos.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
+              alCambiar={(id) => cambiar(renglon.clave, { productoId: id })}
+            />
+          </div>
+          {borrador.renglones.length > 1 && (
+            <button
+              type="button"
+              className="renglon__quitar"
+              aria-label={`Quitar producto ${numero}`}
+              onClick={() => setBorrador((b) => quitarRenglonCompra(b, renglon.clave))}
+            >
+              <MinusCircle size={20} strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
 
         <div className="campo">
           <span className="campo__etiqueta">Presentación</span>
           <Opciones
-            nombre="Presentación"
-            opciones={opcionesDePresentacion(producto?.categoria ?? 'cerveza', producto === null || producto.manejaSixpack)}
-            valor={presentacion}
-            alCambiar={setPresentacion}
+            nombre={`Presentación · renglón ${numero}`}
+            opciones={opcionesDePresentacion(producto?.categoria ?? 'cerveza', producto === undefined || producto.manejaSixpack)}
+            valor={renglon.presentacion}
+            alCambiar={(presentacion) => cambiar(renglon.clave, { presentacion })}
           />
         </div>
 
-        <div className="campo">
-          <span className="campo__etiqueta">{producto?.categoria === 'licor' ? 'Cantidad de botellas' : ETIQUETA_CANTIDAD[presentacion]}</span>
-          <div className="cantidad">
-            <button type="button" className="cantidad__boton" aria-label="Menos cantidad" onClick={() => setCantidad((c) => Math.max(1, c - 1))}>
-              <Minus size={20} strokeWidth={1.5} aria-hidden="true" />
-            </button>
-            <span className="cantidad__valor" aria-live="polite">{cantidad}</span>
-            <button type="button" className="cantidad__boton" aria-label="Más cantidad" onClick={() => setCantidad((c) => c + 1)}>
-              <Plus size={20} strokeWidth={1.5} aria-hidden="true" />
-            </button>
+        <div className="renglon__medidas">
+          <div className="campo campo--cantidad">
+            <span className="campo__etiqueta">{esLicor ? 'Botellas' : 'Cantidad'}</span>
+            <div className="cantidad">
+              <button
+                type="button"
+                className="cantidad__boton"
+                aria-label={`Menos cantidad · renglón ${numero}`}
+                onClick={() => cambiar(renglon.clave, { cantidad: Math.max(1, renglon.cantidad - 1) })}
+              >
+                <Minus size={20} strokeWidth={1.5} aria-hidden="true" />
+              </button>
+              <span className="cantidad__valor" aria-live="polite">{renglon.cantidad}</span>
+              <button
+                type="button"
+                className="cantidad__boton"
+                aria-label={`Más cantidad · renglón ${numero}`}
+                onClick={() => cambiar(renglon.clave, { cantidad: renglon.cantidad + 1 })}
+              >
+                <Plus size={20} strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+          <div className="campo campo--precio">
+            <label className="campo__etiqueta" htmlFor={idPrecio}>{nombrePrecio}</label>
+            <span className="entrada">
+              <input
+                id={idPrecio}
+                aria-label={`${nombrePrecio} · renglón ${numero}`}
+                type="text"
+                inputMode="numeric"
+                className="entrada__control"
+                placeholder="$ 0"
+                value={renglon.precio === null ? '' : formatoPesos(renglon.precio)}
+                onChange={(e) => {
+                  const digitos = e.target.value.replace(/\D/g, '')
+                  cambiar(renglon.clave, { precio: digitos === '' ? null : Number(digitos) })
+                }}
+              />
+            </span>
           </div>
         </div>
 
-        <div className="campo">
-          <label className="campo__etiqueta" htmlFor="costo-compra">Costo total</label>
-          <div className="entrada">
-            <input
-              id="costo-compra"
-              type="text"
-              inputMode="numeric"
-              className="entrada__control"
-              placeholder="$ 0"
-              value={costoTexto === '' ? '' : formatoPesos(Number(costoTexto))}
-              onChange={(e) => setCostoTexto(e.target.value.replace(/\D/g, ''))}
-            />
-          </div>
-          <p className="texto-suave">El valor pagado por toda la compra.</p>
+        <div className="division" />
+        <div className="dato">
+          <span className="dato__etiqueta">
+            {fila.detalle === '' ? '—' : fila.detalle}
+            {fila.costoPorUnidad !== null && <span className="texto-suave"> · {formatoPesos(fila.costoPorUnidad)} por unidad</span>}
+          </span>
+          <span className="dato__subtotal">{formatoPesos(fila.costoTotal ?? 0)}</span>
         </div>
+      </section>
+    )
+  }
+
+  return (
+    <>
+      {cabecera}
+      <div className="marco__contenido">
+        <CampoFecha valor={borrador.fecha} hoy={hoy} alCambiar={(fecha) => setBorrador((b) => ({ ...b, fecha }))} />
+
+        {borrador.renglones.map(dibujarRenglon)}
+
+        <button type="button" className="boton" onClick={agregar}>
+          <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span className="boton__texto">Agregar producto</span>
+        </button>
 
         <div className="tarjeta tarjeta--destacada">
           <div className="dato">
-            <span className="dato__etiqueta">{resultado.detalle}</span>
-            <span className="dato__valor">{resultado.unidades > 0 ? `${resultado.unidades} unidades` : '—'}</span>
-          </div>
-          <div className="division" />
-          <div className="dato">
-            <span className="dato__etiqueta">Costo por unidad</span>
-            <span className="dato__total">{resultado.costoPorUnidad === null ? '—' : formatoPesos(resultado.costoPorUnidad)}</span>
+            <span className="dato__etiqueta">Total de la compra · {calculado.unidades} unidades</span>
+            <span className="dato__total">{formatoPesos(calculado.total)}</span>
           </div>
         </div>
 
@@ -156,18 +237,14 @@ export function Comprar({ servicios, productoId, hoy, alIr }: Propiedades) {
           <Info size={18} strokeWidth={1.5} aria-hidden="true" />
           <div className="aviso__mensaje">
             <span className="aviso__titulo">Destino: bodega</span>
-            <span>
-              {producto === null || resultado.unidades === 0
-                ? 'Elige un producto y una cantidad.'
-                : `Al registrar se sumarán ${resultado.unidades} unidades de ${producto.nombre}.`}
-            </span>
+            <span>Escribe lo que costó cada caja (o botella); la app calcula el total.</span>
           </div>
         </div>
 
-        {resultado.problema !== null && producto !== null && costoTexto !== '' && <p className="texto-suave">{resultado.problema}</p>}
+        {calculado.problema !== null && <p className="texto-suave">{calculado.problema}</p>}
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
 
-        <button type="button" className="boton boton--primario" disabled={!puedeRegistrar} onClick={registrar}>
+        <button type="button" className="boton boton--primario" disabled={!calculado.puedeRegistrar || enviando} onClick={registrar}>
           Registrar compra
         </button>
         <button type="button" className="boton" onClick={() => alIr('mas/compras')}>Ver historial de compras</button>

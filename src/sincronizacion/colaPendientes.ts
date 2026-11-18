@@ -16,6 +16,7 @@
 export const FUNCIONES_DIFERIBLES = [
   'registrar_venta',
   'registrar_compra',
+  'registrar_compras',
   'registrar_traslado',
   'registrar_ajuste',
   'registrar_deuda',
