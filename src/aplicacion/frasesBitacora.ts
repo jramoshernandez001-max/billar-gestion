@@ -194,6 +194,17 @@ function fraseCambiarPrecio(a: Registro, d: Registro): string {
   return `Se cambió el precio de ${String(d.nombre)}: ${cambios.length > 0 ? unir(cambios) : 'sin cambios'}.`
 }
 
+/**
+ * Frase de un producto archivado.
+ *
+ * Qué hace: dice qué producto se archivó y qué significa.
+ * Cómo lo hace: toma el nombre del registro de después.
+ * Por qué: "archivado" no es obvio; la frase aclara que el historial sigue.
+ */
+function fraseArchivarProducto(d: Registro): string {
+  return `Se archivó el producto ${String(d.nombre)}: ya no aparece en la app y su historial se conserva.`
+}
+
 function fraseCrearProducto(d: Registro): string {
   if (d.categoria === 'licor') return `Se creó el licor ${String(d.nombre)}: botella a ${pesos(d.precio_unidad)}.`
   return (
@@ -288,6 +299,8 @@ export function fraseDe(entrada: EntradaBitacora, productos: Productos = new Map
       return fraseCrearProducto(d)
     case 'editar-producto':
       return fraseEditarProducto(a, d)
+    case 'archivar-producto':
+      return fraseArchivarProducto(d)
     case 'anular-registro':
       return fraseAnulado(entrada.tabla, a, d, productos)
     default:

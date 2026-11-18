@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import type { Venta } from '../domain/ventas/venta'
-import { borradorDesdeVenta, motivoEdicion, ventaEditable } from './edicionVenta'
+import { borradorDesdeVenta, motivoEdicion, ventaEditable, productosParaVender } from './edicionVenta'
 
 const cerveza = { unidadesPorCaja: 24, manejaSixpack: true, precioUnidad: 3000, precioCaja: 60000 }
 const venta: Venta = {
@@ -65,5 +65,18 @@ describe('motivoEdicion', () => {
 
   it('sin motivo escrito usa "Venta editada"', () => {
     expect(motivoEdicion('   ')).toBe('Venta editada')
+  })
+})
+
+describe('productosParaVender', () => {
+  const p = (id: string) => ({ id })
+
+  it('sin venta: solo los activos', () => {
+    expect(productosParaVender([p('a')], [p('a'), p('viejo')], null)).toEqual([p('a')])
+  })
+
+  it('al editar: suma los archivados que ya estaban en la venta, sin repetir', () => {
+    const venta = { renglones: [{ productoId: 'viejo' }, { productoId: 'a' }] }
+    expect(productosParaVender([p('a')], [p('a'), p('viejo'), p('otro')], venta)).toEqual([p('a'), p('viejo')])
   })
 })

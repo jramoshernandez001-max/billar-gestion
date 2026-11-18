@@ -22,7 +22,7 @@ import { useCarga } from '../useCarga'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCorregirCosto {
-  inventario: Pick<RepositorioInventario, 'listarCompras' | 'listarProductos' | 'corregirCostoCompra'>
+  inventario: Pick<RepositorioInventario, 'listarCompras' | 'listarTodosLosProductos' | 'corregirCostoCompra'>
 }
 
 interface Propiedades {
@@ -33,7 +33,7 @@ interface Propiedades {
 
 export function CorregirCosto({ servicios, compraId, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
-    const [compras, productos] = await Promise.all([servicios.inventario.listarCompras(), servicios.inventario.listarProductos()])
+    const [compras, productos] = await Promise.all([servicios.inventario.listarCompras(), servicios.inventario.listarTodosLosProductos()])
     return { compras, productos }
   }, [servicios])
   const { estado, datos, error, recargar } = useCarga(cargar)

@@ -26,6 +26,7 @@ function armar(sobre: { registrarVenta?: ServiciosVender['ventas']['registrarVen
   const servicios: ServiciosVender = {
     inventario: {
       listarProductos: async () => [aguila, agua, aguardiente],
+      listarTodosLosProductos: async () => [aguila, agua, aguardiente],
       obtenerStock: async () => new Map([
         ['p1', { bodega: 10, nevera: 4, total: 14 }],
         ['p2', { bodega: 0, nevera: 12, total: 12 }],
@@ -205,7 +206,7 @@ describe('Vender', () => {
 
   it('si no cargan los productos, lo dice y deja reintentar', async () => {
     const servicios: ServiciosVender = {
-      inventario: { listarProductos: async () => { throw new Error('sin red') }, obtenerStock: async () => new Map() },
+      inventario: { listarProductos: async () => { throw new Error('sin red') }, listarTodosLosProductos: async () => [], obtenerStock: async () => new Map() },
       ventas: { registrarVenta: async () => 'x', listarVentas: async () => [], editarVenta: async () => 'x' },
     }
     render(<Vender servicios={servicios} hoy="2026-11-03" alIr={() => {}} />)
@@ -236,7 +237,7 @@ describe('Vender', () => {
     function armarEdicion(estado: 'vigente' | 'anulada' = 'vigente', editarVenta = vi.fn(async () => 'v10')) {
       const registrarVenta = vi.fn(async () => 'x')
       const servicios: ServiciosVender = {
-        inventario: { listarProductos: async () => [aguila, agua, aguardiente], obtenerStock: async () => new Map() },
+        inventario: { listarProductos: async () => [aguila, agua, aguardiente], listarTodosLosProductos: async () => [aguila, agua, aguardiente], obtenerStock: async () => new Map() },
         ventas: { registrarVenta, listarVentas: async () => [guardada(estado)], editarVenta },
       }
       const alIr = vi.fn()

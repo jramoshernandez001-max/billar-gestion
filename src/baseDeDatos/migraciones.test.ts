@@ -69,7 +69,7 @@ const PRIVADAS = ['codigos_acceso', 'sesiones_codigo', 'intentos_codigo']
 const legibles = tablas.filter((t) => !PRIVADAS.includes(t))
 
 describe('migraciones de la base de datos', () => {
-  it('existen las diez migraciones, en orden', () => {
+  it('existen las once migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -81,13 +81,16 @@ describe('migraciones de la base de datos', () => {
       '0008_acceso_con_codigo.sql',
       '0009_editar_venta.sql',
       '0010_productos_adicionales.sql',
+      '0011_archivar_productos.sql',
     ])
   })
 
   it('la lista de acciones de la bitácora es la misma de ACCIONES_BITACORA', () => {
-    const lista = sql.match(/accion text not null check \(accion in \(([\s\S]*?)\)\)/i)
-    expect(lista).not.toBeNull()
-    const acciones = [...(lista?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1])
+    // Vale la última definición: una migración posterior puede reemplazar la lista.
+    const listas = [...sql.matchAll(/check \(accion in \(([\s\S]*?)\)\)/gi)]
+    expect(listas.length).toBeGreaterThan(0)
+    const lista = listas[listas.length - 1]
+    const acciones = [...(lista[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1])
     expect([...acciones].sort()).toEqual([...ACCIONES_BITACORA].sort())
   })
 
@@ -244,6 +247,45 @@ describe('migraciones de la base de datos', () => {
     )
   })
 
+  describe('archivar productos (0011)', () => {
+    const archivo = sinComentarios(archivos['../../supabase/migrations/0011_archivar_productos.sql'] ?? '').toLowerCase()
+
+    it('los productos tienen la marca activo, verdadera por defecto', () => {
+      expect(archivo).toMatch(/add column activo boolean not null default true/)
+    })
+
+    it('el nombre solo se repite entre productos archivados', () => {
+      expect(archivo).toMatch(/drop index public\.productos_nombre_unico/)
+      expect(archivo).toMatch(/create unique index productos_nombre_unico[\s\S]*?where activo/)
+    })
+
+    it('archivar_productos es SECURITY DEFINER, verifica al usuario, exige motivo y anota la bitácora', () => {
+      const f = funciones.find((x) => x.nombre === 'archivar_productos')
+      expect(f).toBeDefined()
+      const texto = f?.texto.toLowerCase() ?? ''
+      expect(texto).toMatch(/security definer/)
+      expect(texto).toMatch(/es_usuario_autorizado\(\)/)
+      expect(texto).toMatch(/motivo_obligatorio\(p_motivo\)/)
+      expect(texto).toMatch(/anotar_bitacora\('archivar-producto'/)
+    })
+
+    it('crear y editar producto solo comparan el nombre con productos activos', () => {
+      for (const nombre of ['crear_producto', 'editar_producto']) {
+        const texto = funciones.find((x) => x.nombre === nombre)?.texto.toLowerCase() ?? ''
+        expect(texto).toMatch(/and activo/)
+      }
+    })
+
+    it('no se compra, traslada ni ajusta un producto archivado', () => {
+      expect(archivo).toMatch(/create trigger compras_producto_activo/)
+      expect(archivo).toMatch(/create trigger movimientos_producto_activo/)
+    })
+
+    it('no borra nada', () => {
+      expect(archivo).not.toMatch(/\bdelete from\b|\btruncate\b|\bdrop table\b/)
+    })
+  })
+
   describe('acceso con código', () => {
     it('las tablas del acceso con código no tienen permisos ni políticas para la app', () => {
       for (const tabla of PRIVADAS) {
@@ -323,6 +365,7 @@ describe('migraciones de la base de datos', () => {
           'recalcular_cierre',
           'corregir_dinero_cierre',
           'aplicar_operacion_pendiente',
+          'archivar_productos',
         ].sort(),
       )
     })

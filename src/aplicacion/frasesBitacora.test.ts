@@ -173,6 +173,11 @@ describe('fraseDe: productos', () => {
       .toBe('Se creó el licor Ron: botella a $ 50.000.')
   })
 
+  it('producto archivado: dice cuál', () => {
+    expect(frase({ accion: 'archivar-producto', tabla: 'productos', antes: { nombre: 'Vieja', activo: true }, despues: { nombre: 'Vieja', activo: false } }))
+      .toBe('Se archivó el producto Vieja: ya no aparece en la app y su historial se conserva.')
+  })
+
   it('producto editado: los cambios en palabras', () => {
     expect(frase({
       accion: 'editar-producto',

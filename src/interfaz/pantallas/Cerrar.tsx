@@ -29,7 +29,7 @@ import { fechaCorta } from '../formato'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCerrar {
-  inventario: Pick<RepositorioInventario, 'listarProductos'>
+  inventario: Pick<RepositorioInventario, 'listarTodosLosProductos'>
   ventas: Pick<RepositorioVentas, 'listarVentas'>
   servicioCierres: Pick<ServicioCierres, 'vistaPreviaCierre' | 'cerrarPeriodo'>
 }
@@ -78,7 +78,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   // Nombres de productos, para mostrar los que están sin costo.
   useEffect(() => {
     let vigente = true
-    servicios.inventario.listarProductos().then(
+    servicios.inventario.listarTodosLosProductos().then(
       (lista) => {
         if (!vigente) return
         setNombres(new Map(lista.map((p) => [p.id, p.nombre])))

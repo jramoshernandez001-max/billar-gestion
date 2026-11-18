@@ -31,6 +31,7 @@ const TITULOS: Record<AccionBitacora, string> = {
   'cambiar-precio': 'Precio cambiado',
   'crear-producto': 'Producto creado',
   'editar-producto': 'Producto editado',
+  'archivar-producto': 'Producto archivado',
   'anular-registro': 'Registro anulado',
   'recalcular-cierre-diario': 'Cierre diario recalculado',
   'recalcular-cierre-semanal': 'Cierre semanal recalculado',
@@ -70,6 +71,7 @@ const GRUPO_POR_ACCION: Partial<Record<AccionBitacora, GrupoBitacora>> = {
   'cambiar-precio': 'productos',
   'crear-producto': 'productos',
   'editar-producto': 'productos',
+  'archivar-producto': 'productos',
 }
 
 export function tituloDe(entrada: EntradaBitacora): string {

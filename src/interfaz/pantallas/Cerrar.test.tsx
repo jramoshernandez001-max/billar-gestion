@@ -29,7 +29,7 @@ const ventasEjemplo = [
 
 function servicios(sobre: Partial<ServiciosCerrar['servicioCierres']> = {}): ServiciosCerrar {
   return {
-    inventario: { listarProductos: async () => [{ id: 'p2', nombre: 'Agua Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 }] },
+    inventario: { listarTodosLosProductos: async () => [{ id: 'p2', nombre: 'Agua Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 12, manejaSixpack: false, precioUnidad: 1500, precioCaja: 15000 }] },
     ventas: { listarVentas: async () => ventasEjemplo },
     servicioCierres: {
       vistaPreviaCierre: vi.fn(async (d) => ({

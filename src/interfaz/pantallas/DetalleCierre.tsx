@@ -33,7 +33,7 @@ export interface ServiciosDetalleCierre {
   cierres: Pick<RepositorioCierres, 'listarCierres' | 'corregirDineroCierre'>
   desactualizados: DetectorDesactualizados
   servicioCierres: Pick<ServicioCierres, 'recalcularCierre'>
-  inventario: Pick<RepositorioInventario, 'listarProductos'>
+  inventario: Pick<RepositorioInventario, 'listarTodosLosProductos'>
   ventas: Pick<RepositorioVentas, 'listarVentas'>
 }
 
@@ -48,7 +48,7 @@ export function DetalleCierre({ servicios, cierreId, alIr }: Propiedades) {
     const [cierres, ids, productos, ventas] = await Promise.all([
       servicios.cierres.listarCierres(),
       servicios.desactualizados.idsDesactualizados(),
-      servicios.inventario.listarProductos(),
+      servicios.inventario.listarTodosLosProductos(),
       servicios.ventas.listarVentas(),
     ])
     return { cierres, ids, productos, ventas }

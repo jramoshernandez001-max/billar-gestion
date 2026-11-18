@@ -31,7 +31,7 @@ import { useCarga } from '../useCarga'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosCompras {
-  inventario: Pick<RepositorioInventario, 'listarCompras' | 'listarProductos' | 'anularCompra'>
+  inventario: Pick<RepositorioInventario, 'listarCompras' | 'listarTodosLosProductos' | 'anularCompra'>
   bitacora: Pick<RepositorioBitacora, 'listarBitacora'>
 }
 
@@ -101,7 +101,7 @@ export function Compras({ servicios, hoy, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
     const [compras, productos, entradas] = await Promise.all([
       servicios.inventario.listarCompras(),
-      servicios.inventario.listarProductos(),
+      servicios.inventario.listarTodosLosProductos(),
       servicios.bitacora.listarBitacora(),
     ])
     return { compras, productos, entradas }

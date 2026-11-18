@@ -33,7 +33,7 @@ function armar(ventas: VentaRegistrada[], sobre: Partial<ServiciosVentas['ventas
   const listarVentas = vi.fn(async () => ventas)
   const servicios: ServiciosVentas = {
     ventas: { listarVentas, anularVenta },
-    inventario: { listarProductos: async () => [{ id: 'p1', nombre: 'Águila', ...producto }] },
+    inventario: { listarTodosLosProductos: async () => [{ id: 'p1', nombre: 'Águila', ...producto }] },
     bitacora: { listarBitacora: async () => bitacora },
   }
   const alIr = vi.fn()

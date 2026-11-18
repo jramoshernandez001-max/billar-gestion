@@ -64,6 +64,7 @@ Sistema web (PWA) para administrar un billar: inventario de bodega y nevera, ven
 - El efectivo y las transferencias de un cierre se pueden corregir; queda en la bitácora y deja el cierre desactualizado hasta que un usuario lo recalcule.
 - Un renglón de venta con cantidad cero se ignora sin error (no se guarda ni genera movimiento); si todos son cero, la venta se rechaza.
 - El monto de una deuda o de un abono debe ser mayor a cero. Un nombre de producto no se repite (sin importar mayúsculas ni espacios).
+- Archivar productos (migración 0011): `archivar_productos(p_motivo)` marca todos los productos activos con `activo = false` y anota 'archivar-producto' por cada uno. Sirve para reiniciar el inventario desde cero sin borrar nada: un producto nuevo (aunque se llame igual; el nombre único vale solo entre activos) tiene id nuevo, stock y costo vacíos. Un archivado no se edita, compra, traslada ni ajusta (disparadores), pero las ventas, compras y cierres viejos lo siguen usando. `listarProductos` devuelve solo activos; las pantallas de historial (ventas, compras, cierres, bitácora, corregir costo) usan `listarTodosLosProductos`; al editar una venta vieja se ofrecen también sus productos archivados (`productosParaVender`).
 - El catálogo con precios y costos es privado: está en `CLAUDE.local.md` y no se sube al repositorio.
 
 ## Seguridad (el repositorio es público)

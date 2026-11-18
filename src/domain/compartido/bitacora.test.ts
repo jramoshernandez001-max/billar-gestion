@@ -96,6 +96,7 @@ describe('crearRegistroBitacora', () => {
         'cambiar-precio',
         'crear-producto',
         'editar-producto',
+        'archivar-producto',
         'anular-registro',
         'recalcular-cierre-diario',
         'recalcular-cierre-semanal',

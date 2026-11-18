@@ -22,6 +22,7 @@ export function serviciosVacios(): ServiciosApp {
     },
     inventario: {
       listarProductos: async () => [],
+      listarTodosLosProductos: async () => [],
       obtenerStock: async () => new Map(),
       registrarTraslado: async () => ({ trasladoId: 'traslado', suficiente: true, faltan: 0 }),
       registrarAjuste: async () => 'ajuste',

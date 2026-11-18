@@ -83,7 +83,12 @@ export interface ResultadoTraslado {
 
 /** Operaciones de inventario. */
 export interface RepositorioInventario {
+  /** Productos activos: los que se venden, compran y cuentan hoy. */
   listarProductos(): Promise<Producto[]>
+  /** Todos, también los archivados: para nombrar el historial. */
+  listarTodosLosProductos(): Promise<Producto[]>
+  /** Archiva todos los productos activos (reiniciar inventario); devuelve cuántos. */
+  archivarProductos(motivo: string): Promise<number>
   crearProducto(datos: DatosProducto): Promise<string>
   editarProducto(id: string, datos: DatosProducto): Promise<void>
   registrarCompra(datos: DatosCompra): Promise<string>
@@ -152,6 +157,33 @@ function filaAProducto(fila: unknown): Producto {
 }
 
 /**
+ * Lee las filas de la tabla productos.
+ *
+ * Qué hace: trae todos los productos, activos y archivados, con su marca.
+ * Cómo lo hace: una sola lectura con las columnas que usa la app.
+ * Por qué: listar activos y listar todos comparten la misma lectura.
+ */
+function leerProductos(cliente: ClienteDatos): Promise<unknown[]> {
+  return leerFilas(
+    cliente,
+    'productos',
+    'id, nombre, categoria, unidades_por_caja, maneja_sixpack, precio_unidad, precio_caja, activo',
+  )
+}
+
+/**
+ * Dice si una fila de productos está activa.
+ *
+ * Qué hace: devuelve false solo si la fila dice activo = false.
+ * Cómo lo hace: compara con false de forma estricta.
+ * Por qué: las copias guardadas sin conexión antes de la migración 0011 no
+ * traen la marca; esos productos estaban todos activos.
+ */
+function esFilaActiva(fila: unknown): boolean {
+  return !(esObjeto(fila) && fila.activo === false)
+}
+
+/**
  * Crea el repositorio de inventario.
  *
  * Qué hace: devuelve las operaciones de inventario sobre un cliente de datos.
@@ -162,12 +194,19 @@ function filaAProducto(fila: unknown): Producto {
 export function crearRepositorioInventario(cliente: ClienteDatos): RepositorioInventario {
   return {
     async listarProductos() {
-      const filas = await leerFilas(
-        cliente,
-        'productos',
-        'id, nombre, categoria, unidades_por_caja, maneja_sixpack, precio_unidad, precio_caja',
-      )
+      const filas = await leerProductos(cliente)
+      return filas.filter(esFilaActiva).map(filaAProducto)
+    },
+
+    async listarTodosLosProductos() {
+      const filas = await leerProductos(cliente)
       return filas.map(filaAProducto)
+    },
+
+    async archivarProductos(motivo) {
+      const total = await llamarFuncion(cliente, 'archivar_productos', { p_motivo: exigirTexto('El motivo', motivo) })
+      if (!esEntero(total)) throw respuestaInesperada()
+      return total
     },
 
     async crearProducto(datos) {

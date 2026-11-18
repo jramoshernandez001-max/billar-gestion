@@ -33,7 +33,7 @@ import {
   type CatalogoVendible,
   type RenglonBorrador,
 } from '../../aplicacion/borradorVenta'
-import { borradorDesdeVenta, motivoEdicion, ventaEditable } from '../../aplicacion/edicionVenta'
+import { borradorDesdeVenta, motivoEdicion, ventaEditable, productosParaVender } from '../../aplicacion/edicionVenta'
 import { opcionesDePresentacion } from '../../domain/inventario/categorias'
 import type { RepositorioInventario } from '../../datos/inventario'
 import type { RepositorioVentas } from '../../datos/ventas'
@@ -46,7 +46,7 @@ import { SelectorProducto, type OpcionProducto } from './SelectorProducto'
 
 /** Servicios que necesita la pantalla. */
 export interface ServiciosVender {
-  inventario: Pick<RepositorioInventario, 'listarProductos' | 'obtenerStock'>
+  inventario: Pick<RepositorioInventario, 'listarProductos' | 'listarTodosLosProductos' | 'obtenerStock'>
   ventas: Pick<RepositorioVentas, 'registrarVenta' | 'listarVentas' | 'editarVenta'>
 }
 
@@ -66,13 +66,16 @@ function unidadesTexto(n: number): string {
 
 export function Vender({ servicios, hoy, ventaId, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
-    const [productos, stock, ventas] = await Promise.all([
+    const [activos, todos, stock, ventas] = await Promise.all([
       servicios.inventario.listarProductos(),
+      ventaId === undefined ? Promise.resolve([]) : servicios.inventario.listarTodosLosProductos(),
       servicios.inventario.obtenerStock(),
       ventaId === undefined ? Promise.resolve(null) : servicios.ventas.listarVentas(),
     ])
     // Al editar, la venta debe existir y seguir vigente (si no, se muestra el error).
     const venta = ventas === null || ventaId === undefined ? null : ventaEditable(ventas, ventaId)
+    // Una venta vieja puede tener productos archivados: se agregan solo al editarla.
+    const productos = productosParaVender(activos, todos, venta)
     return { productos, stock, venta }
   }, [servicios, ventaId])
   const { estado, datos, error, recargar } = useCarga(cargar)

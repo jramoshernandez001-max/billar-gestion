@@ -33,7 +33,7 @@ import { useCarga } from '../useCarga'
 /** Servicios que necesita la pantalla. */
 export interface ServiciosVentas {
   ventas: Pick<RepositorioVentas, 'listarVentas' | 'anularVenta'>
-  inventario: Pick<RepositorioInventario, 'listarProductos'>
+  inventario: Pick<RepositorioInventario, 'listarTodosLosProductos'>
   bitacora: Pick<RepositorioBitacora, 'listarBitacora'>
 }
 
@@ -111,7 +111,7 @@ export function Ventas({ servicios, hoy, fechaInicial, alIr }: Propiedades) {
   const cargar = useCallback(async () => {
     const [ventas, productos, entradas] = await Promise.all([
       servicios.ventas.listarVentas(),
-      servicios.inventario.listarProductos(),
+      servicios.inventario.listarTodosLosProductos(),
       servicios.bitacora.listarBitacora(),
     ])
     return { ventas, productos, entradas }
