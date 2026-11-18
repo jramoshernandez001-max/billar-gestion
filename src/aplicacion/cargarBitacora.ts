@@ -14,7 +14,7 @@ import type { ProductoBitacora } from './frasesBitacora'
 /** Lo que necesita la carga. */
 export interface FuentesBitacora {
   bitacora: Pick<RepositorioBitacora, 'listarBitacora'>
-  inventario: Pick<RepositorioInventario, 'listarProductos'>
+  inventario: Pick<RepositorioInventario, 'listarTodosLosProductos'>
 }
 
 /** Entradas de la bitácora, nombre de cada producto y sus datos para las frases. */
@@ -28,7 +28,7 @@ export interface BitacoraConNombres {
 export async function cargarBitacoraConNombres(fuentes: FuentesBitacora): Promise<BitacoraConNombres> {
   const [entradas, productos] = await Promise.all([
     fuentes.bitacora.listarBitacora(),
-    fuentes.inventario.listarProductos(),
+    fuentes.inventario.listarTodosLosProductos(),
   ])
   return {
     entradas,

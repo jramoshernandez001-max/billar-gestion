@@ -16,11 +16,24 @@ import { Modal } from './Modal'
 interface Propiedades {
   /** Título de la ventana, por ejemplo "Anular venta". */
   titulo?: string
+  /** Texto sobre el campo del motivo. */
+  etiquetaMotivo?: string
+  /** Aclaración bajo el campo. */
+  nota?: string
+  /** Texto del botón que confirma. */
+  textoConfirmar?: string
   alConfirmar: (motivo: string) => Promise<void>
   alCancelar: () => void
 }
 
-export function FormularioAnulacion({ titulo = 'Anular registro', alConfirmar, alCancelar }: Propiedades) {
+export function FormularioAnulacion({
+  titulo = 'Anular registro',
+  etiquetaMotivo = 'Motivo de la anulación',
+  nota = 'Nada se borra: la anulación queda en la bitácora con este motivo.',
+  textoConfirmar = 'Confirmar anulación',
+  alConfirmar,
+  alCancelar,
+}: Propiedades) {
   const id = useId()
   const [motivo, setMotivo] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -40,14 +53,14 @@ export function FormularioAnulacion({ titulo = 'Anular registro', alConfirmar, a
   return (
     <Modal titulo={titulo} alCerrar={alCancelar}>
       <div className="campo">
-        <label className="campo__etiqueta" htmlFor={id}>Motivo de la anulación</label>
+        <label className="campo__etiqueta" htmlFor={id}>{etiquetaMotivo}</label>
         <textarea id={id} className="entrada entrada--texto" rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} autoFocus />
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
-        <p className="texto-suave">Nada se borra: la anulación queda en la bitácora con este motivo.</p>
+        <p className="texto-suave">{nota}</p>
         <div className="acciones">
           <button type="button" className="boton" onClick={alCancelar}>Cancelar</button>
           <button type="button" className="boton boton--peligro" disabled={motivo.trim() === '' || enviando} onClick={confirmar}>
-            Confirmar anulación
+            {textoConfirmar}
           </button>
         </div>
       </div>

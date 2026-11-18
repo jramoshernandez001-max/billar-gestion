@@ -88,3 +88,24 @@ export function motivoEdicion(texto: string): string {
   const limpio = texto.trim().replace(/\s+/g, ' ')
   return limpio === '' ? MOTIVO_POR_DEFECTO : limpio
 }
+
+/**
+ * Productos que se ofrecen al vender o al editar una venta.
+ *
+ * Qué hace: devuelve los productos activos y, si se edita una venta, también
+ * los eliminados que ya estaban en ella.
+ * Cómo lo hace: parte de los activos y agrega de `todos` los que la venta usa
+ * y no están en la lista, en su orden.
+ * Por qué: una venta vieja puede tener un producto eliminado; sin él no se
+ * podría abrir para corregirla. Los eliminados no se ofrecen en ventas nuevas.
+ */
+export function productosParaVender<P extends { id: string }>(
+  activos: readonly P[],
+  todos: readonly P[],
+  venta: { renglones: readonly { productoId: string }[] } | null,
+): P[] {
+  if (venta === null) return [...activos]
+  const usados = new Set(venta.renglones.map((r) => r.productoId))
+  const ids = new Set(activos.map((x) => x.id))
+  return [...activos, ...todos.filter((x) => usados.has(x.id) && !ids.has(x.id))]
+}

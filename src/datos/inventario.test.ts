@@ -251,6 +251,33 @@ describe('lecturas', () => {
     ])
   })
 
+  it('listarProductos deja fuera los productos eliminados; listarTodosLosProductos los incluye', async () => {
+    const fila = { id: ID, nombre: 'Cerveza Ejemplo', categoria: 'cerveza', unidades_por_caja: 24, maneja_sixpack: true, precio_unidad: 3000, precio_caja: 60000 }
+    const { cliente } = clienteFalso({}, { productos: [{ ...fila, activo: false }, { ...fila, id: ID2, activo: true }] })
+    const repositorio = crearRepositorioInventario(cliente)
+    expect((await repositorio.listarProductos()).map((p) => p.id)).toEqual([ID2])
+    expect((await repositorio.listarTodosLosProductos()).map((p) => p.id)).toEqual([ID, ID2])
+  })
+
+  it('una fila sin la marca activo cuenta como activa (copias guardadas antes de la migración 0011)', async () => {
+    const fila = { id: ID, nombre: 'Cerveza Ejemplo', categoria: 'cerveza', unidades_por_caja: 24, maneja_sixpack: true, precio_unidad: 3000, precio_caja: 60000 }
+    const { cliente } = clienteFalso({}, { productos: [fila] })
+    expect(await crearRepositorioInventario(cliente).listarProductos()).toHaveLength(1)
+  })
+
+  it('eliminarProducto llama a eliminar_producto con el producto y el motivo', async () => {
+    const { cliente, rpc } = clienteFalso({ data: null })
+    await crearRepositorioInventario(cliente).eliminarProducto(ID, 'Ya no se vende')
+    expect(rpc).toHaveBeenCalledWith('eliminar_producto', { p_producto_id: ID, p_motivo: 'Ya no se vende' })
+    expect(Object.keys(rpc.mock.calls[0][1]).sort()).toEqual(parametrosSql('eliminar_producto').sort())
+  })
+
+  it('eliminarProducto exige motivo y no llama a la base sin él', async () => {
+    const { cliente, rpc } = clienteFalso({ data: null })
+    await expect(crearRepositorioInventario(cliente).eliminarProducto(ID, '   ')).rejects.toThrow(/motivo/i)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('listarProductos rechaza una fila con forma inesperada', async () => {
     const { cliente } = clienteFalso({}, { productos: [{ id: ID, nombre: 'x' }] })
     await expect(crearRepositorioInventario(cliente).listarProductos()).rejects.toThrow(/fila/i)

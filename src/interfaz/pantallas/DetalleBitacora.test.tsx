@@ -19,7 +19,7 @@ const entrada: EntradaBitacora = {
   antes: { id: 'c1', costo_total: 96000, estado: 'vigente' }, despues: { id: 'c1', costo_total: 100800, estado: 'vigente' }, motivo: 'precio mal digitado',
 }
 
-const servicios = { bitacora: { listarBitacora: async () => [entrada] }, inventario: { listarProductos: async () => [] } }
+const servicios = { bitacora: { listarBitacora: async () => [entrada] }, inventario: { listarTodosLosProductos: async () => [] } }
 
 describe('DetalleBitacora', () => {
   it('muestra título, usuario, motivo y solo lo que cambió', async () => {

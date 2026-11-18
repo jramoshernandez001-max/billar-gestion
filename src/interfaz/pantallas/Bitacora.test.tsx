@@ -21,7 +21,7 @@ const entrada = (id: string, dia: number, sobre: Partial<EntradaBitacora> = {}):
 const productos = [{ id: 'p1', nombre: 'Cerveza Águila', categoria: 'cerveza' as const, unidadesPorCaja: 30, manejaSixpack: false, precioUnidad: 3500, precioCaja: 105000 }]
 const servicios = (entradas: EntradaBitacora[]): ServiciosBitacora => ({
   bitacora: { listarBitacora: async () => entradas },
-  inventario: { listarProductos: async () => productos },
+  inventario: { listarTodosLosProductos: async () => productos },
 })
 
 describe('Bitacora', () => {

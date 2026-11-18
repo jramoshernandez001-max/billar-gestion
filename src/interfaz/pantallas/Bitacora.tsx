@@ -27,7 +27,7 @@ import { useCarga } from '../useCarga'
 export interface ServiciosBitacora {
   bitacora: Pick<RepositorioBitacora, 'listarBitacora'>
   /** Para mostrar el nombre del producto en vez de su id. */
-  inventario: Pick<RepositorioInventario, 'listarProductos'>
+  inventario: Pick<RepositorioInventario, 'listarTodosLosProductos'>
 }
 
 /** Cambios que se ven en la tarjeta; el resto queda en el detalle. */
