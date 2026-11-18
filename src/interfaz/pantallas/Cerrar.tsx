@@ -19,7 +19,7 @@ import type { RepositorioInventario, Producto } from '../../datos/inventario'
 import type { RepositorioVentas, VentaRegistrada } from '../../datos/ventas'
 import { resumirProductosVendidos } from '../../aplicacion/productosVendidos'
 import type { ServicioCierres } from '../../aplicacion/servicioCierres'
-import { lunesDe } from '../../domain/compartido/semana'
+import { semanaPorDefecto } from '../../domain/compartido/semana'
 import { CabeceraInterna } from '../componentes/CabeceraInterna'
 import { CampoFecha } from '../componentes/CampoFecha'
 import { Opciones } from '../componentes/Opciones'
@@ -50,6 +50,9 @@ const entero = (texto: string) => (/^\d+$/.test(texto) && Number(texto) > 0 ? Nu
 
 export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   const [fecha, setFecha] = useState(hoy)
+  // Semanal: por defecto la última semana de martes a lunes; el usuario la puede cambiar.
+  const [desdeSemana, setDesdeSemana] = useState(() => semanaPorDefecto(hoy).desde)
+  const [hastaSemana, setHastaSemana] = useState(() => semanaPorDefecto(hoy).hasta)
   const [efectivo, setEfectivo] = useState('')
   const [transferencias, setTransferencias] = useState('')
   const [costos, setCostos] = useState<Record<string, string>>({})
@@ -60,7 +63,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   const [enviando, setEnviando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
 
-  const desde = tipo === 'diario' ? fecha : lunesDe(fecha)
+  const desde = tipo === 'diario' ? fecha : desdeSemana
   const costosManuales = useMemo(() => {
     const r: Record<string, number> = {}
     for (const [id, texto] of Object.entries(costos)) {
@@ -70,8 +73,15 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
     return r
   }, [costos])
   const datos = useMemo(
-    () => ({ tipo, desde, efectivo: Number(efectivo || 0), transferencias: Number(transferencias || 0), costosManuales }),
-    [tipo, desde, efectivo, transferencias, costosManuales],
+    () => ({
+      tipo,
+      desde,
+      ...(tipo === 'semanal' ? { hasta: hastaSemana } : {}),
+      efectivo: Number(efectivo || 0),
+      transferencias: Number(transferencias || 0),
+      costosManuales,
+    }),
+    [tipo, desde, hastaSemana, efectivo, transferencias, costosManuales],
   )
   const clave = JSON.stringify(datos)
 
@@ -151,8 +161,15 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
           valor={tipo}
           alCambiar={(t) => alIr(`cierres/${t}`)}
         />
-        <CampoFecha valor={fecha} hoy={hoy} etiqueta={tipo === 'diario' ? 'Fecha' : 'Semana que contiene'} alCambiar={setFecha} />
-        {tipo === 'semanal' && hasta !== null && <p className="texto-suave">{fechaCorta(desde)} – {fechaCorta(hasta)}</p>}
+        {tipo === 'diario' ? (
+          <CampoFecha valor={fecha} hoy={hoy} etiqueta="Fecha" alCambiar={setFecha} />
+        ) : (
+          <>
+            <CampoFecha valor={desdeSemana} hoy={hoy} etiqueta="Desde" alCambiar={setDesdeSemana} />
+            <CampoFecha valor={hastaSemana} hoy={hoy} etiqueta="Hasta" alCambiar={setHastaSemana} />
+          </>
+        )}
+        {tipo === 'semanal' && <p className="texto-suave">{fechaCorta(desde)} – {fechaCorta(hastaSemana)}</p>}
 
         <div className="campo">
           <label className="campo__etiqueta" htmlFor="efectivo-cierre">Efectivo</label>

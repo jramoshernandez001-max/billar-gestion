@@ -72,10 +72,13 @@ describe('guardarCierre', () => {
     ).toThrow(/un solo día/i)
   })
 
-  it('un cierre semanal va de lunes a domingo', () => {
+  it('un cierre semanal acepta cualquier rango, pero no un fin antes del inicio', () => {
     expect(() =>
       guardarCierre({ tipo: 'semanal', desde: '2026-03-10', hasta: '2026-03-16', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} }),
-    ).toThrow(/lunes/i)
+    ).not.toThrow()
+    expect(() =>
+      guardarCierre({ tipo: 'semanal', desde: '2026-03-16', hasta: '2026-03-10', momento: calculadoEn, efectivo: 0, transferencias: 0, costosUsados: [], resultado: {} }),
+    ).toThrow(/anterior/i)
   })
 
   it('rechaza dinero contado negativo o con decimales', () => {

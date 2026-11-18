@@ -333,9 +333,9 @@ describe('cerrarSemana', () => {
     expect(cerrarSemana(datos({ compras: conAnulada })).costoReposicion).toBe(43600)
   })
 
-  it('rechaza una semana que no va de lunes a domingo', () => {
-    expect(() => cerrarSemana(datos({ desde: '2026-03-10', hasta: '2026-03-16' }))).toThrow(/lunes/i)
-    expect(() => cerrarSemana(datos({ hasta: '2026-03-14' }))).toThrow(/domingo/i)
+  it('acepta un periodo de martes a lunes o de cualquier largo', () => {
+    expect(() => cerrarSemana(datos({ desde: '2026-03-10', hasta: '2026-03-16' }))).not.toThrow()
+    expect(() => cerrarSemana(datos({ hasta: '2026-03-20' }))).not.toThrow()
   })
 
   it('rechaza un periodo con inicio posterior al fin', () => {

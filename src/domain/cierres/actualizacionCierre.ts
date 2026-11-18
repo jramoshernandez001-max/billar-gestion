@@ -18,12 +18,12 @@
  * cae en un periodo ya cerrado: se permite, pero deja el cierre
  * desactualizado. El recálculo siempre lo pide un usuario; nunca es
  * automático. Las compras se miran por la compra usada y no por el periodo,
- * porque el cierre semanal usa la última compra hasta el domingo, que puede
+ * porque el cierre semanal usa la última compra hasta el último día del periodo, que puede
  * ser anterior a la semana, y una compra que no cambia ese costo no cambia
  * su resultado.
  */
 import { crearRegistroBitacora, type RegistroBitacora } from '../compartido/bitacora'
-import { validarSemana } from '../compartido/semana'
+import { validarPeriodoSemanal } from '../compartido/semana'
 import { validarFecha, validarFechaHoraIso, validarMonto } from '../compartido/validaciones'
 import type { CostoUsado } from './cierreSemanal'
 
@@ -113,15 +113,15 @@ export interface Recalculo<R> {
  * Comprueba que el periodo corresponda al tipo de cierre.
  *
  * Qué hace: lanza un error si un diario no es de un solo día o si un
- * semanal no va de lunes a domingo.
+ * semanal termina antes de empezar.
  * Cómo lo hace: valida las fechas y, según el tipo, compara desde con hasta
- * o usa validarSemana.
+ * o usa validarPeriodoSemanal.
  * Por qué: estaDesactualizado decide por el periodo; un periodo mal formado
  * daría respuestas falsas.
  */
 function validarPeriodo(tipo: TipoCierre, desde: string, hasta: string): void {
   if (tipo === 'semanal') {
-    validarSemana(desde, hasta)
+    validarPeriodoSemanal(desde, hasta)
     return
   }
   validarFecha('La fecha del cierre diario', desde)

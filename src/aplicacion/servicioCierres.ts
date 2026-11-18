@@ -14,7 +14,8 @@
 import { cerrarDia } from '../domain/cierres/cierreDiario'
 import { cerrarSemana, type CostoUsado } from '../domain/cierres/cierreSemanal'
 import type { TipoCierre } from '../domain/cierres/actualizacionCierre'
-import { sumarDias } from '../domain/compartido/semana'
+import { validarPeriodoSemanal } from '../domain/compartido/semana'
+import { validarSinCruceSemanal } from '../domain/cierres/crucesCierre'
 import { validarFecha } from '../domain/compartido/validaciones'
 import type { Venta } from '../domain/ventas/venta'
 import type { RepositorioCierres } from '../datos/cierres'
@@ -33,8 +34,10 @@ export interface DependenciasCierres {
 /** Datos que captura el usuario para cerrar un periodo. */
 export interface DatosCerrarPeriodo {
   tipo: TipoCierre
-  /** Día del cierre diario, o lunes de la semana del cierre semanal. */
+  /** Día del cierre diario, o primer día del cierre semanal. */
   desde: string
+  /** Último día del cierre semanal (obligatorio en el semanal; el diario lo ignora). */
+  hasta?: string
   efectivo: number
   transferencias: number
   /** Costo por unidad de productos vendidos sin compras (solo semanal). */
@@ -76,10 +79,18 @@ function ventasDelPeriodo(ventas: readonly Venta[], desde: string, hasta: string
  * Por qué: recibirlos por parámetro permite probar sin base de datos.
  */
 export function crearServicioCierres(dependencias: DependenciasCierres): ServicioCierres {
-  /** Último día del periodo: el mismo día en el diario, +6 en el semanal. */
-  function ultimoDia(tipo: TipoCierre, desde: string): string {
+  /**
+   * Último día del periodo.
+   * Cómo: en el diario es el mismo día; en el semanal es el que eligió el
+   * usuario, y se valida que exista y no sea anterior al inicio.
+   * Por qué: el semanal ya no tiene largo fijo; lo decide el usuario.
+   */
+  function ultimoDia(tipo: TipoCierre, desde: string, hasta: string | undefined): string {
     validarFecha('El inicio del cierre', desde)
-    return tipo === 'diario' ? desde : sumarDias(desde, 6)
+    if (tipo === 'diario') return desde
+    if (hasta === undefined) throw new Error('Falta la fecha de fin del cierre semanal')
+    validarPeriodoSemanal(desde, hasta)
+    return hasta
   }
 
   /**
@@ -110,11 +121,15 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
 
   /**
    * Calcula un cierre nuevo sin guardarlo.
-   * Cómo: deduce el último día, calcula con los datos de hoy y lo devuelve.
+   * Cómo: toma el último día, revisa que un semanal no se cruce con otro,
+   * calcula con los datos de hoy y lo devuelve.
    * Por qué: cerrarPeriodo y la vista previa deben dar exactamente lo mismo.
    */
   async function calcularNuevo(datos: DatosCerrarPeriodo) {
-    const hasta = ultimoDia(datos.tipo, datos.desde)
+    const hasta = ultimoDia(datos.tipo, datos.desde, datos.hasta)
+    if (datos.tipo === 'semanal') {
+      validarSinCruceSemanal({ desde: datos.desde, hasta }, await dependencias.cierres.listarCierres())
+    }
     const costosManuales = datos.costosManuales ?? {}
     const calculo = await calcular(
       datos.tipo, datos.desde, hasta, datos.efectivo, datos.transferencias, costosManuales,

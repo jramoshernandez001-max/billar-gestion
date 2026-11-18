@@ -69,7 +69,7 @@ const PRIVADAS = ['codigos_acceso', 'sesiones_codigo', 'intentos_codigo']
 const legibles = tablas.filter((t) => !PRIVADAS.includes(t))
 
 describe('migraciones de la base de datos', () => {
-  it('existen las diez migraciones, en orden', () => {
+  it('existen las once migraciones, en orden', () => {
     expect(Object.keys(archivos).sort().map((ruta) => ruta.split('/').pop())).toEqual([
       '0001_tablas_base.sql',
       '0002_vista_stock_actual.sql',
@@ -81,6 +81,7 @@ describe('migraciones de la base de datos', () => {
       '0008_acceso_con_codigo.sql',
       '0009_editar_venta.sql',
       '0010_productos_adicionales.sql',
+      '0011_cierre_semanal_libre.sql',
     ])
   })
 
@@ -242,6 +243,21 @@ describe('migraciones de la base de datos', () => {
     expect(sql).toMatch(
       /on public\.usuarios_autorizados for select to authenticated\s+using \(\(select public\.es_usuario_autorizado\(\)\)\)/i,
     )
+  })
+
+  describe('cierre semanal libre (0011)', () => {
+    const archivo = sinComentarios(archivos['../../supabase/migrations/0011_cierre_semanal_libre.sql'] ?? '').toLowerCase()
+
+    it('ya no exige lunes a domingo, solo que el fin no sea anterior al inicio', () => {
+      expect(archivo).toMatch(/drop constraint semanal_de_lunes_a_domingo/)
+      expect(archivo).toMatch(/check \(hasta >= desde\)/)
+    })
+
+    it('guardar_cierre rechaza un semanal que se cruce con otro, con candado', () => {
+      const texto = funciones.find((f) => f.nombre === 'guardar_cierre')?.texto.toLowerCase() ?? ''
+      expect(texto).toMatch(/pg_advisory_xact_lock/)
+      expect(texto).toMatch(/desde <= p_hasta and hasta >= p_desde/)
+    })
   })
 
   describe('acceso con código', () => {
