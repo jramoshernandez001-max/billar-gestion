@@ -3,8 +3,8 @@
  *
  * Qué hace: suma, por producto, las unidades y el valor vendidos en las
  * ventas vigentes dentro de un periodo (y aparte los productos adicionales
- * "Otros", juntados por nombre), con el desglose por presentación
- * ("1 caja · 4 unidades"), y los totales.
+ * "Otros", juntados por nombre), con lo vendido expresado en cajas completas
+ * y unidades sueltas ("25 cajas · 28 unidades"), y los totales.
  * Cómo lo hace: filtra las ventas por fecha (extremos incluidos), descarta
  * las anuladas, y recorre los renglones convirtiendo con `aUnidades` y
  * valorando con `valorItem` (precio cobrado, o el de lista si no hay).
@@ -20,7 +20,7 @@
  * marcas en una caja).
  */
 import type { CategoriaProducto } from '../domain/inventario/categorias'
-import { aUnidades, descomponerEnCajas, type Presentacion } from '../domain/inventario/conversiones'
+import { aUnidades, descomponerEnCajas } from '../domain/inventario/conversiones'
 import { estaVigente } from '../domain/compartido/estado'
 import type { Venta } from '../domain/ventas/venta'
 import type { ProductoAdicional } from '../domain/ventas/productosAdicionales'
@@ -33,7 +33,7 @@ export interface FilaVendida {
   categoria: CategoriaProducto
   unidades: number
   valor: number
-  /** "1 caja · 4 unidades" (o "2 botellas" si es licor). */
+  /** "25 cajas · 28 unidades" en equivalente de cajas (o "2 botellas" si es licor). */
   desglose: string
 }
 
@@ -59,22 +59,33 @@ export interface ProductosVendidos {
 /** Nombre y categoría de cada producto, por id. */
 export type NombresDeProductos = ReadonlyMap<string, { nombre: string; categoria: CategoriaProducto }>
 
-const ORDEN: readonly Presentacion[] = ['caja', 'sixpack', 'unidad']
-
-/** Texto de una presentación con su cantidad: "2 cajas", "1 botella". */
-function textoPresentacion(presentacion: Presentacion, cantidad: number, categoria: CategoriaProducto): string {
-  const uno = cantidad === 1
-  if (presentacion === 'caja') return `${cantidad} ${uno ? 'caja' : 'cajas'}`
-  if (presentacion === 'sixpack') return `${cantidad} ${uno ? 'sixpack' : 'sixpacks'}`
-  if (categoria === 'licor') return `${cantidad} ${uno ? 'botella' : 'botellas'}`
-  return `${cantidad} ${uno ? 'unidad' : 'unidades'}`
+/**
+ * Texto de lo vendido de un producto.
+ *
+ * Qué hace: devuelve "25 cajas · 28 unidades", "2 cajas" o "12 unidades";
+ * para el licor, "3 botellas".
+ * Cómo lo hace: junta todas las unidades vendidas (cajas, sixpacks y
+ * unidades ya convertidas) y las parte con `descomponerEnCajas` usando las
+ * unidades por caja de ese producto; omite la parte que dé cero.
+ * Por qué: antes se mostraba tal cual se vendió ("24 cajas · 66 unidades"),
+ * y con una caja de 38 eso son en realidad 25 cajas y 28 unidades. El
+ * negocio cuenta en cajas completas.
+ */
+function textoVendido(unidades: number, unidadesPorCaja: number, categoria: CategoriaProducto): string {
+  const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+  if (categoria === 'licor') return plural(unidades, 'botella', 'botellas')
+  const { cajas, sueltas } = descomponerEnCajas(unidades, unidadesPorCaja)
+  const partes = [
+    ...(cajas > 0 ? [plural(cajas, 'caja', 'cajas')] : []),
+    ...(sueltas > 0 || cajas === 0 ? [plural(sueltas, 'unidad', 'unidades')] : []),
+  ]
+  return partes.join(' · ')
 }
 
 interface Acumulado {
   unidades: number
   unidadesPorCaja: number
   valor: number
-  porPresentacion: Map<Presentacion, number>
 }
 
 export function resumirProductosVendidos(
@@ -91,10 +102,9 @@ export function resumirProductosVendidos(
     for (const renglon of venta.renglones) {
       const unidades = aUnidades(renglon.producto, renglon.presentacion, renglon.cantidad)
       if (unidades === 0) continue
-      const actual = porProducto.get(renglon.productoId) ?? { unidades: 0, unidadesPorCaja: renglon.producto.unidadesPorCaja, valor: 0, porPresentacion: new Map() }
+      const actual = porProducto.get(renglon.productoId) ?? { unidades: 0, unidadesPorCaja: renglon.producto.unidadesPorCaja, valor: 0 }
       actual.unidades += unidades
       actual.valor += valorItem(renglon)
-      actual.porPresentacion.set(renglon.presentacion, (actual.porPresentacion.get(renglon.presentacion) ?? 0) + renglon.cantidad)
       porProducto.set(renglon.productoId, actual)
     }
   }
@@ -110,9 +120,7 @@ export function resumirProductosVendidos(
       categoria: info.categoria,
       unidades: a.unidades,
       valor: a.valor,
-      desglose: ORDEN.filter((p) => a.porPresentacion.has(p))
-        .map((p) => textoPresentacion(p, a.porPresentacion.get(p) ?? 0, info.categoria))
-        .join(' · '),
+      desglose: textoVendido(a.unidades, a.unidadesPorCaja, info.categoria),
     }
   })
   filas.sort((x, y) => y.valor - x.valor || x.nombre.localeCompare(y.nombre))

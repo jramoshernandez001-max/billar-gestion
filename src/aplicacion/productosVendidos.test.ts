@@ -73,8 +73,31 @@ describe('resumirProductosVendidos', () => {
     ])]
     const r = resumirProductosVendidos(ventas, '2026-11-03', '2026-11-03', catalogo)
     expect(r.filas.map((f) => f.productoId)).toEqual(['c'])
-    expect(r.filas[0].desglose).toBe('2 sixpacks')
+    // Los sixpacks se convierten a unidades: 2 sixpacks = 12 unidades, menos de una caja.
+    expect(r.filas[0].desglose).toBe('12 unidades')
     expect(r.filas[0].unidades).toBe(12)
+  })
+
+  it('el desglose junta todo en cajas completas y unidades sueltas, con las unidades por caja del producto', () => {
+    // Caja x38: 24 cajas (912) + 66 unidades = 978 = 25 cajas y 28 unidades.
+    const costenita = { unidadesPorCaja: 38, manejaSixpack: false, precioUnidad: 3000, precioCaja: 114000 }
+    const ventas = [venta('v1', '2026-11-03', [
+      { productoId: 'c', producto: costenita, presentacion: 'caja', cantidad: 24 },
+      { productoId: 'c', producto: costenita, presentacion: 'unidad', cantidad: 66 },
+    ])]
+    const fila = resumirProductosVendidos(ventas, '2026-11-03', '2026-11-03', catalogo).filas[0]
+    expect(fila.unidades).toBe(978)
+    expect(fila.desglose).toBe('25 cajas · 28 unidades')
+  })
+
+  it('sixpacks, cajas y unidades se juntan; si no sobran unidades solo dice las cajas', () => {
+    // Caja x24: 1 caja + 3 sixpacks (18) + 6 unidades = 48 = 2 cajas exactas.
+    const ventas = [venta('v1', '2026-11-03', [
+      { productoId: 'c', producto: cerveza, presentacion: 'caja', cantidad: 1 },
+      { productoId: 'c', producto: cerveza, presentacion: 'sixpack', cantidad: 3 },
+      { productoId: 'c', producto: cerveza, presentacion: 'unidad', cantidad: 6 },
+    ])]
+    expect(resumirProductosVendidos(ventas, '2026-11-03', '2026-11-03', catalogo).filas[0].desglose).toBe('2 cajas')
   })
 
   it('sin ventas devuelve todo en cero', () => {
