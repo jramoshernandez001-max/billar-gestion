@@ -42,6 +42,11 @@ export interface DatosCerrarPeriodo {
   transferencias: number
   /** Costo por unidad de productos vendidos sin compras (solo semanal). */
   costosManuales?: Record<string, number>
+  /**
+   * "Todo cuadró manual": el dinero se cuadró por fuera de la app. El cierre
+   * se guarda con efectivo y transferencias en cero y da cuadrado.
+   */
+  manual?: boolean
 }
 
 /** Operaciones del servicio. */
@@ -64,6 +69,20 @@ interface Calculo {
 export interface VistaPreviaCierre extends Calculo {
   /** Último día del periodo. */
   hasta: string
+}
+
+/**
+ * Dice si un cierre guardado se cuadró a mano.
+ *
+ * Qué hace: busca la marca `manual` en el cuadre del resultado guardado.
+ * Cómo lo hace: en el diario el cuadre es el resultado; en el semanal está
+ * en `resultado.cuadre`.
+ * Por qué: al recalcular, un cierre manual debe seguir siendo manual.
+ */
+function eraManual(tipo: TipoCierre, resultado: unknown): boolean {
+  if (typeof resultado !== 'object' || resultado === null) return false
+  const cuadre = tipo === 'diario' ? resultado : (resultado as { cuadre?: unknown }).cuadre
+  return typeof cuadre === 'object' && cuadre !== null && (cuadre as { manual?: unknown }).manual === true
 }
 
 /** Deja solo las ventas con fecha dentro del periodo (extremos incluidos). */
@@ -104,6 +123,7 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
     efectivo: number,
     transferencias: number,
     costosManuales: Record<string, number>,
+    manual: boolean,
   ): Promise<Calculo> {
     const [ventas, deudas, abonos] = await Promise.all([
       dependencias.ventas.listarVentas(),
@@ -112,10 +132,10 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
     ])
     const delPeriodo = ventasDelPeriodo(ventas, desde, hasta)
     if (tipo === 'diario') {
-      return { resultado: cerrarDia({ fecha: desde, ventas: delPeriodo, efectivo, transferencias, deudas, abonos }), costosUsados: [] }
+      return { resultado: cerrarDia({ fecha: desde, ventas: delPeriodo, efectivo, transferencias, deudas, abonos, manual }), costosUsados: [] }
     }
     const compras = await dependencias.inventario.listarCompras()
-    const resultado = cerrarSemana({ desde, hasta, ventas: delPeriodo, efectivo, transferencias, deudas, abonos, compras, costosManuales })
+    const resultado = cerrarSemana({ desde, hasta, ventas: delPeriodo, efectivo, transferencias, deudas, abonos, compras, costosManuales, manual })
     return { resultado, costosUsados: resultado.costosUsados }
   }
 
@@ -131,10 +151,14 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
       validarSinCruceSemanal({ desde: datos.desde, hasta }, await dependencias.cierres.listarCierres())
     }
     const costosManuales = datos.costosManuales ?? {}
+    // En el cuadre manual no se guarda dinero: lo escrito en los campos se ignora.
+    const manual = datos.manual === true
+    const efectivo = manual ? 0 : datos.efectivo
+    const transferencias = manual ? 0 : datos.transferencias
     const calculo = await calcular(
-      datos.tipo, datos.desde, hasta, datos.efectivo, datos.transferencias, costosManuales,
+      datos.tipo, datos.desde, hasta, efectivo, transferencias, costosManuales, manual,
     )
-    return { ...calculo, hasta, costosManuales }
+    return { ...calculo, hasta, costosManuales, efectivo, transferencias }
   }
 
   return {
@@ -144,13 +168,13 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
     },
 
     async cerrarPeriodo(datos) {
-      const { resultado, costosUsados, hasta, costosManuales } = await calcularNuevo(datos)
+      const { resultado, costosUsados, hasta, costosManuales, efectivo, transferencias } = await calcularNuevo(datos)
       return dependencias.cierres.guardarCierre({
         tipo: datos.tipo,
         desde: datos.desde,
         hasta,
-        efectivo: datos.efectivo,
-        transferencias: datos.transferencias,
+        efectivo,
+        transferencias,
         costosManuales,
         costosUsados,
         resultado,
@@ -161,8 +185,11 @@ export function crearServicioCierres(dependencias: DependenciasCierres): Servici
       const cierres = await dependencias.cierres.listarCierres()
       const cierre = cierres.find((c) => c.id === cierreId)
       if (cierre === undefined) throw new Error(`El cierre ${cierreId} no existe`)
+      // Sigue manual si lo era y nadie le corrigió el dinero después; si le
+      // escribieron efectivo o transferencias, se cuadra con ese dinero.
+      const manual = eraManual(cierre.tipo, cierre.resultado) && cierre.efectivo === 0 && cierre.transferencias === 0
       const { resultado, costosUsados } = await calcular(
-        cierre.tipo, cierre.desde, cierre.hasta, cierre.efectivo, cierre.transferencias, cierre.costosManuales,
+        cierre.tipo, cierre.desde, cierre.hasta, cierre.efectivo, cierre.transferencias, cierre.costosManuales, manual,
       )
       await dependencias.cierres.recalcularCierre(cierre.id, costosUsados, resultado)
     },

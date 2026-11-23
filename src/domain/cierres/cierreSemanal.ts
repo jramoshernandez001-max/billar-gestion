@@ -52,6 +52,11 @@ export interface DatosCierreSemanal {
    * ninguna compra hasta `hasta`. La clave es el id del producto.
    */
   costosManuales?: Readonly<Record<string, number>>
+  /**
+   * Verdadero si la semana se cuadró a mano por fuera de la app: el cuadre
+   * da exacto y la utilidad real queda igual a la esperada.
+   */
+  manual?: boolean
 }
 
 /**
@@ -251,6 +256,7 @@ export function cerrarSemana(datos: DatosCierreSemanal): ResultadoCierreSemanal 
     efectivo: datos.efectivo,
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.desde, datos.hasta),
+    manual: datos.manual,
   })
   const { lineas, productosSinCosto, comprasUsadas, costosUsados } = lineasReposicion(
     renglones,

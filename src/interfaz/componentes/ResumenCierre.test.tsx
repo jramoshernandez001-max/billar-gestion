@@ -14,7 +14,7 @@ import type { VistaCierre } from '../../aplicacion/vistaCierre'
 
 afterEach(cleanup)
 
-const base: VistaCierre = { vendido: 60000, dineroTotal: 60000, efectivo: 40000, transferencias: 10000, deudas: 10000, estado: 'cuadra', monto: 0, semanal: null }
+const base: VistaCierre = { vendido: 60000, dineroTotal: 60000, efectivo: 40000, transferencias: 10000, deudas: 10000, estado: 'cuadra', monto: 0, semanal: null, manual: false }
 
 describe('ResumenCierre', () => {
   it('diario que cuadra', () => {
@@ -55,5 +55,15 @@ describe('ResumenCierre', () => {
     cleanup()
     render(<ResumenCierre vista={{ ...base, semanal: { completo: true, costoReposicion: 30000, utilidadEsperada: 35000, utilidadReal: 35000, diferenciaUtilidad: 0, ventasSinCosto: 0, ventasAdicionales: 0, productosSinCosto: [], comprasUsadas: 2 } }} />)
     expect(screen.queryByText(/Otros \(aparte/)).toBeNull()
+  })
+
+  it('cuadre manual: dice "Cuadró manual" y no muestra efectivo, transferencias ni deudas', () => {
+    render(<ResumenCierre vista={{ ...base, efectivo: 0, transferencias: 0, deudas: 60000, manual: true }} />)
+    expect(screen.getByText('Cuadró manual')).toBeTruthy()
+    expect(screen.getByText('$ 60.000', { selector: '.dato__total' })).toBeTruthy()
+    expect(screen.queryByText('Efectivo')).toBeNull()
+    expect(screen.queryByText('Transferencias')).toBeNull()
+    expect(screen.queryByText('Deudas')).toBeNull()
+    expect(screen.getByText('El dinero se cuadró por fuera de la app.')).toBeTruthy()
   })
 })

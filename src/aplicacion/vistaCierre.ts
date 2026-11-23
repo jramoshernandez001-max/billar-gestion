@@ -43,6 +43,8 @@ export interface VistaCierre {
   /** Faltante o sobrante en pesos; cero si cuadra exacto. */
   monto: number
   semanal: VistaSemanal | null
+  /** Verdadero si se cerró con "Todo cuadró manual" (dinero cuadrado por fuera). */
+  manual: boolean
 }
 
 const malo = () => new Error('El resultado del cierre no tiene la forma esperada')
@@ -62,6 +64,7 @@ function leerCuadre(valor: unknown): ResultadoCuadre {
     cuadra: valor.cuadra,
     faltante: entero(valor.faltante),
     sobrante: entero(valor.sobrante),
+    ...(valor.manual === true ? { manual: true as const } : {}),
   }
 }
 
@@ -106,5 +109,6 @@ export function describirCierre(
     estado: cuadre.faltante > 0 ? 'faltante' : cuadre.sobrante > 0 ? 'sobrante' : 'cuadra',
     monto: cuadre.faltante > 0 ? cuadre.faltante : cuadre.sobrante,
     semanal: tipo === 'semanal' ? leerSemanal(resultado, nombres) : null,
+    manual: cuadre.manual === true,
   }
 }

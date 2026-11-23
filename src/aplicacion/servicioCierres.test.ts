@@ -140,6 +140,26 @@ describe('cerrarPeriodo semanal', () => {
   })
 })
 
+describe('cerrarPeriodo con cuadre manual', () => {
+  it('guarda el cierre con efectivo y transferencias en cero y marcado como manual', async () => {
+    const { servicio, guardarCierre } = armar({ ventas: [venta('a', '2026-11-03', 2)] })
+    await servicio.cerrarPeriodo({ tipo: 'diario', desde: '2026-11-03', efectivo: 5000, transferencias: 700, manual: true })
+    expect(guardarCierre).toHaveBeenCalledWith(expect.objectContaining({
+      efectivo: 0,
+      transferencias: 0,
+      resultado: { dineroTotal: 6000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true },
+    }))
+  })
+
+  it('semanal manual: cuadra y la utilidad real es la esperada', async () => {
+    const { servicio, guardarCierre } = armar({ ventas: [venta('a', '2026-11-03', 1)] })
+    await servicio.cerrarPeriodo({ tipo: 'semanal', desde: '2026-11-03', hasta: '2026-11-09', efectivo: 0, transferencias: 0, manual: true })
+    const guardado = (guardarCierre.mock.calls[0] as unknown as [{ resultado: { cuadre: unknown; utilidad: { diferencia: number } } }])[0]
+    expect(guardado.resultado.cuadre).toMatchObject({ cuadra: true, faltante: 0, manual: true })
+    expect(guardado.resultado.utilidad.diferencia).toBe(0)
+  })
+})
+
 describe('vistaPreviaCierre', () => {
   it('calcula el resultado sin guardar nada', async () => {
     const { servicio, guardarCierre } = armar({ ventas: [venta('a', '2026-11-03', 2)] })
@@ -184,6 +204,20 @@ describe('recalcularCierre', () => {
     const { servicio, recalcularCierre } = armar({ ventas: [venta('a', '2026-11-03', 3)], cierres: [guardado] })
     await servicio.recalcularCierre('cierre-1')
     // ahora se vendió 9000; dinero 4000 + 1000 + 1000 = 6000 → faltan 3000
+    expect(recalcularCierre).toHaveBeenCalledWith('cierre-1', [], { dineroTotal: 6000, diferencia: -3000, cuadra: false, faltante: 3000, sobrante: 0 })
+  })
+
+  it('un cierre manual sigue siendo manual al recalcular', async () => {
+    const manual: CierreLeido = { ...guardado, efectivo: 0, transferencias: 0, resultado: { dineroTotal: 6000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true } }
+    const { servicio, recalcularCierre } = armar({ ventas: [venta('a', '2026-11-03', 3)], cierres: [manual] })
+    await servicio.recalcularCierre('cierre-1')
+    expect(recalcularCierre).toHaveBeenCalledWith('cierre-1', [], { dineroTotal: 9000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true })
+  })
+
+  it('si a un cierre manual le corrigieron el dinero, al recalcular se cuadra con ese dinero', async () => {
+    const corregido: CierreLeido = { ...guardado, efectivo: 4000, transferencias: 1000, resultado: { dineroTotal: 6000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true } }
+    const { servicio, recalcularCierre } = armar({ ventas: [venta('a', '2026-11-03', 3)], cierres: [corregido] })
+    await servicio.recalcularCierre('cierre-1')
     expect(recalcularCierre).toHaveBeenCalledWith('cierre-1', [], { dineroTotal: 6000, diferencia: -3000, cuadra: false, faltante: 3000, sobrante: 0 })
   })
 
