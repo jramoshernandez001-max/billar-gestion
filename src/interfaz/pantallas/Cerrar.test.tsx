@@ -10,7 +10,7 @@
  * de guardarlo y los productos sin costo nunca se toman como cero.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Cerrar, type ServiciosCerrar } from './Cerrar'
 
 afterEach(cleanup)
@@ -74,6 +74,28 @@ describe('Cerrar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar día' }))
     await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/cierres/nuevo'))
     expect(s.servicioCierres.cerrarPeriodo).toHaveBeenCalledWith({ tipo: 'diario', desde: '2026-11-04', efectivo: 60000, transferencias: 0, costosManuales: {} })
+  })
+
+  it('"Todo cuadró manual" pide confirmar y cierra el día sin efectivo ni transferencias', async () => {
+    const s = servicios()
+    const alIr = vi.fn()
+    dibujar(s, 'diario', alIr)
+    await screen.findByText(/Faltante/)
+    fireEvent.click(screen.getByRole('button', { name: 'Todo cuadró manual' }))
+    const dialogo = screen.getByRole('dialog', { name: 'Todo cuadró manual' })
+    expect(s.servicioCierres.cerrarPeriodo).not.toHaveBeenCalled()
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Sí, cerrar día' }))
+    await waitFor(() => expect(alIr).toHaveBeenCalledWith('mas/cierres/nuevo'))
+    expect(s.servicioCierres.cerrarPeriodo).toHaveBeenCalledWith({ tipo: 'diario', desde: '2026-11-04', efectivo: 0, transferencias: 0, costosManuales: {}, manual: true })
+  })
+
+  it('"Todo cuadró manual" en la semana cierra la semana elegida', async () => {
+    const s = servicios()
+    dibujar(s, 'semanal')
+    await screen.findByText(/Faltante/)
+    fireEvent.click(screen.getByRole('button', { name: 'Todo cuadró manual' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sí, cerrar semana' }))
+    await waitFor(() => expect(s.servicioCierres.cerrarPeriodo).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'semanal', desde: '2026-10-27', hasta: '2026-11-02', efectivo: 0, transferencias: 0, manual: true })))
   })
 
   it('semanal: propone la última semana de martes a lunes', async () => {

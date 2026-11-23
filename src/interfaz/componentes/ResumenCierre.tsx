@@ -2,7 +2,7 @@
  * Resumen de un cierre.
  *
  * Qué hace: muestra lo vendido, el dinero (efectivo, transferencias y
- * deudas), si el cierre cuadra, falta o sobra y, en el semanal, la utilidad
+ * deudas; o, si se cuadró a mano, solo "Cuadró manual"), si el cierre cuadra, falta o sobra y, en el semanal, la utilidad
  * (completa o solo la esperada si falta algún costo) y lo vendido en "Otros",
  * que va aparte porque no tiene costo.
  * Cómo lo hace: dibuja una `VistaCierre` ya calculada; no calcula nada.
@@ -16,6 +16,7 @@ import { formatoPesos } from '../formato'
 const firmado = (n: number) => (n < 0 ? `−${formatoPesos(-n)}` : formatoPesos(n))
 
 function textoEstado(v: VistaCierre): string {
+  if (v.manual) return 'Cuadró manual'
   if (v.estado === 'faltante') return `Faltante de ${formatoPesos(v.monto)}`
   if (v.estado === 'sobrante') return `Sobrante de ${formatoPesos(v.monto)}`
   return 'Cuadra'
@@ -34,10 +35,17 @@ export function ResumenCierre({ vista }: { vista: VistaCierre }) {
       <article className="tarjeta">
         <div className="dato"><span className="dato__etiqueta">Vendido</span><span className="dato__total">{formatoPesos(vista.vendido)}</span></div>
         <div className="division" />
-        <div className="dato"><span className="dato__etiqueta">Efectivo</span><span className="dato__valor">{formatoPesos(vista.efectivo)}</span></div>
-        <div className="dato"><span className="dato__etiqueta">Transferencias</span><span className="dato__valor">{formatoPesos(vista.transferencias)}</span></div>
-        <div className="dato"><span className="dato__etiqueta">Deudas</span><span className="dato__valor" data-dato="deudas">{formatoPesos(vista.deudas)}</span></div>
-        <div className="dato"><span className="dato__etiqueta">Dinero total</span><span className="dato__valor" data-dato="dinero-total">{formatoPesos(vista.dineroTotal)}</span></div>
+        {vista.manual ? (
+          // Cuadre manual: el dinero no se escribió en la app, no hay cifras que mostrar.
+          <p className="texto-suave">El dinero se cuadró por fuera de la app.</p>
+        ) : (
+          <>
+            <div className="dato"><span className="dato__etiqueta">Efectivo</span><span className="dato__valor">{formatoPesos(vista.efectivo)}</span></div>
+            <div className="dato"><span className="dato__etiqueta">Transferencias</span><span className="dato__valor">{formatoPesos(vista.transferencias)}</span></div>
+            <div className="dato"><span className="dato__etiqueta">Deudas</span><span className="dato__valor" data-dato="deudas">{formatoPesos(vista.deudas)}</span></div>
+            <div className="dato"><span className="dato__etiqueta">Dinero total</span><span className="dato__valor" data-dato="dinero-total">{formatoPesos(vista.dineroTotal)}</span></div>
+          </>
+        )}
       </article>
 
       {s !== null && s.completo && (

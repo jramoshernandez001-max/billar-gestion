@@ -104,4 +104,14 @@ describe('cuadrarCierre', () => {
     expect(() => cuadrarCierre({ ...base, transferencias: -5 })).toThrow()
     expect(() => cuadrarCierre({ ...base, deudas: 0.5 })).toThrow()
   })
+
+  it('cuadre manual: cuadra sin dinero escrito, sin faltante ni sobrante, y queda marcado', () => {
+    expect(cuadrarCierre({ valorVentas: 50000, efectivo: 0, transferencias: 0, deudas: 7000, manual: true })).toEqual({
+      dineroTotal: 50000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true,
+    })
+  })
+
+  it('cuadre manual exige que no se haya escrito efectivo ni transferencias', () => {
+    expect(() => cuadrarCierre({ valorVentas: 50000, efectivo: 1000, transferencias: 0, deudas: 0, manual: true })).toThrow(/manual/i)
+  })
 })

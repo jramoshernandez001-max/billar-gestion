@@ -375,4 +375,11 @@ describe('cerrarSemana', () => {
       expect(cerrarSemana(datos({ ventas: [vigente(renglones), conOtros('anulada')] })).ventasAdicionales).toBe(0)
     })
   })
+
+  it('cuadre manual: cuadra sin dinero escrito y la utilidad real es igual a la esperada', () => {
+    const r = comoCompleto(cerrarSemana(datos({ efectivo: 0, transferencias: 0, manual: true })))
+    expect(r.cuadre).toMatchObject({ cuadra: true, faltante: 0, sobrante: 0, manual: true })
+    expect(r.utilidad.utilidadReal).toBe(r.utilidad.utilidadEsperada)
+    expect(r.utilidad.diferencia).toBe(0)
+  })
 })

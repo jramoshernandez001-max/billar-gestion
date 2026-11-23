@@ -5,7 +5,8 @@
  * instante el resultado (cuadra, faltante o sobrante y, en la semana, la
  * utilidad) y guarda el cierre. En la semana pide el costo por unidad de los
  * productos vendidos sin compras. También lista los productos vendidos del
- * periodo para revisar qué se vendió antes de confirmar.
+ * periodo para revisar qué se vendió antes de confirmar. El botón "Todo
+ * cuadró manual" cierra sin escribir dinero, después de confirmar.
  * Cómo lo hace: llama a `vistaPreviaCierre` cada vez que cambian los datos,
  * convierte el resultado con `describirCierre` y lo dibuja con
  * `ResumenCierre`; al confirmar llama a `cerrarPeriodo` y va al detalle.
@@ -25,6 +26,7 @@ import { CampoFecha } from '../componentes/CampoFecha'
 import { Opciones } from '../componentes/Opciones'
 import { ProductosVendidos } from '../componentes/ProductosVendidos'
 import { ResumenCierre } from '../componentes/ResumenCierre'
+import { Modal } from '../componentes/Modal'
 import { fechaCorta } from '../formato'
 import { MENSAJES_ACCION } from '../../aplicacion/mensajesAccion'
 import { useAvisos } from '../avisos/contextoAvisos'
@@ -65,6 +67,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
   const [previa, setPrevia] = useState<Previa | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
+  const [confirmarManual, setConfirmarManual] = useState(false)
 
   const desde = tipo === 'diario' ? fecha : desdeSemana
   const costosManuales = useMemo(() => {
@@ -141,11 +144,19 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
     return resumirProductosVendidos(ventas, desde, hasta, catalogo)
   }, [ventas, productos, desde, hasta])
 
-  const cerrar = async () => {
+  /**
+   * Guarda el cierre y va a su detalle.
+   * Con `manual`, cierra con "Todo cuadró manual": sin efectivo ni
+   * transferencias, porque el dinero se cuadró por fuera de la app.
+   */
+  const cerrar = async (manual = false) => {
     setEnviando(true)
     setFallo(null)
+    setConfirmarManual(false)
     try {
-      const id = await servicios.servicioCierres.cerrarPeriodo(datos)
+      const id = await servicios.servicioCierres.cerrarPeriodo(
+        manual ? { ...datos, efectivo: 0, transferencias: 0, manual: true } : datos,
+      )
       avisos.mostrar(MENSAJES_ACCION.cierreGuardado)
       alIr(`mas/cierres/${id}`)
     } catch (causa) {
@@ -154,6 +165,7 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
     }
   }
 
+  const textoCerrar = tipo === 'diario' ? 'Cerrar día' : 'Cerrar semana'
   const solo = (set: (v: string) => void) => (e: { target: { value: string } }) => set(e.target.value.replace(/\D/g, ''))
   return (
     <>
@@ -196,9 +208,26 @@ export function Cerrar({ servicios, tipo, hoy, alIr }: Propiedades) {
         {vendidos !== null && <ProductosVendidos datos={vendidos} mostrarCajas={tipo === 'semanal'} />}
 
         {fallo !== null && <span role="alert" className="texto-error">{fallo}</span>}
-        <button type="button" className="boton boton--primario" disabled={vista === null || enviando} onClick={cerrar}>
-          {tipo === 'diario' ? 'Cerrar día' : 'Cerrar semana'}
+        <button type="button" className="boton boton--primario" disabled={vista === null || enviando} onClick={() => cerrar()}>
+          {textoCerrar}
         </button>
+        <button type="button" className="boton" disabled={vista === null || enviando} onClick={() => setConfirmarManual(true)}>
+          Todo cuadró manual
+        </button>
+        {confirmarManual && (
+          <Modal titulo="Todo cuadró manual" alCerrar={() => setConfirmarManual(false)}>
+            <p>
+              Se cierra {tipo === 'diario' ? 'el día' : 'la semana'} como cuadrado, sin escribir efectivo,
+              transferencias ni deudas, porque el dinero ya se cuadró por fuera de la app.
+            </p>
+            <div className="acciones">
+              <button type="button" className="boton" onClick={() => setConfirmarManual(false)}>Cancelar</button>
+              <button type="button" className="boton boton--primario" disabled={enviando} onClick={() => cerrar(true)}>
+                Sí, {textoCerrar.toLowerCase()}
+              </button>
+            </div>
+          </Modal>
+        )}
       </div>
     </>
   )

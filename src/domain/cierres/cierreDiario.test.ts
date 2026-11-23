@@ -118,4 +118,10 @@ describe('cerrarDia', () => {
     expect(resultado.diferencia).toBe(0)
     expect(resultado.cuadra).toBe(true)
   })
+
+  it('con cuadre manual cuadra lo vendido sin pedir dinero', () => {
+    expect(cerrarDia(datos({ efectivo: 0, transferencias: 0, manual: true }))).toEqual({
+      dineroTotal: 50000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true,
+    })
+  })
 })

@@ -28,6 +28,8 @@ export interface DatosCierreDiario {
   deudas: readonly Deuda[]
   /** Abonos registrados; restan de lo que se debe hasta ese día. */
   abonos: readonly Abono[]
+  /** Verdadero si el día se cuadró a mano por fuera de la app. */
+  manual?: boolean
 }
 
 /**
@@ -50,5 +52,6 @@ export function cerrarDia(datos: DatosCierreDiario): ResultadoCuadre {
     efectivo: datos.efectivo,
     transferencias: datos.transferencias,
     deudas: totalDeudasPendientes(datos.deudas, datos.abonos, datos.fecha, datos.fecha),
+    manual: datos.manual,
   })
 }

@@ -25,6 +25,11 @@ export interface DatosCierre {
   transferencias: number
   /** Deudas del periodo que aún cuentan como dinero por cobrar. */
   deudas: number
+  /**
+   * Verdadero si el cierre se cuadró a mano por fuera de la app ("Todo
+   * cuadró manual"): no se escribe dinero y se da por cuadrado.
+   */
+  manual?: boolean
 }
 
 /** Resultado de comparar la venta con el dinero. */
@@ -39,6 +44,25 @@ export interface ResultadoCuadre {
   faltante: number
   /** Plata que sobra; cero cuando no sobra o falta. */
   sobrante: number
+  /** Presente solo si el cierre se cuadró a mano (ver `DatosCierre.manual`). */
+  manual?: true
+}
+
+/**
+ * Cuadre dado a mano.
+ *
+ * Qué hace: devuelve un cuadre exacto (dinero igual a lo vendido, sin
+ * faltante ni sobrante) marcado como manual.
+ * Cómo lo hace: toma el dinero total como el valor de lo vendido.
+ * Por qué: el negocio a veces cuenta y cuadra el dinero por fuera de la app;
+ * así el cierre queda guardado sin inventar efectivo ni transferencias, y la
+ * utilidad semanal real sale igual a la esperada.
+ */
+function cuadreManual(datos: DatosCierre): ResultadoCuadre {
+  if (datos.efectivo !== 0 || datos.transferencias !== 0) {
+    throw new Error('Un cuadre manual no lleva efectivo ni transferencias')
+  }
+  return { dineroTotal: datos.valorVentas, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true }
 }
 
 /**
@@ -57,6 +81,7 @@ export function cuadrarCierre(datos: DatosCierre): ResultadoCuadre {
   validarMonto('El efectivo', datos.efectivo)
   validarMonto('Las transferencias', datos.transferencias)
   validarMonto('Las deudas', datos.deudas)
+  if (datos.manual === true) return cuadreManual(datos)
 
   const dineroTotal = datos.efectivo + datos.transferencias + datos.deudas
   const diferencia = dineroTotal - datos.valorVentas

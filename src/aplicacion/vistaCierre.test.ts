@@ -80,4 +80,10 @@ describe('describirCierre (semanal)', () => {
     expect(() => describirCierre('semanal', { cualquier: 'cosa' }, { efectivo: 0, transferencias: 0 }, nombres)).toThrow(/resultado/i)
     expect(() => describirCierre('diario', null, { efectivo: 0, transferencias: 0 }, nombres)).toThrow(/resultado/i)
   })
+
+  it('un cierre con cuadre manual queda marcado como manual; uno normal no', () => {
+    const manual = { dineroTotal: 60000, diferencia: 0, cuadra: true, faltante: 0, sobrante: 0, manual: true }
+    expect(describirCierre('diario', manual, { efectivo: 0, transferencias: 0 }, nombres)).toMatchObject({ manual: true, estado: 'cuadra', vendido: 60000 })
+    expect(describirCierre('diario', diario(0), { efectivo: 40000, transferencias: 10000 }, nombres).manual).toBe(false)
+  })
 })
