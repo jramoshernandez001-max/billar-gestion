@@ -104,7 +104,8 @@ export interface TotalesCajas {
  * enteras que nunca existieron, sino verse tal cual.
  */
 function partirEnCajas(unidades: number, unidadesPorCaja: number): CajasYSueltas {
-  const cajas = Math.trunc(unidades / unidadesPorCaja)
+  // `|| 0` cambia el -0 que da Math.trunc con negativos pequeños por un 0 limpio.
+  const cajas = Math.trunc(unidades / unidadesPorCaja) || 0
   return { cajas, sueltas: unidades - cajas * unidadesPorCaja }
 }
 
@@ -175,4 +176,23 @@ export function detallarExistencias(filas: readonly FilaInventario[]): DetalleEx
       ? { productoId: f.productoId, nombre: f.nombre, tipo: 'botellas', botellas: f.total }
       : { productoId: f.productoId, nombre: f.nombre, tipo: 'cajas', ...partirEnCajas(f.total, f.unidadesPorCaja) },
   )
+}
+
+/**
+ * Cervezas que hay en la nevera.
+ *
+ * Qué hace: devuelve, por cada cerveza con algo en la nevera, cuántas cajas
+ * completas y cuántas sueltas hay ahí.
+ * Cómo lo hace: deja solo la categoría cerveza con nevera distinta de cero y
+ * parte la nevera de cada una con sus propias unidades por caja (una caja de
+ * Costeñita es x38, una de Coronita x24). Un negativo se deja ver como
+ * sueltas, igual que en los totales.
+ * Por qué: la nevera es de donde se vende; saber qué cerveza queda fría y
+ * cuánta ayuda a decidir qué trasladar desde la bodega. Licor y otros no van:
+ * se pidió solo la cerveza.
+ */
+export function detallarNevera(filas: readonly FilaInventario[]): DetalleEnCajas[] {
+  return filas
+    .filter((f) => f.categoria === 'cerveza' && f.nevera !== 0)
+    .map((f) => ({ productoId: f.productoId, nombre: f.nombre, tipo: 'cajas', ...partirEnCajas(f.nevera, f.unidadesPorCaja) }))
 }

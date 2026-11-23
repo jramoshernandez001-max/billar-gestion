@@ -9,7 +9,7 @@
  * (por ejemplo una compra sin cargar) y debe verse.
  */
 import { describe, it, expect } from 'vitest'
-import { detallarExistencias, resumirInventario, totalizarCajas } from './resumenInventario'
+import { detallarExistencias, detallarNevera, resumirInventario, totalizarCajas } from './resumenInventario'
 
 const productos = [
   { id: 'p1', nombre: 'Cerveza Ejemplo', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true },
@@ -128,6 +128,37 @@ describe('detallarExistencias', () => {
       { productoId: 'c1', nombre: 'Cerveza A', tipo: 'cajas', cajas: 3, sueltas: 5 },
       { productoId: 'l1', nombre: 'Licor A', tipo: 'botellas', botellas: 7 },
       { productoId: 'o1', nombre: 'Otro A', tipo: 'cajas', cajas: 1, sueltas: 0 },
+    ])
+  })
+})
+
+describe('detallarNevera', () => {
+  const catalogo = [
+    { id: 'c1', nombre: 'Cerveza A', categoria: 'cerveza' as const, unidadesPorCaja: 30, manejaSixpack: false },
+    { id: 'c2', nombre: 'Cerveza B', categoria: 'cerveza' as const, unidadesPorCaja: 24, manejaSixpack: true },
+    { id: 'c3', nombre: 'Cerveza C', categoria: 'cerveza' as const, unidadesPorCaja: 38, manejaSixpack: false },
+    { id: 'l1', nombre: 'Licor A', categoria: 'licor' as const, unidadesPorCaja: 1, manejaSixpack: false },
+    { id: 'o1', nombre: 'Otro A', categoria: 'otro' as const, unidadesPorCaja: 12, manejaSixpack: false },
+  ]
+  const stock = new Map([
+    ['c1', { bodega: 60, nevera: 35, total: 95 }],
+    ['c2', { bodega: 24, nevera: 0, total: 24 }],
+    ['c3', { bodega: 0, nevera: 38, total: 38 }],
+    ['l1', { bodega: 5, nevera: 2, total: 7 }],
+    ['o1', { bodega: 0, nevera: 12, total: 12 }],
+  ])
+
+  it('solo cervezas con algo en la nevera, en cajas y sueltas con sus propias unidades por caja', () => {
+    expect(detallarNevera(resumirInventario(catalogo, stock))).toEqual([
+      { productoId: 'c1', nombre: 'Cerveza A', tipo: 'cajas', cajas: 1, sueltas: 5 },
+      { productoId: 'c3', nombre: 'Cerveza C', tipo: 'cajas', cajas: 1, sueltas: 0 },
+    ])
+  })
+
+  it('un negativo en la nevera se muestra tal cual, como sueltas', () => {
+    const negativo = new Map([['c1', { bodega: 10, nevera: -3, total: 7 }]])
+    expect(detallarNevera(resumirInventario(catalogo.slice(0, 1), negativo))).toEqual([
+      { productoId: 'c1', nombre: 'Cerveza A', tipo: 'cajas', cajas: 0, sueltas: -3 },
     ])
   })
 })
