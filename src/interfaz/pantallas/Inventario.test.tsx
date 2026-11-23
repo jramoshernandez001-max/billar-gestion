@@ -72,6 +72,26 @@ describe('Inventario', () => {
     expect(totales.queryByRole('list', { name: 'Detalle por producto' })).toBeNull()
   })
 
+  it('"Ver detalles" muestra las cervezas que hay en la nevera y cuánto de cada una', async () => {
+    armar()
+    const totales = within(await screen.findByRole('region', { name: 'Total de cajas' }))
+    fireEvent.click(totales.getByRole('button', { name: 'Ver detalles' }))
+    const nevera = within(totales.getByRole('list', { name: 'Cervezas en la nevera' }))
+    // Águila 4 (x24) → 0 cajas · 4 sueltas; Poker -2 → se ve el negativo; Agua (x12) 12 → 1 caja.
+    expect(nevera.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Agua Cristal1 caja',
+      'Cerveza Águila0 cajas · 4 sueltas',
+      'Cerveza Poker0 cajas · -2 sueltas',
+    ])
+  })
+
+  it('si no hay cerveza en la nevera, lo dice', async () => {
+    armar({ obtenerStock: async () => new Map([['p1', { bodega: 24, nevera: 0, total: 24 }]]) })
+    const totales = within(await screen.findByRole('region', { name: 'Total de cajas' }))
+    fireEvent.click(totales.getByRole('button', { name: 'Ver detalles' }))
+    expect(totales.getByText('No hay cerveza en la nevera.')).toBeTruthy()
+  })
+
   it('los totales de cajas siguen la búsqueda', async () => {
     armar()
     await screen.findAllByRole('article')

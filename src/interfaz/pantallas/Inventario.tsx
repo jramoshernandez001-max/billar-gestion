@@ -17,6 +17,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { CircleAlert, Search } from 'lucide-react'
 import {
   detallarExistencias,
+  detallarNevera,
   resumirInventario,
   totalizarCajas,
   type DetalleExistencia,
@@ -98,6 +99,36 @@ function DetallePorProducto({ detalle }: { detalle: DetalleExistencia[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/**
+ * Cervezas que hay en la nevera.
+ *
+ * Qué hace: lista cada cerveza que tiene algo en la nevera con sus cajas y
+ * sueltas; si no hay ninguna, lo dice.
+ * Cómo lo hace: recibe el detalle ya calculado (`detallarNevera`) y reutiliza
+ * el mismo texto y estilo del detalle por producto.
+ * Por qué: va dentro de "Ver detalles" para responder "¿qué cerveza tengo
+ * fría y cuánta?" sin abrir tarjeta por tarjeta.
+ */
+function CervezasEnNevera({ detalle }: { detalle: DetalleExistencia[] }) {
+  return (
+    <>
+      <span className="campo__etiqueta">En la nevera</span>
+      {detalle.length === 0 ? (
+        <p className="texto-suave">No hay cerveza en la nevera.</p>
+      ) : (
+        <ul className="detalle-existencias" aria-label="Cervezas en la nevera">
+          {detalle.map((d) => (
+            <li key={d.productoId} className="detalle-existencias__fila">
+              <span>{d.nombre}</span>
+              <span className="texto-suave">{textoDetalle(d)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   )
 }
 
@@ -216,7 +247,12 @@ export function Inventario({ servicios, alIr }: Propiedades) {
           <button type="button" className="enlace" aria-expanded={verDetalles} onClick={() => setVerDetalles((v) => !v)}>
             {verDetalles ? 'Ocultar detalles' : 'Ver detalles'}
           </button>
-          {verDetalles && <DetallePorProducto detalle={detallarExistencias(visibles)} />}
+          {verDetalles && (
+            <>
+              <DetallePorProducto detalle={detallarExistencias(visibles)} />
+              <CervezasEnNevera detalle={detallarNevera(visibles)} />
+            </>
+          )}
         </section>
 
         <div className="campo">
